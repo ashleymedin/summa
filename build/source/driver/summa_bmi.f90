@@ -44,6 +44,7 @@ module summabmi
   USE data_types, only: var_i                                 ! vector of integers
   ! subroutines and functions: model setup
   USE summa_init, only: summa_initialize                      ! used to allocate/initialize summa data structures
+  USE summa_init, only: summa_initStreamNetwork               ! used to attach the stream domains to the river network
   USE summa_setup, only: summa_paramSetup                     ! used to initialize parameter data structures (e.g. vegetation and soil parameters)
   USE summa_restart, only: summa_readRestart                  ! used to read restart data and reset the model state
   ! subroutines and functions: model simulation
@@ -320,6 +321,11 @@ module summabmi
 
      ! read restart data and reset the model state
      call summa_readRestart(this%model%summa1_struc(n), err, message)
+     call handle_err(err, message)
+
+     ! stream temperature: which reach of the river network each stream HRU stands for
+     ! NOTE: after the restart read, since the domain types and the attributes are known by then
+     call summa_initStreamNetwork(this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
      ! get global variables that are constants throughout the model simulation
