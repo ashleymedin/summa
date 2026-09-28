@@ -86,6 +86,9 @@ The tables below list the time-varying variables that can be requested in the [o
 | `scalarCanopyEnthalpy` | enthalpy of the vegetation canopy | J m-3 |
 | `mLayerEnthalpy` | enthalpy of the layers | J m-3 |
 | `scalarAquiferStorage` | water required to bring aquifer to the bottom of the soil profile | m |
+| `scalarAquiferTemp` | temperature of the water in the aquifer | K |
+| `scalarAirTempWindow` | running mean of the air temperature over gwTempWindow | K |
+| `scalarAirTempAnnual` | running mean of the air temperature over a year | K |
 | `scalarSurfaceTemp` | surface temperature (just a copy of the upper-layer temperature) | K |
 | `mLayerDepth` | depth of each layer | m |
 | `mLayerHeight` | height of the layer mid-point (top of soil = 0) | m |
@@ -215,6 +218,15 @@ The tables below list the time-varying variables that can be requested in the [o
 | `hLast` | step size used on the last internal step | s |
 | `hCur` | step size to be used on the next internal step | s |
 | `tCur` | current time reached by the integrator | s |
+| `scalarStreamDepth` | mean depth of the reach water (liquid and ice) from mizuRoute | m |
+| `scalarStreamVelocity` | reach mean velocity from mizuRoute | m s-1 |
+| `scalarStreamTemp` | liquid-weighted temperature of the stream column (reach outlet temperature) | K |
+| `scalarLakeLiqDepth` | total liquid depth of the lake layers | m |
+| `scalarLakeIceThick` | thickness of the ice cover of the lake layers | m |
+| `scalarStreamSfcInflowTemp` | temperature of the rain plus melt entering the open water column | K |
+| `scalarFrostTableDepth` | depth to the top of the shallowest frozen soil layer | m |
+| `scalarActiveLayerDepth` | thickness of the soil above the perennially frozen ground below it | m |
+| `scalarHypTemp` | temperature of the hyporheic return flow | K |
 
 <a id="outvar_flux"></a>
 ### Flux variables
@@ -315,6 +327,14 @@ The tables below list the time-varying variables that can be requested in the [o
 | `scalarTotalRunoff` | total runoff | m s-1 |
 | `scalarGlacierMelt` | glacier system melt (goes into glacier internal reservoir) | m s-1 |
 | `scalarNetRadiation` | net radiation | W m-2 |
+| `scalarStreamInflow` | discharge entering the reach from upstream reaches | m3 s-1 |
+| `scalarStreamInflowTemp` | flow-weighted temperature of the upstream inflow | K |
+| `scalarStreamLatInflow` | lateral inflow to the reach from its local catchment | m3 s-1 |
+| `scalarStreamLatInflowTemp` | temperature of the lateral inflow | K |
+| `scalarStreamOutflow` | discharge leaving the reach | m3 s-1 |
+| `scalarStreamSfcInflow` | rain plus melt drainage entering the top of the open water column | m s-1 |
+| `mLayerLakeAdvNrgFlux` | advective energy source in each lake layer from reach inflow and outflow | J m-3 s-1 |
+| `scalarStreamRunoff` | net water the stream domain adds to the reach (rain + snowmelt - evaporation - sublimation) | m s-1 |
 
 <a id="outvar_bvar"></a>
 ### Basin-average variables
@@ -345,3 +365,6 @@ The tables below list the time-varying variables that can be requested in the [o
 | `glacSnowRunoffFuture` | per glacier snow reservoir runoff in future time steps | m s-1 |
 | `glacFirnRunoffFuture` | per glacier firn reservoir runoff in future time steps | m s-1 |
 | `glacierRoutedRunoff` | lapsed glacier runoff | m s-1 |
+| `routingNrgFuture` | energy flux of runoff in future time steps | W m-2 |
+| `hypTempPast` | reach outlet temperature in past time steps | K |
+| `averageRoutedRunoffTemp` | temperature of the routed runoff | K |
