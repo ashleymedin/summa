@@ -25,9 +25,18 @@ running the pair isolates what lateral flow contributes. They write `run1_latflo
 `run1_noLatflow*`, so neither overwrites the other.
 
 `run_sagehen1_steady.sh` and the three deeproot cases use `ex-gwf-sagehen-ss`, which adds a
-steady-state first stress period plus DRN and EVT packages; the rest share the MODFLOW 6 model
-in `ex-gwf-sagehen`. All of them run the same 72 hourly steps. Each case carries its own
+steady-state first stress period and an EVT package; the rest share the MODFLOW 6 model
+in `ex-gwf-sagehen`. Both carry a DRN at land surface, returned to SUMMA as surface runoff, so
+the water table cannot rise above the ground over a spin-up. All of them run the same 72 hourly steps. Each case carries its own
 `summa_modflow6.config`, so they can differ in package names, roles, HRU→cell map and feedback.
+
+The February 2017 cases — `run_sagehen1_wet*.sh` and every `run_sagehen9*.sh` — start the event
+from a spin-up, 2017-01-15 to 2017-02-06, 552 hourly steps with the same decisions, parameters and
+MODFLOW model. The first run of a case makes its spin-up, which takes about twenty minutes for
+`domain_sagehen9`; later runs restart from it. The spin-up lands in the domain's `simulations/spinup/`
+— the aquifer heads as `heads_<case>.bin` and SUMMA's state as `spinup_<case>_restart_2017020623_*.nc`
+— and is only remade once `heads_<case>.bin` is gone, so delete that folder after changing anything
+the spin-up depends on. `run_sagehen9_mizuroute.sh` restarts from `run_sagehen9.sh`'s spin-up.
 
 `run_sagehen9_mizuroute.sh` is the only case that also needs a TOML configuration file, which
 `coupler_commands.sh` takes with `-t` and passes to the coupler as a third argument. It
@@ -51,26 +60,28 @@ differ in structure alone. The forcing is identical, bit for bit. `tools/compare
 sums each flux over the run and weights it by area, in mm, because `domain_sagehen1` is 5.47%
 larger than the grid.
 
+Every case starts the event from its own spin-up, so the soil column is in equilibrium with
+its aquifer and there is about 440 mm of snow on the ground.
+
 | mm over 72 h | lumped | distributed | + latflow | lumped, deeproot | distributed, deeproot |
 |---|---:|---:|---:|---:|---:|
-| rain + melt | 125.40 | 125.38 | 125.38 | 125.40 | 125.38 |
-| surface runoff | 7.43 | 4.87 | 5.14 | 0.78 | 1.48 |
-| soil drainage (negative: up from the aquifer) | −235.28 | −130.82 | −130.63 | −37.01 | −82.19 |
-| aquifer seepage (DRN) | – | – | – | 0.296 | 0.011 |
-| lateral export to the reaches | – | – | 0.05 | – | – |
-| `basin__TotalRunoff` | 7.49 | 4.93 | 5.25 | 1.11 | 1.52 |
-| `averageRoutedRunoff` | 4.24 | 2.85 | 3.05 | 1.01 | 0.98 |
-| `scalarTranspireLimAqfr` (mean) | – | – | – | 0.546 | 0.553 |
+| rain + melt | 141.78 | 141.65 | 141.69 | 142.50 | 141.72 |
+| infiltration | 85.29 | 126.18 | 117.53 | 141.67 | 132.66 |
+| surface runoff | 56.48 | 15.47 | 24.17 | 0.83 | 9.07 |
+| soil drainage (negative: up from the aquifer) | 3.16 | 0.35 | 15.87 | 1.18 | −0.97 |
+| aquifer seepage (DRN) | 1.42 | 1.34 | 18.71 | 1.59 | 0.14 |
+| lateral export to the reaches | – | – | 1.20 | – | – |
+| `basin__TotalRunoff` | 57.95 | 16.84 | 44.08 | 2.45 | 9.23 |
+| `averageRoutedRunoff` | 33.71 | 11.52 | 36.67 | 1.96 | 6.36 |
+| `scalarTranspireLimAqfr` (mean) | – | – | – | 0.537 | 0.547 |
 
-The limiting factor agrees to 1.2% though the cells span 0.00 to 0.99 (p10–p90): the coupler
-already evaluates the ramp per cell for the lumped HRU. ET is 3.56 mm in every run, and aquifer
-transpiration is below 10⁻⁴ mm, since February is energy-limited.
-
-**Read the rest as an initial-state transient, not structure.** The soil column starts at
-0.2 water content with the water table inside it, so over 72 h it fills from below by one to
-two times the storm. That upward flux differs between the domains in opposite directions on the
-two MODFLOW models, and the runoff differences follow it. A spun-up soil column is needed before
-the comparison measures structure.
+Drainage is now small, so the runoff differences are structure. On `ex-gwf-sagehen` the lumped
+HRU turns 40% of the rain and melt into surface runoff against 11% distributed:
+`surfRun_SE = homegrown_SE` takes the infiltrating area from how full the root zone is, and one
+HRU with the water table inside its 3 m root zone is saturated everywhere at once, where the
+distributed cells span a range of water-table depths. On `ex-gwf-sagehen-ss` the water table sits
+below the lumped column, which infiltrates almost everything. ET is 1.87 mm in every run, and
+aquifer transpiration is below 10⁻⁴ mm, since February is energy-limited.
 
 ## How the coupling works
 
@@ -119,7 +130,12 @@ extinction ramp in MODFLOW would apply the same limit twice.
 
 `head_restart_read` / `head_restart_write` save and reload the MODFLOW head field, so an
 aquifer spun up once can start every later run. The calibration driver wires this up
-automatically, per rank.
+automatically, per rank. The serial coupler also takes them on its command line, and writing
+heads there makes SUMMA write its restart on the last step as well, so a spin-up leaves a
+matched pair. A restarted run hands SUMMA the saved water table on step 1 rather than
+`lowerBoundHead`, and restart heads replace a leading steady-state solve rather than being
+overwritten by it. Boundary fluxes are not saved, so step 1 of a restarted run carries no
+baseflow, seepage or groundwater ET back to SUMMA.
 
 Start-up reports each HRU's area against its effective mapped cell area, and the run ends with
 a coupled water budget: what SUMMA sent, what MODFLOW's RCH array received, what came back by
@@ -163,10 +179,16 @@ rather than a stop, since a missing declaration is not proof of the wrong unit.
 
 ## Running
 
-    ./coupler_commands.sh -c CONFIG MODFLOW_CASE SUMMA_FILEMANAGER [summa_modflow6.exe]
+    ./coupler_commands.sh -c CONFIG [-t TOML] [-r HEADS [-s SPINUP_FILEMANAGER]] [-w HEADS]
+                          MODFLOW_CASE SUMMA_FILEMANAGER [summa_modflow6.exe]
 
 `-c/--config` is **required**: each case keeps its own config beside its settings. The
 executable defaults to `../bin/summa_modflow6.exe`.
+
+`-r HEADS` starts MODFLOW from a saved head field, and SUMMA from whatever restart its file manager
+names as `initConditionFile`. `-w HEADS` writes the head field at the end, and SUMMA's restart with
+it. `-s SPINUP_FILEMANAGER`, given with `-r`, runs that file manager first as the spin-up writing
+`HEADS` whenever `HEADS` does not exist yet; the spin-up never routes, so `-t` is left out of it.
 
 ### MPI (`summa_modflow6_mpi.exe`)
 
