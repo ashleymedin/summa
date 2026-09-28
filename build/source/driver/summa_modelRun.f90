@@ -31,7 +31,6 @@ USE var_lookup,only:iLookTIME        ! named variables for time data structure
 USE var_lookup,only:iLookDIAG        ! look-up values for local column model diagnostic variables
 USE var_lookup,only:iLookINDEX       ! look-up values for local column index variables
 USE var_lookup,only:iLookBVAR        ! look-up values for basin variables
-USE summa_util,only:handle_err
 
 ! these are needed because we cannot access them in modules locally if we might use those modules with Actors
 USE globalData,only:fracJulDay       ! fractional julian days since the start of year
@@ -103,6 +102,9 @@ contains
  integer*8, allocatable                :: timeGRUstart(:)       ! time GRUs start
  real(rkind),  allocatable             :: timeGRUcompleted(:)   ! time required to complete each GRU
  real(rkind),  allocatable             :: timeGRU(:)            ! time spent on each GRU
+ ! local variables: errors raised inside the parallel loop
+ integer(i4b), allocatable             :: errGRU(:)             ! error code of each GRU
+ character(len=512), allocatable       :: msgGRU(:)             ! error message of each GRU
  integer(i4b)                          :: iSeg                  ! reach index
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
@@ -195,6 +197,11 @@ contains
  if(err/=0)then; message=trim(message)//'unable to allocate space for GRU timing'; return; endif
  timeGRU(:) = realMissing ! initialize because used for ranking
 
+ ! allocate space for GRU errors
+ allocate(errGRU(nGRU_local), msgGRU(nGRU_local), stat=err)
+ if(err/=0)then; message=trim(message)//'unable to allocate space for GRU errors'; return; endif
+ errGRU(:) = 0
+
  ! compute the total number of flux calls from the previous time step
  do jGRU=1,nGRU_local
   totalFluxCalls(jGRU) = 0._rkind
@@ -224,6 +231,7 @@ contains
   !$omp          shared(openMPstart, openMPend)   & ! access constant variables
   !$omp          shared(timeGRUstart, timeGRUcompleted, timeGRU, ixExpense, kGRU)  & ! time variables shared
   !$omp          shared(summa1_struc, gru_struc) &
+  !$omp          shared(errGRU, msgGRU) &
   !$omp          private(err, cmessage)
  ! associate to elements in the data structure, gru_struc
  ! need to associate again for the parallelism to work
@@ -290,8 +298,8 @@ contains
                   elapsedUpdateArea,            & ! intent(inout): elapsed time for updating glacier and wetland area for all GRUs (s)
                   err,cmessage)                   ! intent(out):   error control
 
-  ! check errors
-  call handle_err(err, cmessage)
+  ! keep the error: a thread cannot return from inside the parallel loop
+  if(err/=0)then; errGRU(iGRU)=err; msgGRU(iGRU)=cmessage; endif
 
   !----- save timing information ------------------------------------------------
   !$omp critical(saveTiming)
@@ -305,6 +313,17 @@ contains
  !$omp end do
  end associate summaVars2
  !$omp end parallel
+
+ ! report the first GRU that failed, with the time step it failed on
+ if(any(errGRU/=0))then
+  iGRU = findloc(errGRU/=0, .true., dim=1)
+  associate(t => summa1_struc%timeStruct%var)
+  write(cmessage,'(a,i0,a,i0,a,i4.4,2("-",i2.2),1x,i2.2,":",i2.2,a)') 'gruId ', gru_struc(iGRU)%gru_id, ', step ', modelTimeStep, &
+        ' (', t(iLookTIME%iyyy), t(iLookTIME%im), t(iLookTIME%id), t(iLookTIME%ih), t(iLookTIME%imin), '): '
+  end associate
+  message=trim(message)//trim(cmessage)//trim(msgGRU(iGRU))
+  err=errGRU(iGRU); return
+ endif
 
  ! ----- network routing ----------------------------------------------------
  if(mizuroute_active)then ! build-time capability
@@ -365,7 +384,7 @@ contains
  elapsedPhysics = elapsedPhysics + elapsedSec(startPhysics, endPhysics)
 
  ! deallocate space used to determine the GRU computational expense
- deallocate(totalFluxCalls, ixExpense, timeGRU, stat=err)
+ deallocate(totalFluxCalls, ixExpense, timeGRU, errGRU, msgGRU, stat=err)
  if(err/=0)then; message=trim(message)//'unable to deallocate space for GRU timing'; return; endif
 
  ! end associate statements

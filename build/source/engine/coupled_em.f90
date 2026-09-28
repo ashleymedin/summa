@@ -1860,7 +1860,10 @@ subroutine coupled_em(&
           write(*,'(a,1x,f20.10)') 'balanceSoilDrainage   = ', balanceSoilDrainage
           write(*,'(a,1x,f20.10)') 'balanceSoilET         = ', balanceSoilET
           write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError = ', scalarSoilWatBalError
-          message=trim(message)//'soil hydrology does not balance'
+          write(cmessage,'(8(a,es10.3))') 'soil hydrology does not balance (kg m-2): error ', scalarSoilWatBalError, &
+                ', start ', balanceSoilWater0, ', end ', scalarTotalSoilWat, ', influx ', balanceSoilInflux, ', ET ', balanceSoilET, &
+                ', baseflow ', balanceSoilBaseflow, ', drainage ', balanceSoilDrainage, ', compress ', balanceSoilCompress
+          message=trim(message)//trim(cmessage)
           err=20; return
         end if
       else
