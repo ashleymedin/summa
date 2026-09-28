@@ -321,3 +321,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -77) homegrown solver scale convergence criteria matric head to avoid unnecessarily tight convergence when there is no water or there is saturated flow (matric head is very large), commit c66140cf Sep 26, 2026
      psiScale of an iname_lmpLayer state is loosened to absConvTol_liquid/(absConvTol_matric*dVolTot_dPsi0), never tighter than the old relative test.
  81) calibration targets read one NetCDF observation form (no CSV reader or cadence) and may name the gru, hru or reach they score, commit 69e29caa Sep 28, 2026
+ 82) NSGA-II calibration (algorithm = "nsga2") on the targets; DDS and NSGA-II share one worker pool, commit cc30ba75 Sep 28, 2026
