@@ -322,3 +322,5 @@ AFTER tag of v4.0.0-exp-Sundials
      psiScale of an iname_lmpLayer state is loosened to absConvTol_liquid/(absConvTol_matric*dVolTot_dPsi0), never tighter than the old relative test.
 -78) computFlux.f90 calls groundwatr for modLatflow, not qTopmodl alone, commit 0e8947fd Sep 26, 2026
      Lateral flow was gated out of the flux call, so mLayerColumnOutflow was identically zero in every coupled run.
+-79) run_oneGRU.f90 channel heat of a MODFLOW-coupled run from its baseflow and seepage at the groundwater temperature, not soil drainage, commit 63dc9d06 Sep 29, 2026
+ 80) MODFLOW 6 GWE coupling: deepTherml = aquiferTemp takes scalarAquiferTemp from GWE, coupled runs allow only aquiferTemp or none, commit a7dec18d Sep 29, 2026
