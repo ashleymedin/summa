@@ -283,12 +283,9 @@ subroutine computFlux(&
   end associate
 
   ! *** CALCULATE THE LIQUID FLUX THROUGH LAKE ***
-  ! NOTE: after the snow, since what drains from the snow (or the rain and melt pond when there is no snow) arrives at the lake top
-  ! NOTE: frozen lake layers (the top nLakeFrz) are ice: impermeable, with melt squeezed upward through the glacier-ice branch;
-  !       the liquid layers beneath go through lakeLiqFlux; the generic finalize forms the layer fluxes and the lake drainage
   associate(nLakeOnlyHyd => indx_data%var(iLookINDEX%nLakeOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the lake
     if (nLakeOnlyHyd>0) then ! if necessary, compute liquid fluxes through lake
-      if (nLakeFrz>0) then
+      if (nLakeFrz>0) then ! frozen lake layers (the top nLakeFrz) are ice: impermeable, with melt squeezed upward through the glacier-ice branch
         call initialize_frzlakeLiqFlux
         call snowIceLiqFlux(in_snowLakeGlceLiqFlux,mpar_data,indx_data,prog_data,diag_data,io_snowLakeGlceLiqFlux,out_snowLakeGlceLiqFlux)
         call finalize_frzlakeLiqFlux; if(err/=0)then; return; endif
@@ -387,7 +384,7 @@ contains
      scalarSurfaceIceMeltDeriv = 0._rkind
     endif
    else ! lake layers, take from previous flux calculation
-    scalarRainPlusMelt = scalarLakeDrainage                    ! drainage from the base of the lake
+    scalarRainPlusMelt = scalarLakeDrainage ! drainage from the base of the lake
     if(nGlce>0) scalarGlacierMelt = scalarLakeDrainage - scalarGlceMelt + scalarSurfaceRunoff ! save for glacier melt flow calculations, may be overwritten with addition of below domain fluxes
    end if ! lake layers or not
   end associate

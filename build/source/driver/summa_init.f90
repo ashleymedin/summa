@@ -528,7 +528,7 @@ contains
   ! **************************************************************************************************
   subroutine summa_initStreamNetwork(summa1_struc, err, message)
     USE globalData,        only: gru_struc                 ! gru-hru mapping structures
-    USE var_lookup,        only: iLookPROG                 ! named variables for prognostic variables
+    USE var_lookup,        only: iLookPROG, iLookFLUX      ! named variables for prognostic variables and fluxes
     USE streamTemp_module, only: stream_domain_map         ! locate the stream HRU and domain of each GRU
     implicit none
 
@@ -561,6 +561,11 @@ contains
       write(iulog,'(a,i0,a)') ' WARNING: ',nStream,' stream domains are present but the river network is not running;'
       write(iulog,'(a)')      '          their temperature stays at its initial value.  Build with mizuRoute and set'
       write(iulog,'(a)')      '          simulation.use_mizuroute = true to solve the stream columns.'
+      ! an unsolved stream domain adds nothing to the channel, rather than its missing value to basin__SurfaceRunoff
+      do iGRU=1,summa1_struc%nGRU_local
+        if(ixStreamHRU(iGRU) > 0) summa1_struc%fluxStruct%gru(iGRU)%hru(ixStreamHRU(iGRU))%dom(ixStreamDOM(iGRU)) &
+                                    %var(iLookFLUX%scalarStreamRunoff)%dat(1) = 0._rkind
+      end do
     endif
 #ifdef MIZUROUTE_ACTIVE
     if(summa1_struc%config%use_mizuroute)then

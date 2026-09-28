@@ -182,6 +182,8 @@ module mf6_coupling
     logical, public :: have_surfdis = .false.  ! a role=surface_discharge package was found
     logical, public :: have_gwet    = .false.  ! a role=gw_et package was found
     logical, public :: have_evt     = .false.  ! an EVT package is available to drive with SUMMA demand
+    logical, public :: restarted    = .false.  ! heads came from head_restart_read, so step 1 has a known water table
+    logical, public :: writes_restart = .false. ! head_restart_write is set; the driver writes SUMMA's restart to match
 
     ! ---- reprojection state for the built-in nearest-cell map (nHRU>1 only; see nearest_hru) ----
     integer :: utm_zone = 0
@@ -196,6 +198,7 @@ module mf6_coupling
     real,             allocatable :: sy_hru(:)                     ! per-HRU MODFLOW specific yield (-), map-weighted
 
     integer :: nss_steps = 0                ! leading steady-state MODFLOW steps run before the coupled period
+    real(c_double), allocatable :: head_rst(:)  ! restart heads, reapplied over a leading steady-state solve
 
     ! ---- coupled budget diagnostic (see mf6_budget_report) ----
     logical          :: budget = .false.    ! report the per-step coupled budget
@@ -235,6 +238,7 @@ module mf6_coupling
     procedure, public :: step       => mf6_step
     procedure, public :: finalize   => mf6_finalize_coupler
     procedure, public :: grid_shape => mf6_grid_shape
+    procedure, public :: restart_state => mf6_restart_state
     ! internals
     procedure, private :: read_config           => mf6_read_config
     procedure, private :: enter_run_dir         => mf6_enter_run_dir
@@ -287,7 +291,7 @@ contains
     character(len=*),        intent(out)   :: message
     double precision, optional, intent(in) :: hru_area(:)       ! HRU plan area (m2); enables the area and budget checks
     double precision, optional, intent(in) :: root_reach(:)     ! how far roots reach below the soil column (m); tightens the elevation check when groundwater ET is on
-    ! head-restart paths set by the caller; these override whatever the &coupler namelist says, so a
+    ! head-restart paths set by the caller; a non-blank one overrides the &coupler namelist, so a
     ! driver can run the same config as a spin-up (write) and then as an evaluation run (read)
     character(len=*), optional, intent(in) :: restart_read, restart_write
     integer        :: nred_len, nvar, ib
@@ -300,8 +304,13 @@ contains
     this%run_dir = run_dir
     call this%read_config(config_file, err, message)
     if (err /= 0) return
-    if (present(restart_read))  this%head_restart_read  = restart_read
-    if (present(restart_write)) this%head_restart_write = restart_write
+    if (present(restart_read)) then
+      if (len_trim(restart_read) > 0) this%head_restart_read = restart_read
+    end if
+    if (present(restart_write)) then
+      if (len_trim(restart_write) > 0) this%head_restart_write = restart_write
+    end if
+    this%writes_restart = len_trim(this%head_restart_write) > 0
 
     ! -- SUMMA-side geometry (kept: gather_head_to_hru needs hru_z and soil_thk every step) --
     this%nHRU = nHRU
@@ -478,6 +487,11 @@ contains
     if (istep == 1 .and. this%nss_steps > 0) then
       write(*,'(a,i0,a)') 'summa_modflow6: ran ', this%nss_steps, &
             ' steady-state MODFLOW step(s) before the coupled period, to equilibrate the water table'
+      ! a restart is the initial condition asked for; do_time_step copies X to XOLD, so this sets both
+      if (this%restarted) then
+        this%mf6_head = this%head_rst
+        write(*,'(a)') 'summa_modflow6: restart heads replace the steady-state solution'
+      end if
     end if
 
     if (istep == 1) then
@@ -580,6 +594,10 @@ contains
     this%have_surfdis = .false.
     this%have_gwet    = .false.
     this%have_evt     = .false.
+    this%restarted    = .false.
+    this%writes_restart = .false.
+    if (allocated(this%head_rst)) deallocate(this%head_rst)
+    this%nss_steps    = 0
     this%budget       = .false.
     this%nHRU         = 0
   end subroutine mf6_finalize_coupler
@@ -847,6 +865,28 @@ contains
       end if
     end do
   end subroutine mf6_gather_head_to_hru
+
+  ! ==================================================================================
+  ! The restarted water table per HRU, for the driver to hand SUMMA before step 1: head (m, matric
+  ! head at the soil base), aquifer storage (m) and the transpiration limiting factor (-).  No
+  ! boundary flow is known until MODFLOW has solved a step, so baseflow is not returned.
+  ! ==================================================================================
+  subroutine mf6_restart_state(this, head_hru, stor_hru, lim_hru)
+    class(mf6_coupler_type), intent(inout) :: this
+    real,                    intent(inout) :: head_hru(:)
+    real,                    intent(inout) :: stor_hru(:)
+    real, optional,          intent(inout) :: lim_hru(:)
+    integer :: i
+
+    if (.not. (this%restarted .and. this%feedback)) return
+    call this%gather_head_to_hru(head_hru)
+    if (this%have_sy) then
+      do i = 1, this%nHRU
+        stor_hru(i) = this%sy_hru(i) * head_hru(i)
+      end do
+    end if
+    if (present(lim_hru)) call this%gather_gwet_limit(lim_hru)
+  end subroutine mf6_restart_state
 
   ! ==================================================================================
   ! MODFLOW 6  ->  SUMMA aquifer bookkeeping (per HRU), only when feedback=.true.:
@@ -1257,6 +1297,8 @@ contains
     if (rc /= 0) then
       message = 'error reading heads from '//trim(path); err = 20; return
     end if
+    this%head_rst  = this%mf6_head
+    this%restarted = .true.
     write(*,'(a,i0,a)') 'summa_modflow6: restarted MODFLOW from ', n, ' heads in '//trim(path)
   end subroutine mf6_head_restart_read
 

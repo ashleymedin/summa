@@ -7,7 +7,11 @@ cases exist to guard carries no water. February 2017, the Sierra atmospheric riv
 gives 128 mm over 72 hours at a mean 3.4 C, so almost all of it is rain.
 
 Writes a one-HRU basin mean, which domain_sagehen4 and build_sagehen9.py tile out
-to their own HRUs exactly as they did the August file.
+to their own HRUs exactly as they did the August file. January 2017 is extracted
+the same way for the spin-up that runs up to the event.
+
+The bundled months come from SagehenCk/domain_sagehen/forcing/4_SUMMA_input, not
+domain_sagehen_prcp_corrected, whose precipitation differs.
 
 Usage:
     make_wet_forcing.py <source month .nc> <output .nc>          (source has one column per HRU)
