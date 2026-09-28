@@ -202,6 +202,15 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `zmaxLayer2_upper` | maximum layer depth for the 2nd layer when > 2 layers | m |
 | `zmaxLayer3_upper` | maximum layer depth for the 3rd layer when > 3 layers | m |
 | `zmaxLayer4_upper` | maximum layer depth for the 4th layer when > 4 layers | m |
+| `streamMinDepth` | minimum liquid depth of the stream water column prescribed from mizuRoute | m |
+| `lakeMixingThermalC` | effective thermal conductivity between liquid lake layers (turbulent mixing) | W m-1 K-1 |
+| `lakeIceMinThick` | ice cover thinner than this breaks up and returns to the water | m |
+| `lowerBoundNrgFlux` | energy flux at the lower boundary, the geothermal heat flux | W m-2 |
+| `gwTempWindow` | averaging window of the air temperature the groundwater follows | days |
+| `thCond_bedrock` | thermal conductivity of the bedrock below the soil column | W m-1 K-1 |
+| `theta_sat_bedrock` | porosity of the bedrock below the soil column | - |
+| `hypFrac` | fraction of the reach flow returned as hyporheic flow | - |
+| `hypLag` | residence time of the hyporheic flow paths | h |
 
 <a id="params_basin"></a>
 ## Basin parameters
@@ -221,4 +230,5 @@ These are the spatially constant, GRU-level parameters set in the [basin paramet
 | `wallErosionRate` | glacier wall erosion rate input for debris advection | mm yr-1 |
 | `debrisCritStress` | critical driving stress where debris slides on terminal wedge | Pa |
 | `latMoraineWidth` | lateral moraine width or rockfall length | m |
+| `C_ATGW` | air temperature to groundwater temperature coefficient | - |
 
