@@ -13,6 +13,9 @@ interior pit -- but every reported elevation is the raw DIS/TOP.
 The forcing is the single-HRU series of domain_sagehen1 given to every HRU: the
 source has no sub-GRU information, so there is nothing finer to distribute.
 
+Each case starts the event from its own spin-up, the three weeks before the event,
+which its run script makes on first use.
+
 Usage:
     build_sagehen9.py [<output domain dir>]      (default ../domain_sagehen9)
 """
@@ -44,8 +47,10 @@ LAKE_DEPTHS = [0.2, 0.8]
 LAKE_TEMP_K = 278.0
 
 # the wet period; bundled August 2019 is the driest month in the record and drains nothing
-FORCING_FILE = "NWAM_SUMMA_forcing_201702.nc"
+FORCING_FILES = ["NWAM_SUMMA_forcing_201701.nc", "NWAM_SUMMA_forcing_201702.nc"]
 SIM_START, SIM_END = "2017-02-07 00:00", "2017-02-09 23:00"
+# the spin-up ends the step before the event, where SUMMA writes its restart
+SPIN_START, SPIN_END = "2017-01-15 00:00", "2017-02-06 23:00"
 
 # grid georeference (EPSG:32611), from fitting the TOP valley line to the Copernicus
 # mainstem; the DIS carries none. East-west is pinned by the outlet, north-south to
@@ -253,6 +258,7 @@ def main(out_dir):
     os.makedirs(settings, exist_ok=True)
     os.makedirs(forcing, exist_ok=True)
     os.makedirs(os.path.join(out_dir, "simulations", "run_1", "SUMMA"), exist_ok=True)
+    os.makedirs(os.path.join(out_dir, "simulations", "spinup"), exist_ok=True)
     src_set = os.path.join(SRC, "settings", "SUMMA")
     nHRU = nLand + nGRU
 
@@ -310,7 +316,7 @@ def main(out_dir):
     write_map(out_dir, cells, land_slot)
     write_topology(out_dir, gru_id, down, length, slope,
                    np.array([(sub == k).sum() for k in range(nGRU)]) * CELL_AREA)
-    write_text_settings(settings, src_set, os.path.basename(out_dir))
+    write_text_settings(settings, src_set, os.path.basename(out_dir), nGRU)
     write_run_files(out_dir, os.path.basename(out_dir))
 
     print(f"{nLand} land HRUs + {nGRU} stream HRUs in {nGRU} GRUs")
@@ -438,9 +444,8 @@ def write_trial_params(settings, src_set, ids):
 
 
 def write_forcing(settings, forcing, src_set, src_domain, ids, lon, lat):
-    names = [FORCING_FILE]
     n = len(ids)
-    for fname in names:
+    for fname in FORCING_FILES:
         with Dataset(os.path.join(src_domain, "forcing", "SUMMA_input", fname)) as s, \
              Dataset(os.path.join(forcing, fname), "w", format="NETCDF4") as d:
             for dname, dim in s.dimensions.items():
@@ -468,7 +473,7 @@ def write_forcing(settings, forcing, src_set, src_domain, ids, lon, lat):
                     ax = v.dimensions.index("hru")
                     out[:] = np.repeat(src, n, axis=ax) if src.shape[ax] == 1 else src
     with open(os.path.join(settings, "forcingFileList.txt"), "w") as f:
-        f.write(f"'{FORCING_FILE}'\n")
+        f.writelines(f"'{fname}'\n" for fname in FORCING_FILES)
 
 
 def write_map(out_dir, cells, land_slot):
@@ -514,7 +519,7 @@ def write_topology(out_dir, gru_id, down, length, slope, area):
 LATFLOW_DECISIONS = {"groundwatr": "modLatflow", "hc_profile": "exp_prof", "infRateMax": "topmodel_GA"}
 
 
-def write_text_settings(settings, src_set, domain):
+def write_text_settings(settings, src_set, domain, nGRU):
     for fname in os.listdir(src_set):
         # the decisions and file manager are written per variant below, not copied
         if fname.endswith((".txt", ".TBL")) and "deeproot" not in fname and "_wet" not in fname \
@@ -541,22 +546,34 @@ def write_text_settings(settings, src_set, domain):
     decisions("modelDecisions_deeproot.txt", dict(LATFLOW_DECISIONS, groundwatr="modflow"),
               src="modelDecisions_deeproot.txt")
 
+    # SUMMA names its restart <prefix>_restart_<YYYYMMDDHH of the last step>_G<first>-<last GRU>.nc
+    stamp = SPIN_END.replace("-", "").replace(" ", "")[:10]
     for tag in ("latflow", "noLatflow", "deeproot"):
-        fm = []
-        for line in open(os.path.join(src_set, "fileManager.txt")):
-            line = line.replace("domain_sagehen1", domain)
-            if line.startswith("outFilePrefix"):
-                line = f"outFilePrefix        'run1_{tag}' !\n"
-            if line.startswith("simStartTime"):
-                line = f"simStartTime         '{SIM_START}' !\n"
-            if line.startswith("simEndTime"):
-                line = f"simEndTime           '{SIM_END}' ! 72 hourly steps, matches mf6/sagehen.tdis\n"
-            if line.startswith("decisionsFile"):
-                line = f"decisionsFile        'modelDecisions_{tag}.txt' ! Relative to settingsPath\n"
-            if line.startswith("globalHruParamFile") and tag == "deeproot":
-                line = "globalHruParamFile   'localParamInfo_deeproot.txt' ! Relative to settingsPath\n"
-            fm.append(line)
-        open(os.path.join(settings, f"fileManager_{tag}.txt"), "w").writelines(fm)
+        restart = f"spinup_{tag}_restart_{stamp}_G1-{nGRU}.nc"
+        for spin in (False, True):
+            fm = []
+            for line in open(os.path.join(src_set, "fileManager.txt")):
+                line = line.replace("domain_sagehen1", domain)
+                if line.startswith("outFilePrefix"):
+                    line = f"outFilePrefix        '{'spinup' if spin else 'run1'}_{tag}' !\n"
+                if line.startswith("simStartTime"):
+                    line = f"simStartTime         '{SPIN_START if spin else SIM_START}' !\n"
+                if line.startswith("simEndTime"):
+                    line = (f"simEndTime           '{SPIN_END}' ! 552 hourly steps, matches mf6/sagehen.tdis\n"
+                            if spin else f"simEndTime           '{SIM_END}' ! 72 hourly steps\n")
+                if line.startswith("outputPath") and spin:
+                    line = f"outputPath           '../{domain}/simulations/spinup/' ! the restart lands here too\n"
+                if line.startswith("initConditionFile") and not spin:
+                    line = f"initConditionFile    '../../simulations/spinup/{restart}' ! Relative to settingsPath\n"
+                if line.startswith("outputControlFile") and spin:
+                    line = "outputControlFile    'outputControl_spinup.txt' ! Relative to settingsPath\n"
+                if line.startswith("decisionsFile"):
+                    line = f"decisionsFile        'modelDecisions_{tag}.txt' ! Relative to settingsPath\n"
+                if line.startswith("globalHruParamFile") and tag == "deeproot":
+                    line = "globalHruParamFile   'localParamInfo_deeproot.txt' ! Relative to settingsPath\n"
+                fm.append(line)
+            name = f"fileManager_{tag}_spinup.txt" if spin else f"fileManager_{tag}.txt"
+            open(os.path.join(settings, name), "w").writelines(fm)
 
     # every flux in the water balance each step, so run totals can be summed rather than sampled
     oc = os.path.join(settings, "outputControl.txt")
@@ -567,6 +584,9 @@ def write_text_settings(settings, src_set, domain):
             "scalarStreamTemp", "scalarStreamRunoff", "basin__TotalRunoff"]
     lines = [ln for ln in open(oc) if ln.split("|")[0].strip() not in want]
     open(oc, "w").writelines(lines + [f"{v} | 1\n" for v in want])
+    # the spin-up keeps the same variables as daily means: 552 steps of every HRU is a third of a gigabyte
+    lines = [ln.split("|")[0].rstrip() + " | 24\n" if "|" in ln else ln for ln in open(oc)]
+    open(os.path.join(settings, "outputControl_spinup.txt"), "w").writelines(lines)
 
 
 def write_run_files(out_dir, domain):
@@ -574,7 +594,8 @@ def write_run_files(out_dir, domain):
         f.write(f"""&coupler
   mf6_model_name     = 'SAGEHEN' ! GWF model name in mfsim.nam
   rch_package_name   = 'RCHA'    ! RCH package name, as in the GWF name file (upper case)
-  bflow_package_name = 'CHD'     ! head-dependent boundary whose flow feeds back as scalarAquiferBaseflow
+  bnd_package_names  = 'CHD', 'DRN'
+  bnd_package_roles  = 'baseflow', 'surface_discharge' ! the land-surface drain returns as surface runoff
   map_file           = '../{domain}/hru2cell_map.txt' ! the identity map: one HRU per active cell
   mf6_epsg           = 0         ! no reprojection needed, an explicit map_file is supplied
   feedback           = .true.
@@ -599,8 +620,11 @@ def write_run_files(out_dir, domain):
         f.write(f"""#!/bin/bash
 # One HRU per MODFLOW cell, 9 GRUs, 6 m roots drawing on MODFLOW's EVT, without lateral flow;
 # the distributed half of run_sagehen1_wet_deeproot.sh. See {domain}/README.md.
+# Starts from its spin-up, which the first run makes.
 cd "$(dirname "$0")"
 ./coupler_commands.sh -c {domain}/summa_modflow6_deeproot.config \\
+                      -r {domain}/simulations/spinup/heads_deeproot.bin \\
+                      -s {domain}/settings/SUMMA/fileManager_deeproot_spinup.txt \\
                       ex-gwf-sagehen-ss \\
                       {domain}/settings/SUMMA/fileManager_deeproot.txt
 """)
@@ -612,8 +636,11 @@ cd "$(dirname "$0")"
         with open(run, "w") as f:
             f.write(f"""#!/bin/bash
 # One HRU per MODFLOW cell, 9 GRUs, {what}; see {domain}/README.md.
+# Starts from its spin-up, which the first run makes.
 cd "$(dirname "$0")"
 ./coupler_commands.sh -c {domain}/summa_modflow6.config \\
+                      -r {domain}/simulations/spinup/heads_{tag}.bin \\
+                      -s {domain}/settings/SUMMA/fileManager_{tag}_spinup.txt \\
                       ex-gwf-sagehen \\
                       {domain}/settings/SUMMA/fileManager_{tag}.txt
 """)
