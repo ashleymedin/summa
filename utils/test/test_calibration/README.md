@@ -157,6 +157,26 @@ An NSGA-II trials file carries, beside every trial's parameters and objectives:
 `objective:sense` lists `maximize` or `minimize` per target, which is what a reader needs to recompute
 dominance.
 
+## Failed trials
+
+A parameter set the model refuses (`paramCheck`) or fails on during the run (a balance check, a solver
+failure) no longer ends the calibration. The trial is flagged in `trial_failed(sample)`, its objectives
+are written as fill values, DDS never takes it as its best, and NSGA-II ranks it last on every target.
+Any other error, such as a missing observation file, still stops the run.
+
+Each failed trial is saved as a repro case in `<output_path>/failed_trials/`, named
+`nsga2_g<generation>_s<sample>/` or `dds_s<sample>/`:
+
+| File | What it holds |
+| --- | --- |
+| `trial.json` | the parameter values, the error with the GRU, time step and HRU it failed on, the worker, the source revision |
+| `config.toml` | the calibration's configuration file |
+| `initial_state.nc` | the spun-up state every trial starts from |
+| `rerun.sh` | reruns the trial with the serial executable of the same build (override with `SUMMA_EXE`) |
+
+`rerun.sh` writes `output/` and `rerun.log` beside itself, so the directory can be copied elsewhere and
+debugged on its own. A run from a manifest is built from a template, so its `rerun.sh` only says so.
+
 ## Calibrating a MODFLOW 6 coupled case
 
 A build with `-DUSE_MODFLOW6=ON` names its calibration executable `summa_modflow6_opt.exe`.

@@ -229,12 +229,15 @@ work, pop, ngen, grace_weight = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]),
 def load(algorithm):
     d = nc.Dataset(os.path.join(work, algorithm, "output", "CAN_05BB001_calibration.nc"))
     sense = [s.strip() for s in d["objective"].sense.split(",")]
-    obj = np.asarray(d["objective"][:], dtype=float).T        # (target, sample)
-    return d, obj, sense
+    obj = np.ma.filled(d["objective"][:].astype(float), np.nan).T   # (target, sample)
+    failed = np.asarray(d["trial_failed"][:]) == 1                  # the model refused or failed on these
+    return d, obj, sense, failed
 
-def oriented(obj, sense):
-    # smaller is better on every row
-    return np.array([-o if s == "maximize" else o for o, s in zip(obj, sense)])
+def oriented(obj, sense, failed):
+    # smaller is better on every row; a failed trial is the worst on every target
+    f = np.array([-o if s == "maximize" else o for o, s in zip(obj, sense)])
+    f[:, failed] = np.inf
+    return f
 
 def nondominated(f):
     n = f.shape[1]
@@ -263,14 +266,14 @@ def check(ok, what):
     print(f"  {'ok  ' if ok else 'FAIL'} {what}")
     fail |= not ok
 
-d, obj, sense = load("nsga2")
+d, obj, sense, failed = load("nsga2")
 check(d.algorithm == "nsga2", "trials file records algorithm nsga2")
 check(obj.shape == (2, pop * ngen), f"objective is 2 targets x {pop * ngen} trials")
 check(sense == ["maximize", "minimize"], "discharge KGE is maximized, GRACE RMSE minimized")
-check(bool(np.all(np.isfinite(obj))), "every objective is finite")
-check(bool(np.all(np.abs(obj) < 1e5)), "every objective is plausible")
+check(bool(np.all(np.isfinite(obj[:, ~failed]))), "every objective of a trial that ran is finite")
+check(bool(np.all(np.abs(obj[:, ~failed]) < 1e5)), "every objective of a trial that ran is plausible")
 
-f = oriented(obj, sense)
+f = oriented(obj, sense, failed)
 front = np.asarray(d["pareto_front"][:]) == 1
 check(bool(np.array_equal(front, nondominated(f))), "pareto_front flags exactly the non-dominated trials")
 
@@ -288,15 +291,15 @@ nf = int(front.sum())
 check(nf >= 1, f"the front holds {nf} trial(s)")
 
 # compare with DDS on the weighted sum, same budget
-dd, obj_dds, _ = load("dds")
-f_dds = oriented(obj_dds, sense)
-ref = np.maximum(f.max(axis=1), f_dds.max(axis=1))
+dd, obj_dds, _, failed_dds = load("dds")
+f_dds = oriented(obj_dds, sense, failed_dds)
+ref = np.maximum(f[:, ~failed].max(axis=1), f_dds[:, ~failed_dds].max(axis=1))
 hv_n, hv_d = hypervolume(f, ref), hypervolume(f_dds, ref)
 front_dds = nondominated(f_dds)
 beyond_dds = sum(not any(np.all(f_dds[:, j] <= f[:, i]) and np.any(f_dds[:, j] < f[:, i])
                          for j in range(f_dds.shape[1])) for i in np.where(front)[0])
 scalar = obj_dds[0] - grace_weight * obj_dds[1]
-best = int(np.argmax(scalar))
+best = int(np.nanargmax(scalar))
 
 print()
 print(f"  NSGA-II front ({nf} trials):")
@@ -306,6 +309,7 @@ print(f"  DDS best weighted sum: sample {best + 1}: KGE {obj_dds[0, best]:8.4f} 
 print(f"  DDS non-dominated trials: {int(front_dds.sum())}")
 print(f"  NSGA-II front trials no DDS trial dominates: {beyond_dds} of {nf}")
 print(f"  hypervolume (common reference): NSGA-II {hv_n:.4g}, DDS {hv_d:.4g}")
+print(f"  failed trials (saved in output/failed_trials): NSGA-II {int(failed.sum())}, DDS {int(failed_dds.sum())}")
 
 sys.exit(1 if fail else 0)
 PYEOF

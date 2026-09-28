@@ -32,6 +32,7 @@ module calibration_output_module
   public :: write_calibration_output
   public :: write_generation_output
   public :: write_pareto_front
+  public :: write_failed_trial
   public :: close_calibration_output
 
 contains
@@ -234,6 +235,12 @@ contains
       ierr=nf90_put_att(ncid,varid_objective,'sense',trim(joined_field(targets,'sense')))
       if(ierr/=nf90_noerr) exit netcdf_block
 
+      ! a failed trial has no objectives and ranks last on every target
+      ierr=nf90_def_var(ncid,'trial_failed',NF90_INT,(/dim_sample/),varid)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid,'long_name','1 if the model refused or failed on the trial; its objectives are fill values')
+      if(ierr/=nf90_noerr) exit netcdf_block
+
       ! target names, so a reader can label the objectives without parsing an attribute
       name_dims=(/dim_name,dim_target/)
       ierr=nf90_def_var(ncid,'target_name',NF90_CHAR,name_dims,varid_target_name)
@@ -356,7 +363,7 @@ contains
   ! when the calibration output file was created.
   ! **************************************************************************************************
   subroutine write_calibration_output(ncid,isample,worker_rank,param_names,param_values, &
-                                      objective,start_time,end_time,ierr,message)
+                                      objective,failed,start_time,end_time,ierr,message)
     implicit none
     integer(i4b), intent(in) :: ncid
     integer(i4b), intent(in) :: isample
@@ -364,13 +371,14 @@ contains
     character(*), intent(in) :: param_names(:)
     real(rkind),  intent(in) :: param_values(:)
     real(rkind),  intent(in) :: objective(:)
+    logical(lgt), intent(in) :: failed           ! the trial failed, so its objectives are written as fill values
     integer(i4b), intent(in) :: start_time(8)
     integer(i4b), intent(in) :: end_time(8)
     integer(i4b), intent(out) :: ierr
     character(*), intent(out) :: message
     integer(i4b) :: varid_sample, varid_worker_rank
     integer(i4b) :: varid_start_time,varid_end_time
-    integer(i4b) :: varid_param,varid_objective
+    integer(i4b) :: varid_param,varid_objective,varid_failed
     integer(i4b) :: iParam
     integer(i4b), dimension(1) :: start1,count1
     integer(i4b), dimension(2) :: start2,count2
@@ -422,8 +430,19 @@ contains
       ! objective function: every target's value for this trial
       ierr=nf90_inq_varid(ncid,'objective',varid_objective)
       if(ierr/=nf90_noerr) exit netcdf_block
-      ierr=nf90_put_var(ncid,varid_objective,objective, &
-                        start=(/1,isample/),count=(/size(objective),1/))
+      if(failed)then
+        ierr=nf90_put_var(ncid,varid_objective,spread(NF90_FILL_DOUBLE,1,size(objective)), &
+                          start=(/1,isample/),count=(/size(objective),1/))
+      else
+        ierr=nf90_put_var(ncid,varid_objective,objective, &
+                          start=(/1,isample/),count=(/size(objective),1/))
+      endif
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ! failure flag
+      ierr=nf90_inq_varid(ncid,'trial_failed',varid_failed)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_var(ncid,varid_failed,(/merge(1,0,failed)/),start=start1,count=count1)
       if(ierr/=nf90_noerr) exit netcdf_block
 
     end block netcdf_block
@@ -504,6 +523,145 @@ contains
     ierr=0
 
   end subroutine write_pareto_front
+
+  ! **************************************************************************************************
+  ! Save a failed trial as a standalone repro case, in <output_path>/failed_trials/<algorithm>_g<generation>_s<sample>/
+  ! (DDS has no generations, so dds_s<sample>/).
+  !
+  ! The directory holds trial.json (parameters, error, worker, source revision), the configuration,
+  ! the spun-up initial state every trial starts from, and rerun.sh, which reruns the trial with the
+  ! serial executable built beside this one. Returns the directory in dir.
+  ! **************************************************************************************************
+  subroutine write_failed_trial(config,sample_id,worker_rank,param_names,param_values,error_message,dir)
+    USE summa_type,       only: config_info
+    USE summaFileManager, only: OUTPUT_PATH,STATE_PATH,SETTINGS_PATH,MODEL_INITCOND
+    implicit none
+    type(config_info), intent(in)  :: config
+    integer(i4b),      intent(in)  :: sample_id
+    integer(i4b),      intent(in)  :: worker_rank
+    character(*),      intent(in)  :: param_names(:)
+    real(rkind),       intent(in)  :: param_values(:)
+    character(*),      intent(in)  :: error_message
+    character(len=:), allocatable, intent(out) :: dir
+    character(len=:), allocatable :: exe,serial_exe,init_state,source_rev
+    character(len=32)   :: val
+    character(len=4096) :: line
+    integer(i4b) :: unit,iParam,ix,ios
+    logical(lgt) :: rerunnable
+
+    ! one directory per trial
+    write(val,'(i6.6)') sample_id
+    if(trim(config%calib%algorithm) == 'nsga2')then
+      write(line,'(a,i0,a)') 'nsga2_g',(sample_id-1)/config%calib%nsga2%population_size+1,'_s'//trim(val)
+    else
+      line=trim(config%calib%algorithm)//'_s'//trim(val)
+    endif
+    dir=trim(OUTPUT_PATH)//'failed_trials/'//trim(line)//'/'
+    call execute_command_line('mkdir -p "'//dir//'"')
+
+    ! the executable that ran the trial, and its serial counterpart (the same name without _opt)
+    call get_command_argument(0,line)
+    exe=trim(line)
+    if(exe(1:1) /= '/')then
+      call getcwd(line)
+      exe=trim(line)//'/'//exe
+    endif
+    ix=index(exe,'_opt',back=.true.)
+    serial_exe=exe
+    if(ix > index(exe,'/',back=.true.)) serial_exe=exe(1:ix-1)//exe(ix+4:)
+
+    ! the source revision of the checkout the executable lives in
+    call execute_command_line('git -C "'//exe(1:index(exe,'/',back=.true.))//'" describe --always --dirty > "'// &
+                              dir//'git_describe.txt" 2>/dev/null')
+    source_rev='unknown'
+    open(newunit=unit,file=dir//'git_describe.txt',status='old',action='read',iostat=ios)
+    if(ios==0)then
+      read(unit,'(a)',iostat=ios) line
+      if(ios==0 .and. len_trim(line) > 0) source_rev=trim(line)
+      close(unit,status='delete')
+    endif
+
+    ! the spun-up state the trial started from, as SUMMA resolves it
+    if(STATE_PATH == '')then
+      init_state=trim(SETTINGS_PATH)//trim(MODEL_INITCOND)
+    else
+      init_state=trim(STATE_PATH)//trim(MODEL_INITCOND)
+    endif
+    call execute_command_line('cp "'//init_state//'" "'//dir//'initial_state.nc"')
+
+    ! a manifest case is built from a template, so only a single configuration file can be rerun as it stands
+    rerunnable=allocated(config%config_file) .and. .not.allocated(config%manifest_file)
+    if(allocated(config%config_file)) call execute_command_line('cp "'//config%config_file//'" "'//dir//'config.toml"')
+
+    ! trial.json
+    open(newunit=unit,file=dir//'trial.json',status='replace',action='write')
+    write(unit,'(a)') '{'
+    write(unit,'(a,i0,a)') '  "sample": ',sample_id,','
+    write(unit,'(a)')      '  "algorithm": "'//trim(config%calib%algorithm)//'",'
+    if(trim(config%calib%algorithm) == 'nsga2') &
+      write(unit,'(a,i0,a)') '  "generation": ',(sample_id-1)/config%calib%nsga2%population_size+1,','
+    write(unit,'(a,i0,a)') '  "worker_rank": ',worker_rank,','
+    if(allocated(config%case_name))   write(unit,'(a)') '  "case": "'//json_escape(config%case_name)//'",'
+    if(allocated(config%config_file)) write(unit,'(a)') '  "config_file": "'//json_escape(config%config_file)//'",'
+    write(unit,'(a)') '  "initial_state": "'//json_escape(init_state)//'",'
+    write(unit,'(a)') '  "executable": "'//json_escape(exe)//'",'
+    write(unit,'(a)') '  "source_revision": "'//json_escape(source_rev)//'",'
+    write(unit,'(a)') '  "error": "'//json_escape(trim(error_message))//'",'
+    write(unit,'(a)') '  "parameters": {'
+    do iParam=1,size(param_names)
+      write(val,'(es24.16)') param_values(iParam)
+      if(iParam < size(param_names)) val=trim(adjustl(val))//','
+      write(unit,'(a)') '    "'//trim(param_names(iParam))//'": '//trim(adjustl(val))
+    enddo
+    write(unit,'(a)') '  }'
+    write(unit,'(a)') '}'
+    close(unit)
+
+    ! rerun.sh
+    open(newunit=unit,file=dir//'rerun.sh',status='replace',action='write')
+    write(unit,'(a)') '#!/bin/bash'
+    write(unit,'(a)') '# Reruns this failed calibration trial with the serial executable; trial.json says how it failed.'
+    write(unit,'(a)') '# Set SUMMA_EXE to use another build. Output goes to output/ and rerun.log beside this script.'
+    write(unit,'(a)') 'set -euo pipefail'
+    if(.not.rerunnable)then
+      write(unit,'(a)') 'echo "this trial came from a run manifest or file manager, not a single TOML configuration;"'
+      write(unit,'(a)') 'echo "rerun it by hand from trial.json"; exit 1'
+    else
+      write(unit,'(a)') 'here="$(cd "$(dirname "$0")" && pwd)"'
+      write(unit,'(a)') 'SUMMA_EXE="${SUMMA_EXE:-'//serial_exe//'}"'
+      write(unit,'(a)') 'mkdir -p "${here}/output"'
+      write(unit,'(a)') 'sed -e "s|^\([[:space:]]*state_path[[:space:]]*=\).*|\1 \"${here}/\"|" \'
+      write(unit,'(a)') '    -e "s|^\([[:space:]]*init_condition[[:space:]]*=\).*|\1 \"initial_state.nc\"|" \'
+      write(unit,'(a)') '    -e "s|^\([[:space:]]*output_path[[:space:]]*=\).*|\1 \"${here}/output/\"|" \'
+      write(unit,'(a)') '    -e "s|^\([[:space:]]*work_path[[:space:]]*=\).*|\1 \"${here}/output\"|" \'
+      write(unit,'(a)') '    "${here}/config.toml" > "${here}/rerun.toml"'
+      write(unit,'(a)') '"${SUMMA_EXE}" -c "${here}/rerun.toml" \'
+      do iParam=1,size(param_names)
+        write(val,'(es24.16)') param_values(iParam)
+        write(unit,'(a)') '  --param '//trim(param_names(iParam))//' '//trim(adjustl(val))//' \'
+      enddo
+      write(unit,'(a)') '  2>&1 | tee "${here}/rerun.log"'
+    endif
+    close(unit)
+    call execute_command_line('chmod +x "'//dir//'rerun.sh"')
+
+  contains
+
+    ! escape a string for a JSON value
+    function json_escape(s) result(e)
+      character(*), intent(in)      :: s
+      character(len=:), allocatable :: e
+      integer(i4b) :: i
+      e=''
+      do i=1,len(s)
+        select case(s(i:i))
+          case('"','\'); e=e//'\'//s(i:i)
+          case default;  e=e//s(i:i)
+        end select
+      enddo
+    end function json_escape
+
+  end subroutine write_failed_trial
 
   ! **************************************************************************************************
   ! Close calibration output file.
