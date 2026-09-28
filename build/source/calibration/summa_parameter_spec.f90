@@ -4,6 +4,7 @@ module summa_parameter_spec
   USE summa_type,       only: config_info
 
   USE parameter_search, only: parameter_spec
+  USE parameter_search, only: decode_gap_chains
 
   implicit none
   private
@@ -19,7 +20,8 @@ contains
   ! Populates the model-agnostic parameter specification used by the parameter-search routines.
   !
   ! Parameters explicitly included in the calibration list are marked as sampled. Additional
-  ! parameters required by ordered dependencies are included as non-sampled parameters.
+  ! parameters required by ordered dependencies are included as non-sampled parameters, except in a
+  ! chain searched by its gaps, whose every member is sampled.
   !
   ! All parameters represented by this interface are currently assumed to be spatially uniform.
   ! For non-sampled parameters participating in constraints, trial_value is set to the SUMMA default
@@ -103,7 +105,9 @@ contains
           if(ix == 0)then
             nParam = nParam + 1
             param_names(nParam) = trim(config%calib%ordered(i)%parameters(j))
-            sampled(nParam)     = .false.
+            sampled(nParam)     = config%calib%ordered(i)%sample_gaps
+          else
+            if(config%calib%ordered(i)%sample_gaps) sampled(ix) = .true.
           endif
         enddo
       enddo
@@ -186,6 +190,7 @@ contains
         spec%ordered(i)%param_index(j) = ix
       enddo
       spec%ordered(i)%gap_fraction = config%calib%ordered(i)%gap_fraction
+      spec%ordered(i)%sample_gaps  = config%calib%ordered(i)%sample_gaps
     enddo
 
   end subroutine get_summa_parameter_spec
@@ -194,7 +199,8 @@ contains
   ! Build the complete scalar SUMMA parameter override vector for one trial.
   !
   ! Sampled parameters receive their values from sampled_values. Non-sampled parameters represented
-  ! in the parameter specification receive their scalar trial_value.
+  ! in the parameter specification receive their scalar trial_value. A chain searched by its gaps is
+  ! then turned from fractions into values.
   !
   ! The ordering of param_values matches spec%params and therefore the invariant parameter-name
   ! vector constructed from spec%params(:)%name during parameter-evaluation initialization.
@@ -244,6 +250,7 @@ contains
         param_values(i) = spec%params(i)%trial_value
       endif
     enddo
+    call decode_gap_chains(spec,param_values)
 
   end subroutine build_summa_parameter_overrides
 

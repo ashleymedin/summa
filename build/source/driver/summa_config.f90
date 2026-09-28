@@ -1253,6 +1253,14 @@ contains
           'gap_fraction not defined for ordered constraint, i = ',i
         ierr=20; return
       endif
+
+      ! search every member, the later ones by their gaps
+      call get_value(constraint, 'sample_gaps', config%calib%ordered(i)%sample_gaps, .false., stat=istat)
+      if(istat/=0)then
+        write(message,'(A,I0)') trim(message)// &
+          'sample_gaps must be true or false, ordered constraint i = ',i
+        ierr=20; return
+      endif
     enddo
   
   end subroutine parse_parameter_dependencies

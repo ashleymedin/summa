@@ -84,6 +84,7 @@ MODULE data_types
  type :: ordered_constraint
   character(len=64), allocatable :: parameters(:)      ! Ordered parameter names
   real(rkind)                    :: gap_fraction       ! Minimum adjacent gap as fraction of total range
+  logical(lgt)                   :: sample_gaps=.false. ! Search every member, the later ones by their gaps
  end type ordered_constraint
 
  ! -----------------------------------------------------------------------------------------------------------
