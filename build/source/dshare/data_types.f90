@@ -93,6 +93,11 @@ MODULE data_types
  type,public  :: target_info
   character(len=64)              :: name = ''               ! target name, used to label the output
   character(len=64)              :: variable = 'streamflow' ! simulated variable compared against the observations
+  ! Which spatial unit of the domain the simulated variable is scored over.  The whole domain is right
+  ! for a single basin and wrong for anything else: two basins in one domain have their own storage,
+  ! and a reach outlet temperature belongs to one reach rather than to an average over the basin.
+  character(len=16)              :: spatial_unit = 'domain'     ! domain, gru, hru, reach
+  integer(i8b)                   :: spatial_id = integerMissing ! id of that unit, as the domain numbers it
   character(len=:),  allocatable :: obs_path                ! path to the observation file
   character(len=:),  allocatable :: obs_file                ! observation file
   character(len=:),  allocatable :: vname_obs               ! name of the observed variable within that file
@@ -100,13 +105,11 @@ MODULE data_types
   character(len=16)              :: obs_transform = 'none'  ! none, log, power, box-cox
   real(rkind)                    :: weight = 1.0_rkind      ! weight given to this target when the objectives
                                                             !  are scalarized for a single-objective search
-  character(len=16)              :: obs_format = 'netcdf'   ! netcdf, csv
-  character(len=64)              :: obs_units = ''          ! units of the observations, when the file omits them
+  character(len=64)              :: obs_units = ''          ! units of the observations, overriding the file's
   ! Putting the simulated and observed series on the same footing.  A satellite storage product, for
-  ! instance, reports a monthly departure from a multi-year mean, while the model carries the rate
-  ! storage is changing at, so that target accumulates, averages monthly, and references a baseline.
+  ! instance, reports a departure in millimetres from a multi-year mean, while the model carries the
+  ! rate storage is changing at, so that target accumulates and references a baseline.
   logical(lgt)                   :: accumulate = .false.    ! integrate the simulated rate into its quantity
-  character(len=16)              :: cadence = 'native'      ! native, monthly
   character(len=:), allocatable  :: baseline_start          ! start of the anomaly baseline (YYYY-MM-DD)
   character(len=:), allocatable  :: baseline_end            ! end of the anomaly baseline (YYYY-MM-DD)
  end type target_info

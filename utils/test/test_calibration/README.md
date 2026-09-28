@@ -55,9 +55,42 @@ a single target of weight one that sum is the metric itself, which is exactly wh
 before targets existed.
 
 `variable` accepts `streamflow` (or `discharge`) for the routed flow mizuRoute produces, or the name
-of any variable SUMMA knows - `basin__StorageChange`, `scalarStreamTemp`, `lowerBoundHead` - which is
-collected over the run as an area-weighted basin mean. A name SUMMA does not know is refused when the
-calibration starts, rather than after a simulation has been paid for.
+of any variable SUMMA knows - `basin__StorageChange`, `scalarStreamTemp`, `lowerBoundHead`. A name
+SUMMA does not know is refused when the calibration starts, rather than after a simulation has been
+paid for.
+
+### Which part of the domain a target scores
+
+By default a SUMMA variable is collected as an area-weighted mean over the whole domain, and
+`streamflow` is taken at the network outlet. That is right for a single basin and wrong for anything
+else: two basins in one domain hold their own storage, and a stream temperature belongs to one reach.
+A target can name the unit it scores, by the id the domain or the river network gives it:
+
+```toml
+[[calibration.target]]
+name     = "gulkana_storage"
+variable = "basin__StorageChange"
+gru      = 1                  # one GRU: the area-weighted mean of its HRUs
+
+[[calibration.target]]
+name     = "upstream_flow"
+variable = "streamflow"
+reach    = 710289040          # one reach of the mizuRoute network, by its segId
+```
+
+`gru`, `hru` and `reach` are the three choices, and a target names at most one. An id the domain or
+the network does not hold is refused at start-up. A variable SUMMA holds once per GRU, like
+`basin__StorageChange`, can be scored over a `gru` but not an `hru`, and a `reach` carries routed
+`streamflow` only. Two targets naming the same variable over the same unit share one collected series.
+
+### Observations
+
+Every target reads its observations the same way, from a NetCDF file shaped like the bundled streamflow
+record: a `time` coordinate with CF units, and the named variable carrying its own units. Each time
+stamps the **end** of the span the value covers, and the simulation is averaged over the span since the
+observation before it, so a monthly product, whose months are 28 to 31 days long, aligns like a daily
+gauge record. Getting data into that form is a pre-processing job - see `utils/pre-processing/`, whose
+acquisition scripts write it. `obs_units` overrides the units the file states.
 
 ### Comparing things that are not measured the way the model carries them
 
@@ -70,29 +103,20 @@ comparable:
 [[calibration.target]]
 name           = "grace_tws"
 variable       = "basin__StorageChange"   # kg m-2 s-1, which is mm of water per second
-obs_file       = "Gulkana_HRUs_GRUs_grace_tws_anomaly.csv"
-obs_format     = "csv"                    # dated rows, one column per processing centre
-vname_obs      = "grace_jpl_anomaly"      # JPL, for a glacierized basin
-obs_units      = "mm"
+gru            = 1
+obs_file       = "gulkana_grace_tws.nc"
+vname_obs      = "tws_obs"
 accumulate     = true                     # integrate the rate into the storage itself
-cadence        = "monthly"                # average to the month the satellite reports
-baseline_start = "2004-01-01"             # express both sides as departures from the same mean,
-baseline_end   = "2009-12-31"             #   which is the baseline GRACE anomalies are relative to
+baseline_start = "2009-10-01"             # express both sides as departures from their mean
+baseline_end   = "2009-12-31"             #   over the same months
 metric         = "rmse"
 ```
 
-- `obs_format` is `netcdf` (the default) or `csv`. A CSV holds the date in its first column, named or
-  not, and is read by column name, so one file can serve several targets.
-- `obs_units` supplies the units for a format that does not carry them.
 - `accumulate` integrates a rate into the quantity the observations report. Integrating kg m-2 s-1
   over seconds leaves kg m-2, which is millimetres of water.
-- `cadence` is `native` (compared step for step, as streamflow is) or `monthly`.
 - `baseline_start`/`baseline_end` express **both** series as departures from their own mean over that
   period. Doing it to both sides is what removes the constant of integration an accumulated series
   carries, which is what makes an integrated rate comparable to a storage anomaly at all.
-
-Observations no longer have to arrive on a regular timestep. Each observation covers the span since
-the one before it, so a monthly product, whose months are 28 to 31 days long, aligns like any other.
 
 ## Calibrating a MODFLOW 6 coupled case
 
