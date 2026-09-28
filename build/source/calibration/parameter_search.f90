@@ -79,6 +79,9 @@ module parameter_search
   public :: sample_parameters
   public :: perturb_parameters
   public :: perturb_parameters_dds
+  public :: transform_parameter
+  public :: inverse_transform_parameter
+  public :: check_ordered_constraints
 
 contains
 

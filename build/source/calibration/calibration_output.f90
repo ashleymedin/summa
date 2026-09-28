@@ -30,6 +30,8 @@ module calibration_output_module
 
   public :: create_calibration_output
   public :: write_calibration_output
+  public :: write_generation_output
+  public :: write_pareto_front
   public :: close_calibration_output
 
 contains
@@ -43,8 +45,10 @@ contains
   ! ordered-constraint information.
   !
   ! Parameter and objective values are written by global trial index along the fixed sample dimension.
+  ! An NSGA-II run also records the population kept after each generation and the final Pareto front.
   ! **************************************************************************************************
-  subroutine create_calibration_output(filename,spec,nSamples,nWorkers,case,targets,ncid,ierr,message)
+  subroutine create_calibration_output(filename,spec,nSamples,nWorkers,case,targets, &
+                                       algorithm,population_size,ncid,ierr,message)
     implicit none
     character(*),         intent(in)  :: filename
     type(parameter_spec), intent(in)  :: spec
@@ -52,6 +56,8 @@ contains
     integer(i4b),         intent(in)  :: nWorkers
     character(*),         intent(in)  :: case
     type(target_info),    intent(in)  :: targets(:)
+    character(*),         intent(in)  :: algorithm        ! dds or nsga2
+    integer(i4b),         intent(in)  :: population_size  ! NSGA-II population; unused by DDS
     integer(i4b),         intent(out) :: ncid
     integer(i4b),         intent(out) :: ierr
     character(*),         intent(out) :: message
@@ -59,6 +65,7 @@ contains
     integer(i4b) :: varid_sample,varid_objective,varid_param
     integer(i4b) :: varid_worker_rank,varid_target_name
     integer(i4b) :: varid_start_time,varid_end_time
+    integer(i4b) :: dim_member,dim_generation,varid
     integer(i4b), dimension(2) :: time_dims
     integer(i4b), dimension(2) :: objective_dims
     integer(i4b), dimension(2) :: name_dims
@@ -224,6 +231,8 @@ contains
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,varid_objective,'variable',trim(joined_field(targets,'variable')))
       if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_objective,'sense',trim(joined_field(targets,'sense')))
+      if(ierr/=nf90_noerr) exit netcdf_block
 
       ! target names, so a reader can label the objectives without parsing an attribute
       name_dims=(/dim_name,dim_target/)
@@ -231,6 +240,41 @@ contains
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,varid_target_name,'long_name','name of each calibration target')
       if(ierr/=nf90_noerr) exit netcdf_block
+
+      ! -----------------------------------------------------------------------------------------------
+      ! NSGA-II: the population kept after each generation, and the non-dominated trials
+      ! -----------------------------------------------------------------------------------------------
+      if(trim(algorithm) == 'nsga2')then
+        ierr=nf90_def_dim(ncid,'member',population_size,dim_member)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_def_dim(ncid,'generation',nSamples/population_size,dim_generation)
+        if(ierr/=nf90_noerr) exit netcdf_block
+
+        ierr=nf90_def_var(ncid,'birth_generation',NF90_INT,(/dim_sample/),varid)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(ncid,varid,'long_name','generation that proposed the trial, 1 the random initial population')
+        if(ierr/=nf90_noerr) exit netcdf_block
+
+        ierr=nf90_def_var(ncid,'population',NF90_INT,(/dim_member,dim_generation/),varid)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(ncid,varid,'long_name','sample index of each member kept after the generation')
+        if(ierr/=nf90_noerr) exit netcdf_block
+
+        ierr=nf90_def_var(ncid,'population_rank',NF90_INT,(/dim_member,dim_generation/),varid)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(ncid,varid,'long_name','non-domination front of each member, 1 is non-dominated')
+        if(ierr/=nf90_noerr) exit netcdf_block
+
+        ierr=nf90_def_var(ncid,'population_crowding',NF90_DOUBLE,(/dim_member,dim_generation/),varid)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(ncid,varid,'long_name','crowding distance of each member in its front, infinite at its extremes')
+        if(ierr/=nf90_noerr) exit netcdf_block
+
+        ierr=nf90_def_var(ncid,'pareto_front',NF90_INT,(/dim_sample/),varid)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(ncid,varid,'long_name','1 if no other trial is at least as good on every target and better on one')
+        if(ierr/=nf90_noerr) exit netcdf_block
+      endif
 
       ! -----------------------------------------------------------------------------------------------
       ! Global metadata
@@ -242,6 +286,8 @@ contains
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'mpi_workers',nWorkers)
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'parameter_space','physical')
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,NF90_GLOBAL,'algorithm',trim(algorithm))
       if(ierr/=nf90_noerr) exit netcdf_block
 
       ! leave define mode
@@ -275,6 +321,7 @@ contains
   ! configuration that produced it.
   ! **************************************************************************************************
   function joined_field(targets,field) result(joined)
+    USE metrics, only: metric_is_maximized
     implicit none
     type(target_info), intent(in) :: targets(:)
     character(*),      intent(in) :: field
@@ -289,6 +336,12 @@ contains
         case ('variable');      joined=joined//trim(targets(iTarget)%variable)
         case ('metric');        joined=joined//trim(targets(iTarget)%metric)
         case ('obs_transform'); joined=joined//trim(targets(iTarget)%obs_transform)
+        case ('sense')
+          if(metric_is_maximized(targets(iTarget)%metric))then
+            joined=joined//'maximize'
+          else
+            joined=joined//'minimize'
+          endif
         case default;           joined=joined//'unknown'
       end select
     enddo
@@ -381,6 +434,76 @@ contains
     ierr=0
 
   end subroutine write_calibration_output
+
+  ! **************************************************************************************************
+  ! Write one NSGA-II generation: the generation that proposed trials first..last, and the members
+  ! kept after its selection with their fronts and crowding distances.
+  ! **************************************************************************************************
+  subroutine write_generation_output(ncid,iGen,first,last,member,rank,distance,ierr,message)
+    implicit none
+    integer(i4b), intent(in)  :: ncid
+    integer(i4b), intent(in)  :: iGen           ! generation
+    integer(i4b), intent(in)  :: first,last     ! trials it proposed
+    integer(i4b), intent(in)  :: member(:)      ! sample index of each member kept
+    integer(i4b), intent(in)  :: rank(:)        ! their fronts
+    real(rkind),  intent(in)  :: distance(:)    ! their crowding distances
+    integer(i4b), intent(out) :: ierr
+    character(*), intent(out) :: message
+    integer(i4b) :: varid
+
+    ierr=0
+    message='write_generation_output/'
+    netcdf_block: block
+      ierr=nf90_inq_varid(ncid,'birth_generation',varid)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_var(ncid,varid,spread(iGen,1,last-first+1),start=(/first/),count=(/last-first+1/))
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ierr=nf90_inq_varid(ncid,'population',varid)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_var(ncid,varid,member,start=(/1,iGen/),count=(/size(member),1/))
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ierr=nf90_inq_varid(ncid,'population_rank',varid)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_var(ncid,varid,rank,start=(/1,iGen/),count=(/size(rank),1/))
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ierr=nf90_inq_varid(ncid,'population_crowding',varid)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_var(ncid,varid,distance,start=(/1,iGen/),count=(/size(distance),1/))
+      if(ierr/=nf90_noerr) exit netcdf_block
+    end block netcdf_block
+    if(ierr/=nf90_noerr)then
+      message=trim(message)//trim(nf90_strerror(ierr))
+      return
+    endif
+    ierr=0
+
+  end subroutine write_generation_output
+
+  ! **************************************************************************************************
+  ! Write which trials are non-dominated among every trial evaluated.
+  ! **************************************************************************************************
+  subroutine write_pareto_front(ncid,front,ierr,message)
+    implicit none
+    integer(i4b), intent(in)  :: ncid
+    logical(lgt), intent(in)  :: front(:)       ! one flag per trial
+    integer(i4b), intent(out) :: ierr
+    character(*), intent(out) :: message
+    integer(i4b) :: varid
+
+    ierr=0
+    message='write_pareto_front/'
+    ierr=nf90_inq_varid(ncid,'pareto_front',varid)
+    if(ierr==nf90_noerr) ierr=nf90_put_var(ncid,varid,merge(1,0,front))
+    if(ierr/=nf90_noerr)then
+      message=trim(message)//trim(nf90_strerror(ierr))
+      return
+    endif
+    ierr=0
+
+  end subroutine write_pareto_front
 
   ! **************************************************************************************************
   ! Close calibration output file.

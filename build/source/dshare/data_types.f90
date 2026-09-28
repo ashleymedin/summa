@@ -115,6 +115,17 @@ MODULE data_types
  end type target_info
 
  ! -----------------------------------------------------------------------------------------------------------
+ ! NSGA-II settings (Deb et al., 2002).  The sample budget is population_size times the number of
+ ! generations, the first of which is the random initial population.
+ type,public  :: nsga2_info
+  integer(i4b)                   :: population_size = 100          ! members kept each generation
+  real(rkind)                    :: crossover_probability = 0.9_rkind ! chance a pair of parents is crossed
+  real(rkind)                    :: crossover_eta = 20._rkind      ! SBX distribution index
+  real(rkind)                    :: mutation_probability = -1._rkind ! chance each variable mutates; negative is 1/nParam
+  real(rkind)                    :: mutation_eta = 20._rkind       ! polynomial-mutation distribution index
+ end type nsga2_info
+
+ ! -----------------------------------------------------------------------------------------------------------
 
  ! calibration configuration
  type,public  :: calib_info
@@ -127,6 +138,8 @@ MODULE data_types
   type(ordered_constraint),   allocatable :: ordered(:)          ! ordered parameter constraints
   type(target_info),          allocatable :: targets(:)          ! calibration targets, one per objective
   integer(i4b)                   :: n_samples = 5000    ! number of parameter samples to evaluate
+  character(len=16)              :: algorithm = 'dds'   ! dds (on the scalarized targets) or nsga2 (on each)
+  type(nsga2_info)               :: nsga2               ! NSGA-II settings
   logical(lgt)                   :: write_aligned = .false. ! flag to write the aligned sim/obs time series
  end type calib_info
 

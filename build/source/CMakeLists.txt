@@ -168,6 +168,7 @@ set(OBJFNC
 # Model calibration
 set(CALIBR
     ${CALIBR_DIR}/parameter_search.f90
+    ${CALIBR_DIR}/nsga2.f90
     ${CALIBR_DIR}/summa_parameter_spec.f90
     ${CALIBR_DIR}/calibration_output.f90
     CACHE INTERNAL "CALIBR")

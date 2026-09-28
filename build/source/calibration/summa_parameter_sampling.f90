@@ -60,7 +60,17 @@ module summa_parameter_sampling
   ! parameter sampling method
   character(len=*), parameter :: sampling_method='dds'
 
+  ! every trial of a calibration, kept by rank 0
+  type :: trial_ledger
+    real(rkind),  allocatable :: value(:,:)       ! sampled decision vector (nSampled,nSamples)
+    real(rkind),  allocatable :: override(:,:)    ! complete SUMMA override vector (nParam,nSamples)
+    real(rkind),  allocatable :: objective(:,:)   ! one value per calibration target (nTarget,nSamples)
+    integer(i4b), allocatable :: start_time(:,:)  ! dispatch time (8,nSamples)
+    integer(i4b), allocatable :: end_time(:,:)    ! completion time (8,nSamples)
+  end type trial_ledger
+
   ! public parameter-sampling interface
+  public :: check_search_settings
   public :: initialize_parameter_evaluation
   public :: dispatch_parameter_samples
 
@@ -155,11 +165,11 @@ contains
   end subroutine initialize_parameter_evaluation
 
   ! **************************************************************************************************
-  ! Dynamically distribute and evaluate parameter samples.
+  ! Evaluate the calibration's parameter samples.
   !
-  ! Rank 0 generates parameter samples and assigns work to available workers. Each worker evaluates
-  ! one sample at a time and returns the resulting objective value. Workers that finish early are
-  ! immediately assigned additional samples, reducing load imbalance from variable model runtimes.
+  ! Workers evaluate whatever trial rank 0 sends until told to stop. Rank 0 runs the configured search:
+  ! DDS over the whole budget at once, or NSGA-II one generation at a time. Both hand their trials to
+  ! the same asynchronous dispatcher, so the worker pool and its MODFLOW directories persist throughout.
   ! **************************************************************************************************
   subroutine dispatch_parameter_samples(config,                    &
                                         domain_parallel,           &
@@ -168,16 +178,8 @@ contains
                                         param_name,ncid_calib,     &
                                         x_best,F_best,sample_best, &
                                         nSamples,err,message)
-    ! parameter search
-    USE parameter_search, only: parameter_spec,parameter_search_info
-    ! objective-function evaluation
-    USE summa_simulation,         only: evaluate_objectives
-    USE summa_simulation,         only: n_calibration_targets
-    USE summa_simulation,         only: scalarize_objectives
-    ! calibration output
-    USE calibration_output_module, only: write_calibration_output
+    USE summa_simulation, only: n_calibration_targets
     implicit none
-    ! dummy variables
     type(config_info),              intent(inout) :: config             ! SUMMA configuration structure
     type(parallel_context_type),    intent(in)    :: domain_parallel    ! MPI context for domain parallelism
     type(parallel_context_type),    intent(in)    :: instance_parallel  ! MPI context for model-instance parallelism
@@ -191,223 +193,437 @@ contains
     integer(i4b),                   intent(in)    :: nSamples           ! total number of parameter trials
     integer(i4b),                   intent(out)   :: err                ! error code
     character(*),                   intent(out)   :: message            ! error message
-    ! sampled parameter values
-    real(rkind),       allocatable   :: param_value(:)
-    real(rkind),       allocatable   :: param_override(:)
-    ! complete parameter samples and parameter overrides retained by rank 0
-    real(rkind),       allocatable   :: param_samples(:,:)
-    real(rkind),       allocatable   :: param_overrides(:,:)
-    ! parameter-evaluation timing
-    integer(i4b),      allocatable  :: startModelRun(:,:)
-    integer(i4b),      allocatable  :: endModelRun(:,:)
-    ! MPI work-queue state
-    integer(i4b) :: worker
-    integer(i4b) :: worker_sample(instance_parallel%size-1)
-    integer(i4b) :: sample_id
-    integer(i4b) :: next_sample
-    integer(i4b) :: nComplete
-    logical(lgt) :: stop_worker
-    ! objective values: one per calibration target, and the scalar a single-objective search compares
-    real(rkind), allocatable :: objective(:)
-    real(rkind)  :: F_sample
-    integer(i4b) :: nTarget
-    ! error control
-    integer(i4b)        :: mpi_err
+    type(trial_ledger)  :: ledger                                       ! every trial, kept by rank 0
+    integer(i4b)        :: nTarget                                      ! objectives per trial
     character(len=256)  :: cmessage
 
     err=0
     message='dispatch_parameter_samples/'
 
-    ! -----------------------------------------------------------------------------------------------
-    ! Allocate local arrays
-    ! -----------------------------------------------------------------------------------------------
-
-    ! available on all ranks
-    allocate(param_override(size(param_spec%params)),stat=err)
-    if(err/=0)then
-      message=trim(message)//'unable to allocate parameter override vector'
-      return
-    endif
-
-    ! Every rank reads the same configuration, so every rank agrees on how many objectives a trial
-    ! returns, and the objective messages are the same shape on both sides of the exchange.
+    ! every rank reads the same configuration, so the objective messages agree in length on both sides
     nTarget=max(n_calibration_targets(config),1)
-    allocate(objective(nTarget),stat=err)
-    if(err/=0)then
-      message=trim(message)//'unable to allocate the objective vector'
+
+    if(instance_parallel%rank /= 0)then
+      call serve_trials(config,domain_parallel,instance_parallel,param_name, &
+                        size(param_spec%params),nTarget,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       return
     endif
 
-    ! rank 0 responsible for parameter sampling and dispatch
-    if(instance_parallel%rank == 0)then
-      allocate(param_value(size(search%param_names)),stat=err)
-      if(err/=0)then
-        message=trim(message)//'unable to allocate sampled parameter vector'
-        return
-      endif
-      allocate(param_samples(size(search%param_names),nSamples),stat=err)
-      if(err/=0)then
-        message=trim(message)//'unable to allocate sampled parameter storage'
-        return
-      endif
-      allocate(param_overrides(size(param_spec%params),nSamples),stat=err)
-      if(err/=0)then
-        message=trim(message)//'unable to allocate parameter override storage'
-        return
-      endif
-      allocate(startModelRun(8,nSamples), stat=err)
-      if(err/=0)then
-        message=trim(message)//'unable to allocate parameter start-time storage'
-        return
-      endif
-      allocate(endModelRun(8,nSamples), stat=err)
-      if(err/=0)then
-        message=trim(message)//'unable to allocate parameter end-time storage'
-        return
-      endif
+    allocate(ledger%value(size(search%param_names),nSamples),  &
+             ledger%override(size(param_spec%params),nSamples), &
+             ledger%objective(nTarget,nSamples),                 &
+             ledger%start_time(8,nSamples),                      &
+             ledger%end_time(8,nSamples),stat=err)
+    if(err/=0)then
+      message=trim(message)//'unable to allocate the trial record'
+      return
     endif
 
-    ! -----------------------------------------------------------------------------------------------
-    ! Dispatcher
-    ! -----------------------------------------------------------------------------------------------
-    if(instance_parallel%rank == 0)then
-      next_sample=1
-      nComplete=0
+    select case(trim(config%calib%algorithm))
+      case('dds')
+        call dispatch_trials(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
+                             1,nSamples,nSamples,ledger,x_best,F_best,sample_best,err,cmessage)
+      case('nsga2')
+        call run_nsga2(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
+                       nSamples,ledger,x_best,F_best,sample_best,err,cmessage)
+    end select
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      ! assign one initial parameter sample to each available worker
-      do worker=1,instance_parallel%size-1
-        if(next_sample <= nSamples)then
-
-          ! generate the next parameter sample and complete SUMMA override vector
-          call generate_parameter_sample(param_spec,search, param_value,param_override, err,cmessage)
-          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-          ! save parameter samples (rank 0)
-          param_samples(:,next_sample)=param_value       ! retain sampled decision-variable vector
-          param_overrides(:,next_sample)=param_override  ! retain complete SUMMA override vector
-          call date_and_time(values=startModelRun(:,next_sample))
-
-          ! send the sample index and parameter vector to this worker
-          call send_sample(worker,next_sample,param_override, instance_parallel%comm,mpi_err)
-          call check_mpi(instance_parallel%rank,mpi_err, 'unable to send parameter sample')
-          worker_sample(worker)=next_sample
-          next_sample=next_sample+1
-
-        else
-
-          ! no work is available for this worker
-          call send_stop(worker,instance_parallel%comm,mpi_err)
-          call check_mpi(instance_parallel%rank,mpi_err, 'unable to send stop message')
-        endif
-      enddo
-
-      ! wait for completed trials and immediately refill available workers
-      do while(nComplete < nSamples)
-
-        ! receive the objective value from whichever worker finishes next
-        call receive_objective(objective,worker, instance_parallel%comm,mpi_err)
-        call check_mpi(instance_parallel%rank,mpi_err, 'unable to receive objective value')
-        sample_id=worker_sample(worker)
-        call date_and_time(values=endModelRun(:,sample_id))
-
-        ! update best parameter sample.  DDS searches on one number, so the targets are collapsed
-        ! into the weighted, consistently oriented scalar that scalarize_objectives returns; with a
-        ! single target of weight one that is the metric itself.
-        F_sample=scalarize_objectives(config,objective)
-        if(F_sample > F_best)then
-          F_best=F_sample                      ! update best objective value
-          x_best=param_samples(:,sample_id)    ! update best decision-variable vector
-          sample_best=sample_id                ! record sample associated with current best
-          write(output_unit,'(A,I0,A,F14.6)') 'new DDS best: sample=',sample_best,', objective=',F_best
-        endif
-        call write_calibration_output(ncid_calib,                   &
-                                      sample_id, worker,            &
-                                      param_name,                   &
-                                      param_overrides(:,sample_id), &
-                                      objective,                    &
-                                      startModelRun(:,sample_id),   &
-                                      endModelRun(:,sample_id),     &
-                                      err,cmessage)
-        if(err/=0)then
-          message=trim(message)//trim(cmessage)
-          call abort_mpi(instance_parallel%rank,trim(message))
-        endif
-        nComplete=nComplete+1
-
-        ! immediately give the completed worker another sample if work remains
-        if(next_sample <= nSamples)then
-
-          ! generate the next parameter sample and complete SUMMA override vector
-          select case(trim(sampling_method))
-
-            case ('dds')
-              call generate_dds_sample(param_spec,search,             &
-                                       x_best,                         &
-                                       next_sample,nSamples,           &
-                                       param_value,param_override,     &
-                                       err,cmessage)
-              if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-         
-            case ('random')
-              call generate_parameter_sample(param_spec,search, param_value,param_override, err,cmessage)
-              if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-         
-            case default
-              message=trim(message)//'unknown parameter sampling method: '//trim(sampling_method)
-              err=20; return
-       
-          end select
-
-          ! save parameter samples (rank 0)
-          param_samples(:,next_sample)=param_value       ! retain sampled decision-variable vector
-          param_overrides(:,next_sample)=param_override  ! retain complete SUMMA override vector
-          call date_and_time(values=startModelRun(:,next_sample))
-
-          ! send the next sample to the worker that just became available
-          call send_sample(worker,next_sample,param_override, instance_parallel%comm,mpi_err)
-          call check_mpi(instance_parallel%rank,mpi_err, 'unable to send parameter sample')
-          worker_sample(worker)=next_sample
-          next_sample=next_sample+1
-
-        else
-
-          ! all samples have been dispatched, so this worker is finished
-          call send_stop(worker,instance_parallel%comm,mpi_err)
-          call check_mpi(instance_parallel%rank,mpi_err, 'unable to send stop message')
-        endif
-      enddo
-
-    ! -----------------------------------------------------------------------------------------------
-    ! Workers
-    ! -----------------------------------------------------------------------------------------------
-    else
-      do
-
-        ! wait for either another parameter sample or a stop instruction
-        call receive_sample(sample_id,param_override,stop_worker, &
-                            instance_parallel%comm,               &
-                            instance_parallel%rank,               &
-                            mpi_err)
-        call check_mpi(instance_parallel%rank,mpi_err, 'unable to receive parameter sample')
-        if(stop_worker) exit
-
-        ! run SUMMA and evaluate every calibration target
-        call evaluate_objectives(config,                              & ! SUMMA configuration structure
-                                 domain_parallel,instance_parallel,   & ! MPI context for model domain and model-instance parallelism
-                                 sample_id,param_name,param_override, & ! complete parameter overrides
-                                 objective,err,cmessage)                ! objective value per target and error control
-        if(err/=0)then
-          message=trim(message)//trim(cmessage)
-          call abort_mpi(instance_parallel%rank,trim(message))
-        endif
-
-        ! return the objective value and become available for additional work
-        call send_objective(objective, instance_parallel%comm,mpi_err)
-        call check_mpi(instance_parallel%rank,mpi_err, 'unable to send objective value')
-      enddo
-    endif
+    call release_workers(instance_parallel)
 
   end subroutine dispatch_parameter_samples
+
+  ! **************************************************************************************************
+  ! Dispatch trials first..last to the workers and wait for all of them (rank 0 only).
+  !
+  ! Each worker gets one trial at a time and is refilled the moment it reports, which absorbs the
+  ! spread in model runtimes. DDS proposes each trial as a worker frees up, from the best so far;
+  ! NSGA-II has already written the whole generation into the ledger.
+  ! **************************************************************************************************
+  subroutine dispatch_trials(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
+                             first,last,nSamples,ledger,x_best,F_best,sample_best,err,message)
+    USE calibration_output_module, only: write_calibration_output
+    implicit none
+    type(config_info),           intent(in)    :: config
+    type(parallel_context_type), intent(in)    :: instance_parallel
+    type(parameter_spec),        intent(in)    :: param_spec
+    type(parameter_search_info), intent(in)    :: search
+    character(len=64),           intent(in)    :: param_name(:)
+    integer(i4b),                intent(in)    :: ncid_calib
+    integer(i4b),                intent(in)    :: first,last        ! trials to evaluate
+    integer(i4b),                intent(in)    :: nSamples          ! total sample budget
+    type(trial_ledger),          intent(inout) :: ledger
+    real(rkind), allocatable,    intent(inout) :: x_best(:)
+    real(rkind),                 intent(inout) :: F_best
+    integer(i4b),                intent(inout) :: sample_best
+    integer(i4b),                intent(out)   :: err
+    character(*),                intent(out)   :: message
+    integer(i4b) :: worker
+    integer(i4b) :: worker_sample(instance_parallel%size-1)
+    integer(i4b) :: sample_id
+    integer(i4b) :: next_sample
+    integer(i4b) :: nActive
+    integer(i4b) :: mpi_err
+    real(rkind)  :: objective(size(ledger%objective,1))
+    character(len=256) :: cmessage
+
+    err=0
+    message='dispatch_trials/'
+    next_sample=first
+    nActive=0
+
+    ! one trial to each worker
+    do worker=1,instance_parallel%size-1
+      if(next_sample > last) exit
+      call start_trial(worker,next_sample)
+      if(err/=0) return
+      next_sample=next_sample+1
+    enddo
+
+    ! wait for completed trials and immediately refill available workers
+    do while(nActive > 0)
+      call receive_objective(objective,worker,instance_parallel%comm,mpi_err)
+      call check_mpi(instance_parallel%rank,mpi_err,'unable to receive objective value')
+      nActive=nActive-1
+      sample_id=worker_sample(worker)
+      call date_and_time(values=ledger%end_time(:,sample_id))
+      ledger%objective(:,sample_id)=objective
+
+      call record_trial(config,sample_id,ledger,x_best,F_best,sample_best)
+      call write_calibration_output(ncid_calib,                    &
+                                    sample_id,worker,              &
+                                    param_name,                    &
+                                    ledger%override(:,sample_id),  &
+                                    ledger%objective(:,sample_id), &
+                                    ledger%start_time(:,sample_id),&
+                                    ledger%end_time(:,sample_id),  &
+                                    err,cmessage)
+      if(err/=0)then
+        message=trim(message)//trim(cmessage)
+        call abort_mpi(instance_parallel%rank,trim(message))
+      endif
+
+      if(next_sample <= last)then
+        call start_trial(worker,next_sample)
+        if(err/=0) return
+        next_sample=next_sample+1
+      endif
+    enddo
+
+  contains
+
+    ! propose trial i if the search has not already, and send it to a worker
+    subroutine start_trial(worker,i)
+      integer(i4b), intent(in) :: worker,i
+      call propose_trial(config,param_spec,search,i,instance_parallel%size-1,nSamples,x_best,ledger,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      call date_and_time(values=ledger%start_time(:,i))
+      call send_sample(worker,i,ledger%override(:,i),instance_parallel%comm,mpi_err)
+      call check_mpi(instance_parallel%rank,mpi_err,'unable to send parameter sample')
+      worker_sample(worker)=i
+      nActive=nActive+1
+    end subroutine start_trial
+
+  end subroutine dispatch_trials
+
+  ! **************************************************************************************************
+  ! Propose trial i into the ledger. DDS samples at random while it has no best to perturb, which is
+  ! the first round of trials, one per worker; NSGA-II proposes a generation before dispatching it.
+  ! **************************************************************************************************
+  subroutine propose_trial(config,param_spec,search,i,nWorkers,nSamples,x_best,ledger,err,message)
+    implicit none
+    type(config_info),           intent(in)    :: config
+    type(parameter_spec),        intent(in)    :: param_spec
+    type(parameter_search_info), intent(in)    :: search
+    integer(i4b),                intent(in)    :: i                 ! trial to propose
+    integer(i4b),                intent(in)    :: nWorkers
+    integer(i4b),                intent(in)    :: nSamples
+    real(rkind),                 intent(in)    :: x_best(:)
+    type(trial_ledger),          intent(inout) :: ledger
+    integer(i4b),                intent(out)   :: err
+    character(*),                intent(out)   :: message
+    character(len=256) :: cmessage
+
+    err=0
+    message='propose_trial/'
+    if(trim(config%calib%algorithm) /= 'dds') return
+
+    if(i <= nWorkers .or. trim(sampling_method) == 'random')then
+      call generate_parameter_sample(param_spec,search,ledger%value(:,i),ledger%override(:,i),err,cmessage)
+    else
+      call generate_dds_sample(param_spec,search,x_best,i,nSamples,ledger%value(:,i),ledger%override(:,i),err,cmessage)
+    endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  end subroutine propose_trial
+
+  ! **************************************************************************************************
+  ! Take in the objectives of trial i. DDS searches on one number, so it keeps the trial with the best
+  ! weighted, consistently oriented sum of its targets; with one target of weight one, the metric.
+  ! **************************************************************************************************
+  subroutine record_trial(config,i,ledger,x_best,F_best,sample_best)
+    USE summa_simulation, only: scalarize_objectives
+    implicit none
+    type(config_info),  intent(in)    :: config
+    integer(i4b),       intent(in)    :: i
+    type(trial_ledger), intent(in)    :: ledger
+    real(rkind),        intent(inout) :: x_best(:)
+    real(rkind),        intent(inout) :: F_best
+    integer(i4b),       intent(inout) :: sample_best
+    real(rkind) :: F_sample
+
+    if(trim(config%calib%algorithm) /= 'dds') return
+    F_sample=scalarize_objectives(config,ledger%objective(:,i))
+    if(F_sample > F_best)then
+      F_best=F_sample
+      x_best=ledger%value(:,i)
+      sample_best=i
+      write(output_unit,'(A,I0,A,F14.6)') 'new DDS best: sample=',sample_best,', objective=',F_best
+    endif
+
+  end subroutine record_trial
+
+  ! **************************************************************************************************
+  ! Worker loop: evaluate each trial rank 0 sends, return its objectives, until told to stop.
+  ! **************************************************************************************************
+  subroutine serve_trials(config,domain_parallel,instance_parallel,param_name,nParam,nTarget,err,message)
+    USE summa_simulation, only: evaluate_objectives
+    implicit none
+    type(config_info),           intent(inout) :: config
+    type(parallel_context_type), intent(in)    :: domain_parallel
+    type(parallel_context_type), intent(in)    :: instance_parallel
+    character(len=64),           intent(in)    :: param_name(:)
+    integer(i4b),                intent(in)    :: nParam            ! length of the override vector
+    integer(i4b),                intent(in)    :: nTarget           ! objectives per trial
+    integer(i4b),                intent(out)   :: err
+    character(*),                intent(out)   :: message
+    real(rkind)  :: param_override(nParam)
+    real(rkind)  :: objective(nTarget)
+    integer(i4b) :: sample_id
+    integer(i4b) :: mpi_err
+    logical(lgt) :: stop_worker
+    character(len=256) :: cmessage
+
+    err=0
+    message='serve_trials/'
+    do
+      call receive_sample(sample_id,param_override,stop_worker, &
+                          instance_parallel%comm,instance_parallel%rank,mpi_err)
+      call check_mpi(instance_parallel%rank,mpi_err,'unable to receive parameter sample')
+      if(stop_worker) exit
+
+      call evaluate_objectives(config,                              & ! SUMMA configuration structure
+                               domain_parallel,instance_parallel,   & ! MPI context for model domain and model-instance parallelism
+                               sample_id,param_name,param_override, & ! complete parameter overrides
+                               objective,err,cmessage)                ! objective value per target and error control
+      if(err/=0)then
+        message=trim(message)//trim(cmessage)
+        call abort_mpi(instance_parallel%rank,trim(message))
+      endif
+
+      call send_objective(objective,instance_parallel%comm,mpi_err)
+      call check_mpi(instance_parallel%rank,mpi_err,'unable to send objective value')
+    enddo
+
+  end subroutine serve_trials
+
+  ! **************************************************************************************************
+  ! Tell every worker the calibration is over (rank 0 only).
+  ! **************************************************************************************************
+  subroutine release_workers(instance_parallel)
+    implicit none
+    type(parallel_context_type), intent(in) :: instance_parallel
+    integer(i4b) :: worker
+    integer(i4b) :: mpi_err
+
+    do worker=1,instance_parallel%size-1
+      call send_stop(worker,instance_parallel%comm,mpi_err)
+      call check_mpi(instance_parallel%rank,mpi_err,'unable to send stop message')
+    enddo
+
+  end subroutine release_workers
+
+  ! **************************************************************************************************
+  ! NSGA-II over the calibration targets (rank 0 only).
+  !
+  ! The first generation is a random population; each later one breeds as many offspring, evaluates
+  ! them, and keeps the best population_size of parents and offspring together. Objectives are
+  ! oriented so smaller is better; weights play no part. Writes each generation's population and,
+  ! at the end, which of all the trials are non-dominated.
+  ! **************************************************************************************************
+  subroutine run_nsga2(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
+                       nSamples,ledger,x_best,F_best,sample_best,err,message)
+    USE nsga2,                     only: nondominated_sort,nondominated_set
+    USE nsga2,                     only: crowding_distance,select_survivors,make_offspring
+    USE summa_simulation,          only: oriented_objectives
+    USE summa_parameter_spec,      only: build_summa_parameter_overrides
+    USE calibration_output_module, only: write_generation_output,write_pareto_front
+    implicit none
+    type(config_info),           intent(in)    :: config
+    type(parallel_context_type), intent(in)    :: instance_parallel
+    type(parameter_spec),        intent(in)    :: param_spec
+    type(parameter_search_info), intent(in)    :: search
+    character(len=64),           intent(in)    :: param_name(:)
+    integer(i4b),                intent(in)    :: ncid_calib
+    integer(i4b),                intent(in)    :: nSamples
+    type(trial_ledger),          intent(inout) :: ledger
+    real(rkind), allocatable,    intent(inout) :: x_best(:)
+    real(rkind),                 intent(inout) :: F_best
+    integer(i4b),                intent(inout) :: sample_best
+    integer(i4b),                intent(out)   :: err
+    character(*),                intent(out)   :: message
+    real(rkind),  allocatable :: f(:,:)          ! oriented objectives of every trial
+    integer(i4b), allocatable :: member(:)       ! sample index of each member of the population
+    integer(i4b), allocatable :: rank(:)         ! their fronts
+    real(rkind),  allocatable :: distance(:)     ! their crowding distances
+    integer(i4b), allocatable :: combined(:)     ! parents then offspring
+    integer(i4b), allocatable :: keep(:)         ! survivors' positions in combined
+    integer(i4b) :: nPop,nGen,iGen,first,last,i
+    real(rkind)  :: pm
+    character(len=256) :: cmessage
+
+    err=0
+    message='run_nsga2/'
+    associate(settings => config%calib%nsga2)
+    nPop=settings%population_size
+    nGen=nSamples/nPop
+    pm=settings%mutation_probability
+    if(pm < 0._rkind) pm=1._rkind/real(size(search%param_names),rkind)
+    allocate(f(size(ledger%objective,1),nSamples),member(nPop),rank(nPop),distance(nPop), &
+             combined(2*nPop),keep(nPop),stat=err)
+    if(err/=0)then
+      message=trim(message)//'unable to allocate the population'
+      return
+    endif
+
+    do iGen=1,nGen
+      first=(iGen-1)*nPop+1
+      last=iGen*nPop
+
+      ! propose the generation: a random population, then offspring of the one before
+      if(iGen == 1)then
+        do i=first,last
+          call generate_parameter_sample(param_spec,search,ledger%value(:,i),ledger%override(:,i),err,cmessage)
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        enddo
+      else
+        call make_offspring(search,ledger%value(:,member),rank,distance,                         &
+                            settings%crossover_probability,settings%crossover_eta,pm,settings%mutation_eta, &
+                            ledger%value(:,first:last),err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        do i=first,last
+          call build_summa_parameter_overrides(param_spec,search%param_names,ledger%value(:,i), &
+                                               ledger%override(:,i),err,cmessage)
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        enddo
+      endif
+
+      call dispatch_trials(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
+                           first,last,nSamples,ledger,x_best,F_best,sample_best,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      do i=first,last
+        f(:,i)=oriented_objectives(config,ledger%objective(:,i))
+      enddo
+
+      ! select the population the next generation breeds from
+      if(iGen == 1)then
+        member=[(i,i=first,last)]
+        call nondominated_sort(f(:,member),rank)
+        call crowding_distance(f(:,member),rank,distance)
+      else
+        combined=[member,(i,i=first,last)]
+        call select_survivors(f(:,combined),nPop,keep,rank,distance)
+        member=combined(keep)
+      endif
+
+      call write_generation_output(ncid_calib,iGen,first,last,member,rank,distance,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      call report_generation(config,iGen,nGen,ledger%objective(:,member),rank)
+    enddo
+
+    call write_pareto_front(ncid_calib,nondominated_set(f),err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end associate
+
+  end subroutine run_nsga2
+
+  ! **************************************************************************************************
+  ! One line per generation: the size of the non-dominated front and each target's best in it.
+  ! **************************************************************************************************
+  subroutine report_generation(config,iGen,nGen,objective,rank)
+    USE metrics, only: metric_is_maximized
+    implicit none
+    type(config_info), intent(in) :: config
+    integer(i4b),      intent(in) :: iGen,nGen
+    real(rkind),       intent(in) :: objective(:,:)  ! population objectives (nTarget,nPop)
+    integer(i4b),      intent(in) :: rank(:)
+    character(len=1024) :: line
+    character(len=32)   :: val
+    real(rkind)  :: best
+    integer(i4b) :: iTarget
+
+    write(line,'(A,I0,A,I0,A,I0,A)') 'NSGA-II generation ',iGen,' of ',nGen,': ',count(rank==1),' non-dominated'
+    do iTarget=1,min(size(objective,1),size(config%calib%targets))
+      if(metric_is_maximized(config%calib%targets(iTarget)%metric))then
+        best=maxval(objective(iTarget,:),mask=rank==1)
+      else
+        best=minval(objective(iTarget,:),mask=rank==1)
+      endif
+      write(val,'(F14.6)') best
+      line=trim(line)//'; best '//trim(config%calib%targets(iTarget)%name)//' '// &
+           trim(config%calib%targets(iTarget)%metric)//' = '//trim(adjustl(val))
+    enddo
+    write(output_unit,'(A)') trim(line)
+
+  end subroutine report_generation
+
+  ! **************************************************************************************************
+  ! Check the search algorithm and, for NSGA-II, that the sample budget is a whole number of generations.
+  ! **************************************************************************************************
+  subroutine check_search_settings(config,err,message)
+    USE summa_simulation, only: n_calibration_targets
+    implicit none
+    type(config_info), intent(in)  :: config
+    integer(i4b),      intent(out) :: err
+    character(*),      intent(out) :: message
+
+    err=0
+    message='check_search_settings/'
+    select case(trim(config%calib%algorithm))
+      case('dds')
+      case('nsga2')
+        associate(nsga2 => config%calib%nsga2, nSamples => config%calib%n_samples)
+        if(n_calibration_targets(config) < 1)then
+          message=trim(message)//'NSGA-II needs at least one [[calibration.target]] or an [observations] file'
+          err=20; return
+        endif
+        if(nsga2%population_size < 2)then
+          message=trim(message)//'calibration.nsga2.population_size must be at least 2'
+          err=20; return
+        endif
+        if(mod(nSamples,nsga2%population_size) /= 0 .or. nSamples < 2*nsga2%population_size)then
+          write(message,'(A,I0,A,I0,A,I0)') trim(message)//'calibration.n_samples = ',nSamples, &
+            ' must be a whole number of generations of population_size = ',nsga2%population_size, &
+            ', at least two: a multiple of it no smaller than ',2*nsga2%population_size
+          err=20; return
+        endif
+        if(nsga2%crossover_probability < 0._rkind .or. nsga2%crossover_probability > 1._rkind .or. &
+           nsga2%mutation_probability > 1._rkind)then
+          message=trim(message)//'calibration.nsga2 probabilities must lie between 0 and 1'
+          err=20; return
+        endif
+        if(nsga2%crossover_eta < 0._rkind .or. nsga2%mutation_eta < 0._rkind)then
+          message=trim(message)//'calibration.nsga2 distribution indices must not be negative'
+          err=20; return
+        endif
+        end associate
+      case default
+        message=trim(message)//'unknown calibration.algorithm "'//trim(config%calib%algorithm)//'"; use dds or nsga2'
+        err=20; return
+    end select
+
+  end subroutine check_search_settings
 
   ! **************************************************************************************************
   ! Generate a SUMMA parameter sample.
