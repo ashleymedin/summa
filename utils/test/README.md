@@ -15,7 +15,8 @@ Tests and example domains for SUMMA, grouped by what they exercise:
   (`summa*_opt.exe`, needs `-DUSE_MPI=ON -DUSE_MIZUROUTE=ON`):
   `test_calibration_bow.sh`, a short DDS calibration of the Bow at Banff in
   2004 (inside the GRACE record, so streamflow and storage targets can be
-  scored together); `gulkana_wolverine/`, a two-basin glacier domain with
+  scored together); `test_calibration_bow_pareto.sh`, the same case scored on
+  discharge and GRACE by NSGA-II and by DDS on one budget; `gulkana_wolverine/`, a two-basin glacier domain with
   GRACE storage per basin; and `multi_case_example/`, which calibrates several
   cases from one manifest on a stub dataset built from the bundled Bow domain.
 - [`test_mflow/`](test_mflow/README.md) -- SUMMA coupled to MODFLOW 6
@@ -30,5 +31,6 @@ Tests and example domains for SUMMA, grouped by what they exercise:
 
 Runnable right after cloning, given a build with the options named above
 (see [docs/index.md](../../docs/index.md)): `test_mizuroute/test_mizuroute_bundled.sh`,
-`test_calibration/test_calibration_bow.sh`, `test_calibration/multi_case_example/make_stub_century.bash`
+`test_calibration/test_calibration_bow.sh`, `test_calibration/test_calibration_bow_pareto.sh`,
+`test_calibration/multi_case_example/make_stub_century.bash`
 followed by the run it prints, and the `test_mflow/run_sagehen*.sh` scripts.

@@ -118,6 +118,45 @@ metric         = "rmse"
   period. Doing it to both sides is what removes the constant of integration an accumulated series
   carries, which is what makes an integrated rate comparable to a storage anomaly at all.
 
+## Searching for the trade-offs: `algorithm = "nsga2"`
+
+DDS collapses the targets into a weighted sum and returns one parameter set, so when targets pull
+against each other the weights have decided the answer before the search starts. NSGA-II (Deb et al.,
+2002) searches on every target at once and keeps the **Pareto front**: the trials no other trial beats
+on every target together. Choosing among them is left to whoever reads the output.
+
+```toml
+[calibration]
+algorithm = "nsga2"      # default "dds"
+n_samples = 400          # population_size x generations
+
+[calibration.nsga2]
+population_size = 20     # members kept each generation (default 100)
+# crossover_probability = 0.9, crossover_eta = 20, mutation_eta = 20
+# mutation_probability defaults to 1 / (number of calibrated parameters)
+```
+
+The first generation is random. Each later one breeds `population_size` offspring from the one before
+- a crowded binary tournament picks the parents, simulated binary crossover recombines them and
+polynomial mutation perturbs the children - and keeps the best `population_size` of parents and
+offspring together. The operators work in the transformed search space, so a `log` parameter is
+recombined on a log scale, and a child that breaks an ordered constraint is bred again. `n_samples` has
+to be a whole number of generations, at least two. Target weights play no part; each target is
+oriented by its metric. Both searches evaluate trials on the same worker pool.
+
+An NSGA-II trials file carries, beside every trial's parameters and objectives:
+
+| Variable | What it holds |
+| --- | --- |
+| `pareto_front(sample)` | 1 if no other trial is at least as good on every target and better on one |
+| `birth_generation(sample)` | the generation that proposed the trial, 1 the random initial population |
+| `population(member, generation)` | the sample index of each member kept after that generation |
+| `population_rank(member, generation)` | its non-domination front, 1 the non-dominated |
+| `population_crowding(member, generation)` | its crowding distance in that front, infinite at the extremes |
+
+`objective:sense` lists `maximize` or `minimize` per target, which is what a reader needs to recompute
+dominance.
+
 ## Calibrating a MODFLOW 6 coupled case
 
 A build with `-DUSE_MODFLOW6=ON` names its calibration executable `summa_modflow6_opt.exe`.
@@ -202,6 +241,22 @@ recorded for the trials.
 The period and the sample count are deliberately tiny so the test finishes in minutes. It
 exercises the machinery; it does **not** produce a calibrated parameter set. A real calibration
 uses thousands of samples over several years — see `n_samples` in the generated config.
+
+## `test_calibration_bow_pareto.sh`
+
+The Bow 2004 calibration scored against two targets, daily discharge (KGE) and the GRACE storage
+anomaly (RMSE), with the same budget spent twice: by NSGA-II on the two objectives and by DDS on their
+weighted sum. It checks the NSGA-II trials file - finite objectives, a `pareto_front` that is exactly
+the non-dominated trials, a population drawn only from parents and offspring - then prints both
+fronts and their hypervolumes.
+
+```bash
+./test_calibration_bow_pareto.sh [population] [generations] [n_ranks]   # defaults: 8, 5, 5
+```
+
+It calibrates `k_soil`, `aquiferScaleFactor` and the two routing parameters. `theta_sat` is left out:
+sampling it needs the soil ordering constraint, and under that constraint some trials stop SUMMA
+with a soil water balance error.
 
 ## `multi_case_example/` -- multi-case calibration
 
