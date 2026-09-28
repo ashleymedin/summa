@@ -174,8 +174,22 @@ covered separately - `utils/test/test_mflow` exercises the coupling itself, and
 
 A short, self-contained calibration on the Bow River at Banff (CAN_05BB001). Everything it needs
 is already in the repository, under `utils/test/test_mizuroute/bow_real_data/`: lumped SUMMA
-inputs and ten years of forcing, the mizuRoute topology and lumped-to-HRU remapping, and daily
-streamflow observations.
+inputs and RDRS forcing for 2002-2017, the mizuRoute topology and lumped-to-HRU remapping, and
+daily streamflow and GRACE observations. It calibrates 2004 after a 2003 spinup, inside the GRACE
+record, so a storage target can be added to the same run:
+
+```toml
+[[calibration.target]]
+name           = "grace_tws"
+variable       = "basin__StorageChange"
+obs_path       = ".../bow_real_data/observations/"
+obs_file       = "CAN_05BB001_grace_tws.nc"
+vname_obs      = "tws_obs"
+accumulate     = true
+baseline_start = "2004-01-01"
+baseline_end   = "2004-12-31"
+metric         = "rmse"
+```
 
 ```bash
 ./test_calibration_bow.sh [n_samples] [n_ranks]     # defaults: 4 samples, 2 ranks
