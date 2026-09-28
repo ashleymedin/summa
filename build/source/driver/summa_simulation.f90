@@ -768,6 +768,7 @@ contains
     USE mDecisions_module,only: modflowCpl           ! MODFLOW coupled groundwater parameterization
     USE mDecisions_module,only: modLatflow           ! as modflowCpl, plus lateral flow in the soil above
     USE mDecisions_module,only: prescribedHead       ! prescribed head lower boundary condition
+    USE mDecisions_module,only: aquiferTempState     ! the aquifer temperature, from MODFLOW 6 GWE
     ! dummy arguments
     type(summa1_type_dec),  intent(inout) :: summa_struct
     type(mf6_coupler_type), intent(inout) :: coupler
@@ -790,6 +791,10 @@ contains
        model_decisions(iLookDECISIONS%groundwatr)%iDecision /= modLatflow)then
       message=trim(message)//'SUMMA model decision groundwatr must be "modflow" or "modLatflow" '// &
                              'when simulation.use_modflow is set'
+      err=20; return
+    endif
+    if(model_decisions(iLookDECISIONS%deepTherml)%iDecision == aquiferTempState)then
+      message=trim(message)//'deepTherml = aquiferTemp needs GWE, which only summa_modflow6 exchanges'
       err=20; return
     endif
     if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= prescribedHead)then

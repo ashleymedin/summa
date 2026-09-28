@@ -779,9 +779,19 @@ subroutine mDecisions(err,message)
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
   ! check for consistency among options
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
+  ! a MODFLOW aquifer has one temperature source: GWE through the coupler (aquiferTemp), or none at all
+  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == modflowCpl .or. &
+     model_decisions(iLookDECISIONS%groundwatr)%iDecision == modLatflow)then
+    if(model_decisions(iLookDECISIONS%deepTherml)%iDecision /= aquiferTempState .and. &
+       model_decisions(iLookDECISIONS%deepTherml)%iDecision /= noDeepTherml)then
+      message=trim(message)//'expect "deepTherml" decision to equal aquiferTemp (MODFLOW GWE) or none with "groundwatr" = '// &
+        trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision)//': deepTherml = '// &
+        trim(model_decisions(iLookDECISIONS%deepTherml)%cDecision)//' would give the aquifer a second temperature'
+      err=20; return
+    endif
   ! the aquifer temperature is a state of the big-bucket store, so there is nothing for it to attach to without one
-  if(model_decisions(iLookDECISIONS%deepTherml)%iDecision == aquiferTempState .and. &
-     model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
+  else if(model_decisions(iLookDECISIONS%deepTherml)%iDecision == aquiferTempState .and. &
+          model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
     message=trim(message)//'expect "groundwatr" decision to equal bigBuckt with the aquiferTemp option for deepTherml: there is no aquifer store to carry a temperature'
     err=20; return
   endif

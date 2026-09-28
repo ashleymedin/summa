@@ -38,6 +38,7 @@ module mf6_coupling
   !     bnd_package_names  = 'CHD','DRN'                      ! up to MAXBND boundary packages
   !     bnd_package_roles  = 'baseflow','surface_discharge'    ! baseflow | surface_discharge | gw_et
   !     evt_package_name   = ''        ! EVT package driven with SUMMA's aquifer transpiration demand
+  !     gwe_model_name     = ''        ! GWE model whose water-table temperature is SUMMA's aquifer temperature
   !     head_restart_read  = ''        ! initial head field, in place of IC/STRT
   !     head_restart_write = ''        ! final head field, for a later restart
   !     map_file           = ''        ! HRU->cell weights; blank builds a nearest-cell map
@@ -48,6 +49,10 @@ module mf6_coupling
   ! Roles are summed when several packages share one, and are how SUMMA consumes a returned flux:
   ! baseflow reaches routing, surface_discharge is added to surface runoff, gw_et is groundwater
   ! evapotranspiration.  Restart paths resolve against the process working directory, not run_dir.
+  !
+  ! With gwe_model_name set, SUMMA's drainage temperature goes into RCH's one auxiliary variable,
+  ! which GWE's SSM names as the recharge temperature, and GWE's temperature at the water table comes
+  ! back per HRU.  GWE runs in degrees Celsius; every temperature exchanged here is in kelvin.
   !
   ! map_file format: one "iHRU cell weight" triple per line, cell being the row-major horizontal
   ! index (irow-1)*ncol + icol, weights normalised per HRU, blank lines and '#' ignored.
@@ -75,6 +80,7 @@ module mf6_coupling
   integer, parameter :: ROLE_SURFACE_DISCH = 2
   integer, parameter :: ROLE_GW_ET         = 3
   integer, parameter :: MAXBND             = 8     ! max boundary packages in the &coupler table
+  double precision, parameter :: TFREEZE_K = 273.15d0  ! degrees Celsius to kelvin
 
   character(len=20), parameter :: ROLE_NAME(3) = [ character(len=20) :: &
       'baseflow', 'surface_discharge', 'gw_et' ]
@@ -168,6 +174,7 @@ module mf6_coupling
     character(len=256)  :: rch_package_name   = 'RCHA'
     character(len=256)  :: bflow_package_name = 'CHD'   ! back-compatible alias for a single role=baseflow entry
     character(len=256)  :: evt_package_name   = ''      ! EVT package driven with SUMMA's aquifer transpiration demand
+    character(len=256)  :: gwe_model_name     = ''      ! GWE model carrying the aquifer temperature; blank = none
     character(len=256)  :: map_file           = ''
     character(len=1024) :: head_restart_read  = ''    ! read the initial head field from here, overriding IC/STRT
     character(len=1024) :: head_restart_write = ''    ! write the final head field here, for a later restart
@@ -182,6 +189,7 @@ module mf6_coupling
     logical, public :: have_surfdis = .false.  ! a role=surface_discharge package was found
     logical, public :: have_gwet    = .false.  ! a role=gw_et package was found
     logical, public :: have_evt     = .false.  ! an EVT package is available to drive with SUMMA demand
+    logical, public :: have_gwe     = .false.  ! a GWE model carries the aquifer temperature
     logical, public :: restarted    = .false.  ! heads came from head_restart_read, so step 1 has a known water table
     logical, public :: writes_restart = .false. ! head_restart_write is set; the driver writes SUMMA's restart to match
 
@@ -199,6 +207,7 @@ module mf6_coupling
 
     integer :: nss_steps = 0                ! leading steady-state MODFLOW steps run before the coupled period
     real(c_double), allocatable :: head_rst(:)  ! restart heads, reapplied over a leading steady-state solve
+    real(c_double), allocatable :: temp_rst(:)  ! restart temperatures, likewise
 
     ! ---- coupled budget diagnostic (see mf6_budget_report) ----
     logical          :: budget = .false.    ! report the per-step coupled budget
@@ -215,6 +224,8 @@ module mf6_coupling
     real(c_double), pointer :: mf6_sy(:) => null()        ! STO specific yield      <MODEL>/STO/SY  (REDUCED nodes)
     real(c_double), pointer :: mf6_evt(:) => null()       ! EVT max rate array      <MODEL>/<EVT>/RATE (user cells, READASARRAYS)
     real(c_double), pointer :: mf6_top(:) => null()       ! DIS land surface        <MODEL>/DIS/TOP (REDUCED nodes)
+    real(c_double), pointer :: mf6_temp(:) => null()      ! GWE temperature         <GWE>/X (degC, REDUCED nodes, then SFE reaches)
+    real(c_double), pointer :: mf6_rch_temp(:) => null()  ! RCH recharge temperature __INPUT__/<MODEL>/<RCH>/AUXVAR (degC, user cells)
     logical                 :: grid_reduced = .false.
 
     ! ---- head-dependent boundary packages fed back to SUMMA, by role ----
@@ -263,6 +274,7 @@ module mf6_coupling
     procedure, private :: gather_boundary_to_hru=> mf6_gather_boundary_to_hru
     procedure, private :: gather_role_to_hru    => mf6_gather_role_to_hru
     procedure, private :: gather_gwet_limit    => mf6_gather_gwet_limit
+    procedure, private :: gather_temp_to_hru    => mf6_gather_temp_to_hru
     procedure, private :: nearest_hru           => mf6_nearest_hru
     procedure, private :: top_active_node       => mf6_top_active_node
     procedure, private :: to_reduced            => mf6_to_reduced
@@ -414,6 +426,35 @@ contains
       end if
     end if
 
+    ! -- GWE: temperature on the GWF grid, and RCH's auxiliary array to carry the recharge temperature
+    if (len_trim(this%gwe_model_name) > 0) then
+      if (.not. mf6_try_ptr_double(trim(this%gwe_model_name)//'/X', this%mf6_temp)) then
+        message = 'no GWE model '//trim(this%gwe_model_name)//' - check gwe_model_name in the config '// &
+              '(upper case, as in mfsim.nam)'
+        err = 20; call this%leave_run_dir(); return
+      end if
+      ! cells first, then any advanced package's own temperatures (SFE reaches)
+      if (size(this%mf6_temp) < size(this%mf6_head)) then
+        write(message,'(a,i0,a,i0,a)') 'GWE model '//trim(this%gwe_model_name)//' has ', size(this%mf6_temp), &
+              ' nodes but GWF model '//trim(this%mf6_model_name)//' has ', size(this%mf6_head), &
+              '; GWE must share the GWF grid'
+        err = 20; call this%leave_run_dir(); return
+      end if
+      ! the input context owns the aux array; the RCH package and GWE's FMI both point at it
+      if (.not. mf6_try_ptr_double('__INPUT__/'//trim(this%mf6_model_name)//'/'//trim(this%rch_package_name)// &
+                                   '/AUXVAR', this%mf6_rch_temp)) this%mf6_rch_temp => null()
+      if (.not. associated(this%mf6_rch_temp)) then
+        message = 'RCH package '//trim(this%rch_package_name)//' needs AUXILIARY TEMPERATURE for GWE'
+        err = 20; call this%leave_run_dir(); return
+      end if
+      if (size(this%mf6_rch_temp) /= this%nrow*this%ncol) then
+        message = 'RCH package '//trim(this%rch_package_name)//' must have exactly one auxiliary '// &
+              'variable, the recharge temperature GWE''s SSM reads'
+        err = 20; call this%leave_run_dir(); return
+      end if
+      this%have_gwe = .true.
+    end if
+
     ! -- coupling time-step consistency --
     ! NB: MODFLOW's delt is only set once the first time step is prepared, so it is
     ! not meaningful yet right after initialize(); the delt == data_step check is
@@ -452,7 +493,7 @@ contains
   ! back here for the next step, and are left untouched when feedback is off.
   ! ==================================================================================
   subroutine mf6_step(this, istep, summa_data_step, drain_hru, head_hru, stor_hru, bflow_hru, err, message, &
-                      surfdis_hru, gwet_demand_hru, gwet_hru, gwet_lim_hru)
+                      surfdis_hru, gwet_demand_hru, gwet_hru, gwet_lim_hru, rtemp_hru, atemp_hru)
     class(mf6_coupler_type), intent(inout) :: this
     integer,                 intent(in)    :: istep             ! 1-based coupling step index
     double precision,        intent(in)    :: summa_data_step   ! length of a SUMMA data step (s)
@@ -467,6 +508,8 @@ contains
     real, optional,          intent(in)    :: gwet_demand_hru(:)  ! per-HRU aquifer transpiration DEMAND from SUMMA (m s-1, + = out)
     real, optional,          intent(inout) :: gwet_hru(:)         ! per-HRU groundwater ET ACTUALLY taken by MODFLOW (m s-1, + = out)
     real, optional,          intent(inout) :: gwet_lim_hru(:)     ! per-HRU aquifer transpiration limiting factor (-), cell-wise mean
+    real, optional,          intent(in)    :: rtemp_hru(:)        ! per-HRU drainage temperature from SUMMA (K)
+    real, optional,          intent(inout) :: atemp_hru(:)        ! per-HRU aquifer temperature at the water table (K)
     integer        :: istat
     real(c_double) :: dt_mf6
 
@@ -490,6 +533,7 @@ contains
       ! a restart is the initial condition asked for; do_time_step copies X to XOLD, so this sets both
       if (this%restarted) then
         this%mf6_head = this%head_rst
+        if (allocated(this%temp_rst)) this%mf6_temp = this%temp_rst
         write(*,'(a)') 'summa_modflow6: restart heads replace the steady-state solution'
       end if
     end if
@@ -513,7 +557,11 @@ contains
     if (this%have_evt .and. present(gwet_demand_hru)) &
       call this%scatter_hru_to_array(gwet_demand_hru, this%mf6_evt)
 
-    ! 4c. solve
+    ! 4c. SUMMA drainage temperature -> RCH's auxiliary array, the temperature of GWE's recharge source
+    if (this%have_gwe .and. present(rtemp_hru)) &
+      call this%scatter_hru_to_array(real(rtemp_hru - TFREEZE_K), this%mf6_rch_temp)
+
+    ! 4d. solve
     istat = mf6_do_time_step()
     istat = mf6_finalize_time_step()
 
@@ -527,6 +575,7 @@ contains
         call this%gather_role_to_hru(ROLE_GW_ET, gwet_hru)
       ! the limiting factor SUMMA will apply next step, evaluated cell by cell here
       if (present(gwet_lim_hru)) call this%gather_gwet_limit(gwet_lim_hru)
+      if (this%have_gwe .and. present(atemp_hru)) call this%gather_temp_to_hru(atemp_hru)
     end if
 
     ! 6. accumulate the coupled budget, now that both sides of this step are known
@@ -575,6 +624,8 @@ contains
     this%mf6_rch      => null()
     this%mf6_evt      => null()
     this%mf6_top      => null()
+    this%mf6_temp     => null()
+    this%mf6_rch_temp => null()
     this%mf6_mshape   => null()
     this%mf6_nodered  => null()
     this%mf6_sy       => null()
@@ -594,9 +645,11 @@ contains
     this%have_surfdis = .false.
     this%have_gwet    = .false.
     this%have_evt     = .false.
+    this%have_gwe     = .false.
     this%restarted    = .false.
     this%writes_restart = .false.
     if (allocated(this%head_rst)) deallocate(this%head_rst)
+    if (allocated(this%temp_rst)) deallocate(this%temp_rst)
     this%nss_steps    = 0
     this%budget       = .false.
     this%nHRU         = 0
@@ -659,7 +712,7 @@ contains
     character(len=*),        intent(out)   :: message
     integer :: fu, rc, ib, ir
     character(len=256) :: mf6_model_name, rch_package_name, bflow_package_name, map_file
-    character(len=256) :: evt_package_name
+    character(len=256) :: evt_package_name, gwe_model_name
     character(len=1024):: head_restart_read, head_restart_write
     character(len=256) :: bnd_package_names(MAXBND)
     character(len=32)  :: bnd_package_roles(MAXBND)
@@ -667,7 +720,7 @@ contains
     logical            :: feedback
     namelist /coupler/ mf6_model_name, rch_package_name, bflow_package_name, evt_package_name, &
                        bnd_package_names, bnd_package_roles, map_file, mf6_epsg, feedback, &
-                       head_restart_read, head_restart_write
+                       head_restart_read, head_restart_write, gwe_model_name
 
     err = 0; message = ''
 
@@ -676,6 +729,7 @@ contains
     rch_package_name   = 'RCHA'
     bflow_package_name = 'CHD'
     evt_package_name   = ''
+    gwe_model_name     = ''
     bnd_package_names  = ''
     bnd_package_roles  = ''
     head_restart_read  = ''
@@ -701,6 +755,7 @@ contains
     this%rch_package_name   = rch_package_name
     this%bflow_package_name = bflow_package_name
     this%evt_package_name   = evt_package_name
+    this%gwe_model_name     = gwe_model_name
     this%head_restart_read  = head_restart_read
     this%head_restart_write = head_restart_write
     this%map_file           = map_file
@@ -711,6 +766,7 @@ contains
     call to_upper(this%rch_package_name)
     call to_upper(this%bflow_package_name)
     call to_upper(this%evt_package_name)
+    call to_upper(this%gwe_model_name)
 
     ! boundary-package table; a blank bnd_package_names falls back to bflow_package_name as role=baseflow
         this%nbnd = 0
@@ -868,14 +924,16 @@ contains
 
   ! ==================================================================================
   ! The restarted water table per HRU, for the driver to hand SUMMA before step 1: head (m, matric
-  ! head at the soil base), aquifer storage (m) and the transpiration limiting factor (-).  No
-  ! boundary flow is known until MODFLOW has solved a step, so baseflow is not returned.
+  ! head at the soil base), aquifer storage (m), the transpiration limiting factor (-) and the
+  ! aquifer temperature (K).  No boundary flow is known until MODFLOW has solved a step, so
+  ! baseflow is not returned.
   ! ==================================================================================
-  subroutine mf6_restart_state(this, head_hru, stor_hru, lim_hru)
+  subroutine mf6_restart_state(this, head_hru, stor_hru, lim_hru, atemp_hru)
     class(mf6_coupler_type), intent(inout) :: this
     real,                    intent(inout) :: head_hru(:)
     real,                    intent(inout) :: stor_hru(:)
     real, optional,          intent(inout) :: lim_hru(:)
+    real, optional,          intent(inout) :: atemp_hru(:)
     integer :: i
 
     if (.not. (this%restarted .and. this%feedback)) return
@@ -886,6 +944,7 @@ contains
       end do
     end if
     if (present(lim_hru)) call this%gather_gwet_limit(lim_hru)
+    if (present(atemp_hru) .and. allocated(this%temp_rst)) call this%gather_temp_to_hru(atemp_hru)
   end subroutine mf6_restart_state
 
   ! ==================================================================================
@@ -944,6 +1003,29 @@ contains
       if (wsum > 0.0_c_double) lim_hru(i) = real(fsum / wsum)
     end do
   end subroutine mf6_gather_gwet_limit
+
+  ! ==================================================================================
+  ! GWE temperature (degC, per node)  ->  SUMMA aquifer temperature (K, per HRU): the map-weighted
+  ! mean over the HRU's cells, each sampled at the water table, the node gather_head_to_hru uses.
+  ! ==================================================================================
+  subroutine mf6_gather_temp_to_hru(this, temp_hru)
+    class(mf6_coupler_type), intent(inout) :: this
+    real,                    intent(inout) :: temp_hru(:)
+    integer :: i, k, c, node
+    real(c_double) :: tsum, wsum
+
+    do i = 1, this%nHRU
+      tsum = 0.0_c_double; wsum = 0.0_c_double
+      do k = this%map_ptr(i), this%map_ptr(i+1) - 1
+        c = this%map_cell(k)
+        node = this%top_active_node(c)
+        if (node < 1 .or. node > size(this%mf6_temp)) cycle
+        tsum = tsum + real(this%map_wgt(k), c_double) * this%mf6_temp(node)
+        wsum = wsum + real(this%map_wgt(k), c_double)
+      end do
+      if (wsum > 0.0_c_double) temp_hru(i) = real(tsum / wsum + TFREEZE_K)
+    end do
+  end subroutine mf6_gather_temp_to_hru
 
   ! ==================================================================================
   ! Sum every found boundary package carrying the given role into one per-HRU flux.
@@ -1142,9 +1224,9 @@ contains
     ! -- a single GWF model: anything else in the simulation is simply not coupled --
     if (mf6_get_var_nbytes(cstr('__INPUT__/SIM/NAM/MTYPE'), nbytes) == BMI_OK .and. &
         mf6_get_var_itemsize(cstr('__INPUT__/SIM/NAM/MTYPE'), isize) == BMI_OK) then
-      if (isize > 0 .and. nbytes/isize > 1) &
+      if (isize > 0 .and. nbytes/isize > merge(2, 1, len_trim(this%gwe_model_name) > 0)) &
         write(*,'(a,i0,a)') 'summa_modflow6: WARNING - mfsim.nam lists ', nbytes/isize, &
-              ' models; only '//trim(this%mf6_model_name)//' is coupled to SUMMA'
+              ' models; only '//trim(this%mf6_model_name)//' and any gwe_model_name are coupled to SUMMA'
     end if
 
     ! -- discretised with DIS: MSHAPE is (nlay,nrow,ncol) for DIS, shorter for DISV/DISU, and
@@ -1293,13 +1375,29 @@ contains
       err = 20; return
     end if
     read(fu, iostat=rc) this%mf6_head
-    close(fu)
     if (rc /= 0) then
-      message = 'error reading heads from '//trim(path); err = 20; return
+      close(fu); message = 'error reading heads from '//trim(path); err = 20; return
     end if
     this%head_rst  = this%mf6_head
     this%restarted = .true.
     write(*,'(a,i0,a)') 'summa_modflow6: restarted MODFLOW from ', n, ' heads in '//trim(path)
+
+    ! GWE temperatures follow the heads when the file was written with GWE on
+    if (this%have_gwe) then
+      read(fu, iostat=rc) magic, n
+      if (rc == 0 .and. magic == 'SUMMF6TE' .and. n == size(this%mf6_temp)) then
+        read(fu, iostat=rc) this%mf6_temp
+        if (rc /= 0) then
+          close(fu); message = 'error reading temperatures from '//trim(path); err = 20; return
+        end if
+        this%temp_rst = this%mf6_temp
+        write(*,'(a,i0,a)') 'summa_modflow6: restarted GWE from ', n, ' temperatures in '//trim(path)
+      else
+        write(*,'(a)') 'summa_modflow6: WARNING - '//trim(path)//' holds no GWE temperatures; '// &
+          'GWE starts from its IC/STRT'
+      end if
+    end if
+    close(fu)
   end subroutine mf6_head_restart_read
 
   subroutine mf6_head_restart_write(this)
@@ -1319,8 +1417,14 @@ contains
     end if
     write(fu) 'SUMMF6HD', this%nlay, this%nrow, this%ncol, size(this%mf6_head)
     write(fu) this%mf6_head
+    if (this%have_gwe) then
+      write(fu) 'SUMMF6TE', size(this%mf6_temp)
+      write(fu) this%mf6_temp
+    end if
     close(fu)
     write(*,'(a,i0,a)') 'summa_modflow6: wrote ', size(this%mf6_head), ' MODFLOW heads to '//trim(path)
+    if (this%have_gwe) write(*,'(a,i0,a)') 'summa_modflow6: wrote ', size(this%mf6_temp), &
+      ' GWE temperatures to '//trim(path)
   end subroutine mf6_head_restart_write
 
   ! A relative path is taken relative to the process working directory, which while inside the
