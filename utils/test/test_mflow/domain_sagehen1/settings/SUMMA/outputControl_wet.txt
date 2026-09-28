@@ -24,6 +24,4 @@ scalarAquiferRootFrac | 1
 scalarCanopyTranspiration | 1
 mLayerColumnInflow | 1
 mLayerColumnOutflow | 1
-scalarStreamTemp | 1
-scalarStreamRunoff | 1
 basin__TotalRunoff | 1

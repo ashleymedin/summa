@@ -65,12 +65,22 @@ Forcing is a single-HRU basin-mean series given to every HRU: the February 2017
 atmospheric river, 2017-02-07 to 2017-02-09, written by
 [`../tools/make_wet_forcing.py`](../tools/make_wet_forcing.py). The source carries
 no sub-GRU information, so there is nothing finer to distribute; the domain tests
-structure, not a new forcing product.
+structure, not a new forcing product. Each case starts the event from its own spin-up,
+2017-01-15 to 2017-02-06, which its run script makes on first use (about twenty minutes);
+see `../README.md`.
 
 Lateral flow runs in every GRU: `mLayerColumnOutflow` is non-zero throughout
 `run1_latflow` and identically zero in `run1_noLatflow`, and the coupled budget
-separates the pair, -3583728.2873723782 m3 sent against -3589055.3876466001 m3.
-The run takes about 2.5 minutes for the 72 steps.
+separates the pair, 435296.52594675665 m3 sent against 9509.9643248036355 m3.
+The event takes about 3 minutes for the 72 steps once the spin-up exists.
+
+Without mizuRoute the nine stream domains are never solved, so they add nothing to
+`basin__TotalRunoff`: 16.84 mm over the run in `run1_noLatflow`, 44.08 mm in `run1_latflow`.
+
+`run_sagehen9_deeproot.sh` runs the 6 m roots of `run_sagehen1_deeproot.sh` over the
+`ex-gwf-sagehen-ss` EVT model, without lateral flow. With one HRU per cell each HRU's
+`scalarTranspireLimAqfr` is its own cell's, 0.547 on average; `run_sagehen1_wet_deeproot.sh`
+gets 0.537 from the coupler's per-cell mean. See `../README.md`, Lumped against distributed.
 
 ## Expected at start-up
 
@@ -110,17 +120,17 @@ What to check, over the 72 steps:
 
 - `upArea` of reach 9 is 27434700 m2, the grid's active area, and each junction reach
   is the sum of its tributaries.
-- the network conserves water. 86878.4 m3 enters as lateral inflow,
-  86352.7 m3 leaves reach 9, and the 525.7 m3 difference (0.61%) is still in the
+- the network conserves water. 1003604.1 m3 enters as lateral inflow,
+  1001554.9 m3 leaves reach 9, and the 2049.2 m3 difference (0.20%) is still in the
   reaches at the end.
 - `Q_reach` tracks `averageRoutedRunoff`, not `basin__TotalRunoff`: the latter is
   ahead of SUMMA's own time-delay histogram (`subRouting = timeDlay`), which holds
-  back about 40% of the storm over a run this short.
+  back about a sixth of the storm over a run this short.
 - the coupled budget is the unrouted run's. MODFLOW receives
-  -3583728.2873723735 m3, as `run1_latflow` does, since nothing the routing
+  435296.52594675747 m3, as `run1_latflow` does, since nothing the routing
   does reaches the soil column.
 
-The one difference is the mapping residual, -1107.1 m3 (0.031%) against the unrouted
+The one difference is the mapping residual, -1107.1 m3 (0.25%) against the unrouted
 run's round-off. Routing solves the nine stream columns, and their soil drainage has no
 cell in `hru2cell_map.txt`, which covers the land HRUs alone. Streambed leakage into the
 aquifer is not represented, so that water is simply dropped.

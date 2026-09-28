@@ -194,6 +194,7 @@ module summabmi
      procedure :: get_soil_thickness => summa_soil_thickness  ! non-BMI: per-HRU soil-column depth (m), for the MODFLOW 6 coupler
      procedure :: get_hru_area => summa_hru_area              ! non-BMI: per-HRU plan area (m2), for the MODFLOW 6 coupler
      procedure :: get_root_reach => summa_root_reach          ! non-BMI: per-HRU root reach below the soil column (m)
+     procedure :: write_restart_at_end => summa_write_restart_at_end  ! non-BMI: write a restart file on the last step
      procedure :: get_grid_node_count => summa_grid_node_count
      procedure :: get_grid_edge_count => summa_grid_edge_count
      procedure :: get_grid_face_count => summa_grid_face_count
@@ -928,6 +929,15 @@ module summabmi
      call mf6x_root_reach(this%model%summa1_struc(n), reach)
      bmi_status = BMI_SUCCESS
    end function summa_root_reach
+
+   ! non-BMI: write a restart file on the last step, so a coupled spin-up leaves a SUMMA state to match its aquifer's
+   function summa_write_restart_at_end(this) result (bmi_status)
+     class (summa_bmi), intent(inout) :: this
+     integer :: bmi_status
+
+     this%model%ixRestart = ixRestart_end
+     bmi_status = BMI_SUCCESS
+   end function summa_write_restart_at_end
 
    ! Get the number of nodes in an unstructured grid
    function summa_grid_node_count(this, grid, count) result(bmi_status)

@@ -729,7 +729,7 @@ contains
       ! push the previous step's MODFLOW 6 state into SUMMA, before the physics reads it
       ! (explicit, one-step lag; see mf6_coupling.f90 for the full exchange)
       if(coupled)then
-        if(coupler%feedback .and. modelTimeStep > 1)then
+        if(coupler%feedback .and. (modelTimeStep > 1 .or. coupler%restarted))then
           call mf6x_put_lower_bound_head(summa_struct, head_hru)
           if(coupler%have_sy)    call mf6x_put_aquifer_storage(summa_struct, stor_hru)
           if(coupler%have_bflow) call mf6x_put_aquifer_baseflow(summa_struct, bflow_hru)
@@ -887,6 +887,9 @@ contains
                         restart_read=trim(head_file))
     endif
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! a restarted sample starts from the spun-up water table, not lowerBoundHead
+    call coupler%restart_state(head_hru, stor_hru)
 
   end subroutine start_modflow
 #endif
