@@ -69,8 +69,16 @@ structure, not a new forcing product.
 
 Lateral flow runs in every GRU: `mLayerColumnOutflow` is non-zero throughout
 `run1_latflow` and identically zero in `run1_noLatflow`, and the coupled budget
-separates the pair, -3583728.2873723782 m3 sent against -3589055.3876466001 m3.
+separates the pair, -3583728.2840270200 m3 sent against -3589055.3876466001 m3.
 The run takes about 2.5 minutes for the 72 steps.
+
+Without mizuRoute the nine stream domains are never solved, so they add nothing to
+`basin__TotalRunoff`: 4.93 mm over the run in `run1_noLatflow`, 5.25 mm in `run1_latflow`.
+
+`run_sagehen9_deeproot.sh` runs the 6 m roots of `run_sagehen1_deeproot.sh` over the
+`ex-gwf-sagehen-ss` EVT model, without lateral flow. With one HRU per cell each HRU's
+`scalarTranspireLimAqfr` is its own cell's, 0.553 on average; `run_sagehen1_wet_deeproot.sh`
+gets 0.546 from the coupler's per-cell mean. See `../README.md`, Lumped against distributed.
 
 ## Expected at start-up
 
@@ -117,7 +125,7 @@ What to check, over the 72 steps:
   ahead of SUMMA's own time-delay histogram (`subRouting = timeDlay`), which holds
   back about 40% of the storm over a run this short.
 - the coupled budget is the unrouted run's. MODFLOW receives
-  -3583728.2873723735 m3, as `run1_latflow` does, since nothing the routing
+  -3583728.2840270163 m3, as `run1_latflow` does, since nothing the routing
   does reaches the soil column.
 
 The one difference is the mapping residual, -1107.1 m3 (0.031%) against the unrouted
