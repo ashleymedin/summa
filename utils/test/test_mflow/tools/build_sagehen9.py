@@ -517,13 +517,14 @@ LATFLOW_DECISIONS = {"groundwatr": "modLatflow", "hc_profile": "exp_prof", "infR
 def write_text_settings(settings, src_set, domain):
     for fname in os.listdir(src_set):
         # the decisions and file manager are written per variant below, not copied
-        if fname.endswith((".txt", ".TBL")) and "deeproot" not in fname \
+        if fname.endswith((".txt", ".TBL")) and "deeproot" not in fname and "_wet" not in fname \
                 and fname not in ("forcingFileList.txt", "fileManager.txt", "modelDecisions.txt"):
             shutil.copy(os.path.join(src_set, fname), settings)
+    shutil.copy(os.path.join(src_set, "localParamInfo_deeproot.txt"), settings)
 
-    def decisions(name, changes):
+    def decisions(name, changes, src="modelDecisions.txt"):
         out = []
-        for line in open(os.path.join(src_set, "modelDecisions.txt")):
+        for line in open(os.path.join(src_set, src)):
             key = line.split()[0] if line.split() else ""
             if key in changes:
                 head, sep, tail = line.partition("!")
@@ -536,8 +537,11 @@ def write_text_settings(settings, src_set, domain):
     # the pair differs on the groundwatr line alone, so running both isolates lateral flow
     decisions("modelDecisions_latflow.txt", LATFLOW_DECISIONS)
     decisions("modelDecisions_noLatflow.txt", dict(LATFLOW_DECISIONS, groundwatr="modflow"))
+    # deep roots over the EVT model, without lateral flow so it pairs with the lumped run_sagehen1_wet_deeproot
+    decisions("modelDecisions_deeproot.txt", dict(LATFLOW_DECISIONS, groundwatr="modflow"),
+              src="modelDecisions_deeproot.txt")
 
-    for tag in ("latflow", "noLatflow"):
+    for tag in ("latflow", "noLatflow", "deeproot"):
         fm = []
         for line in open(os.path.join(src_set, "fileManager.txt")):
             line = line.replace("domain_sagehen1", domain)
@@ -549,16 +553,20 @@ def write_text_settings(settings, src_set, domain):
                 line = f"simEndTime           '{SIM_END}' ! 72 hourly steps, matches mf6/sagehen.tdis\n"
             if line.startswith("decisionsFile"):
                 line = f"decisionsFile        'modelDecisions_{tag}.txt' ! Relative to settingsPath\n"
+            if line.startswith("globalHruParamFile") and tag == "deeproot":
+                line = "globalHruParamFile   'localParamInfo_deeproot.txt' ! Relative to settingsPath\n"
             fm.append(line)
         open(os.path.join(settings, f"fileManager_{tag}.txt"), "w").writelines(fm)
 
+    # every flux in the water balance each step, so run totals can be summed rather than sampled
     oc = os.path.join(settings, "outputControl.txt")
-    have = {ln.split("|")[0].strip() for ln in open(oc) if ln.strip() and not ln.startswith("!")}
-    want = ["scalarSoilDrainage", "scalarAquiferBaseflow", "scalarAquiferSeepage", "scalarAquiferTranspire",
-            "scalarTranspireLimAqfr", "mLayerColumnInflow", "mLayerColumnOutflow",
+    want = ["scalarRainPlusMelt", "scalarTotalET", "scalarSurfaceRunoff", "scalarInfiltration",
+            "scalarSoilDrainage", "scalarSoilBaseflow", "scalarAquiferBaseflow", "scalarTotalRunoff",
+            "scalarAquiferSeepage", "scalarAquiferTranspire", "scalarTranspireLimAqfr",
+            "scalarAquiferRootFrac", "scalarCanopyTranspiration", "mLayerColumnInflow", "mLayerColumnOutflow",
             "scalarStreamTemp", "scalarStreamRunoff", "basin__TotalRunoff"]
-    with open(oc, "a") as f:
-        f.write("".join(f"{v} | 1\n" for v in want if v not in have))
+    lines = [ln for ln in open(oc) if ln.split("|")[0].strip() not in want]
+    open(oc, "w").writelines(lines + [f"{v} | 1\n" for v in want])
 
 
 def write_run_files(out_dir, domain):
@@ -572,7 +580,31 @@ def write_run_files(out_dir, domain):
   feedback           = .true.
 /
 """)
+    with open(os.path.join(out_dir, "summa_modflow6_deeproot.config"), "w") as f:
+        f.write(f"""&coupler
+  mf6_model_name     = 'SAGEHEN' ! GWF model name in mfsim.nam
+  rch_package_name   = 'RCHA'    ! RCH package name, as in the GWF name file (upper case)
+  bflow_package_name = ''        ! superseded by the bnd_package_* table below
+  bnd_package_names  = 'CHD', 'DRN', 'EVTA'
+  bnd_package_roles  = 'baseflow', 'surface_discharge', 'gw_et'
+  evt_package_name   = 'EVTA'    ! takes SUMMA's aquifer transpiration demand; the supply returns as gw_et
+  map_file           = '../{domain}/hru2cell_map.txt' ! the identity map: one HRU per active cell
+  mf6_epsg           = 0         ! no reprojection needed, an explicit map_file is supplied
+  feedback           = .true.
+/
+""")
     base = domain.replace("domain_", "")
+    run = os.path.join(os.path.dirname(out_dir), f"run_{base}_deeproot.sh")
+    with open(run, "w") as f:
+        f.write(f"""#!/bin/bash
+# One HRU per MODFLOW cell, 9 GRUs, 6 m roots drawing on MODFLOW's EVT, without lateral flow;
+# the distributed half of run_sagehen1_wet_deeproot.sh. See {domain}/README.md.
+cd "$(dirname "$0")"
+./coupler_commands.sh -c {domain}/summa_modflow6_deeproot.config \\
+                      ex-gwf-sagehen-ss \\
+                      {domain}/settings/SUMMA/fileManager_deeproot.txt
+""")
+    os.chmod(run, 0o755)
     for tag, what in (("latflow", "lateral flow routed by SUMMA (groundwatr = modLatflow)"),
                       ("noLatflow", "without lateral flow (groundwatr = modflow)")):
         run = os.path.join(os.path.dirname(out_dir),

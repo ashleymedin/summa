@@ -1,7 +1,7 @@
 # SUMMA / MODFLOW 6 coupled test cases
 
 A thin BMI coupler runs SUMMA as the land model and MODFLOW 6 as the groundwater model.
-This folder holds the coupler driver script, two MODFLOW 6 models, and eight cases.
+This folder holds the coupler driver script, two MODFLOW 6 models, and eleven cases.
 
 ## Cases
 
@@ -15,13 +15,16 @@ This folder holds the coupler driver script, two MODFLOW 6 models, and eight cas
 | `./run_sagehen9.sh` | `domain_sagehen9` | 3396 | `modLatflow` | one HRU per MODFLOW cell in 9 GRUs; HRU area equals cell area, so there is no aggregation or area error left to correct |
 | `./run_sagehen9_noLatflow.sh` | `domain_sagehen9` | 3396 | `modflow` | the same 3396 HRUs without lateral flow |
 | `./run_sagehen9_mizuroute.sh` | `domain_sagehen9` | 3396 | `modLatflow` | `run_sagehen9.sh` with the 9 reaches routed by mizuRoute; needs a build with both couplers |
+| `./run_sagehen9_deeproot.sh` | `domain_sagehen9` | 3396 | `modflow` | `run_sagehen1_deeproot.sh`'s EVT mechanism over one HRU per cell |
+| `./run_sagehen1_wet.sh` | `domain_sagehen1` | 1 | `modflow` | the lumped half of `run_sagehen9_noLatflow.sh`: same event, decisions and MODFLOW model |
+| `./run_sagehen1_wet_deeproot.sh` | `domain_sagehen1` | 1 | `modflow` | the lumped half of `run_sagehen9_deeproot.sh` |
 
 `domain_sagehen4` carries two file managers, `fileManager_latflow.txt` and
 `fileManager_noLatflow.txt`, whose decision files differ on the `groundwatr` line alone, so
 running the pair isolates what lateral flow contributes. They write `run1_latflow*` and
 `run1_noLatflow*`, so neither overwrites the other.
 
-`run_sagehen1_steady.sh` and `run_sagehen1_deeproot.sh` use `ex-gwf-sagehen-ss`, which adds a
+`run_sagehen1_steady.sh` and the three deeproot cases use `ex-gwf-sagehen-ss`, which adds a
 steady-state first stress period plus DRN and EVT packages; the rest share the MODFLOW 6 model
 in `ex-gwf-sagehen`. All of them run the same 72 hourly steps. Each case carries its own
 `summa_modflow6.config`, so they can differ in package names, roles, HRU→cell map and feedback.
@@ -39,6 +42,35 @@ the rooting depth to the soil depth, so it can never place roots below the colum
 
 Build the coupler first, with `-DUSE_MODFLOW6=ON` (see `build/cmake/build_mflow.mac.bash`);
 it lands in `srcextern/summa/bin/summa_modflow6.exe`.
+
+## Lumped against distributed
+
+`run_sagehen1_wet*.sh` put the one-HRU domain on `domain_sagehen9`'s event, 2017-02-07 to
+2017-02-09, and its decisions (`hc_profile = exp_prof`, `infRateMax = topmodel_GA`), so the pairs
+differ in structure alone. The forcing is identical, bit for bit. `tools/compare_lumped_distributed.py`
+sums each flux over the run and weights it by area, in mm, because `domain_sagehen1` is 5.47%
+larger than the grid.
+
+| mm over 72 h | lumped | distributed | + latflow | lumped, deeproot | distributed, deeproot |
+|---|---:|---:|---:|---:|---:|
+| rain + melt | 125.40 | 125.38 | 125.38 | 125.40 | 125.38 |
+| surface runoff | 7.43 | 4.87 | 5.14 | 0.78 | 1.48 |
+| soil drainage (negative: up from the aquifer) | −235.28 | −130.82 | −130.63 | −37.01 | −82.19 |
+| aquifer seepage (DRN) | – | – | – | 0.296 | 0.011 |
+| lateral export to the reaches | – | – | 0.05 | – | – |
+| `basin__TotalRunoff` | 7.49 | 4.93 | 5.25 | 1.11 | 1.52 |
+| `averageRoutedRunoff` | 4.24 | 2.85 | 3.05 | 1.01 | 0.98 |
+| `scalarTranspireLimAqfr` (mean) | – | – | – | 0.546 | 0.553 |
+
+The limiting factor agrees to 1.2% though the cells span 0.00 to 0.99 (p10–p90): the coupler
+already evaluates the ramp per cell for the lumped HRU. ET is 3.56 mm in every run, and aquifer
+transpiration is below 10⁻⁴ mm, since February is energy-limited.
+
+**Read the rest as an initial-state transient, not structure.** The soil column starts at
+0.2 water content with the water table inside it, so over 72 h it fills from below by one to
+two times the storm. That upward flux differs between the domains in opposite directions on the
+two MODFLOW models, and the runoff differences follow it. A spun-up soil column is needed before
+the comparison measures structure.
 
 ## How the coupling works
 
