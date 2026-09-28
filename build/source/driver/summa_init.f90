@@ -30,6 +30,7 @@ use build_options, only: mizuroute_active
 use build_options, only: ngen_forcing_active
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling, only: init_mizuroute_from_summa
+USE mizuroute_coupling, only: init_stream_network_from_summa
 #endif
 
 ! access missing values
@@ -86,11 +87,15 @@ USE mDecisions_module,only:&
  writePerStep,   &                      ! write data per time step (default)
  writeFullSeries                        ! write all data for a given output file
 
+! named variable for the deep thermal state below the soil column
+USE mDecisions_module,only:bedrockLayers ! thermal-only bedrock layers below the soil column
+
 ! safety: set private unless specified otherwise
 implicit none
 private
 public::init_config
 public::summa_initialize
+public::summa_initStreamNetwork
 contains
 
   ! used to declare and allocate summa data structures and initialize model state to known values
@@ -104,6 +109,7 @@ contains
     USE read_attrb_module,only:read_dimension                   ! module to read dimensions of GRU and HRU
     USE read_attrb_module,only:read_mapping_vectors             ! module to define mapping between GRU and HRU
     USE read_icond_module,only:read_icond_nlayers               ! module to read initial condition dimensions
+    USE read_icond_module,only:addBedrockLayers                 ! module to build the bedrock layers below the soil column
     ! subroutines and functions: allocate space
     USE allocspace_module,only:alloc_driver_work                ! module to allocate space for work structures
     USE allocspace_module,only:allocGlobal                      ! module to allocate space for global data structures
@@ -304,16 +310,6 @@ contains
       call read_icond_nlayers(trim(restartFile),nGRU_local,nDOM,indx_meta,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   
-      ! *****************************************************************************
-      ! *** allocate space for data structures
-      ! *****************************************************************************
-  
-      ! Allocate the non-spatial time structures and the spatial model structures.
-  
-      ! Spatial structures are allocated for the GRUs and HRUs assigned to this rank,
-      ! as defined by the local gru_struc mapping. For a serial run, the local spatial
-      ! domain is identical to the complete run domain.
-  
       ! allocate time structures
       do iStruct=1,4
         select case(iStruct)
@@ -324,6 +320,64 @@ contains
         end select
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       end do  ! looping through time structures
+
+      ! *****************************************************************************
+      ! if using NGEN forcing only need to set the hourly data_step (fixed)
+      ! *****************************************************************************
+      if (ngen_forcing_active) then
+        data_step = 3600._rkind
+      
+      ! *****************************************************************************
+      ! *** read description of model forcing datafile used in each HRU
+      ! *****************************************************************************
+      else
+        call ffile_info(nGRU_local,err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      endif
+      
+      ! *****************************************************************************
+      ! *** read model decisions
+      ! *****************************************************************************
+      ! NOTE: Must be after ffile_info because mDecisions uses the data_step
+      call mDecisions(err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+      ! get the maximum number of snow layers
+      select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
+       case(sameRulesAllLayers);    maxSnowLayers = 100
+       case(rulesDependLayerIndex)
+         maxSnowLayers = 5
+         if (maxGlaciers>0) maxSnowLayers = int(maxSnowLayers*2.5_rkind) ! increase the number of snow layers for glaciers for firn development in accumulation zone
+       case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
+      end select ! (option to combine/sub-divide snow layers)
+
+      ! get the maximum total number of layers
+      ! NOTE: maxGlaciers and the soil/lake/glacier-ice maxima are file-wide values set in
+      !       read_mapping_vectors and read_icond_nlayers, so they are the same on every rank.
+      !       Do not recompute them from the GRUs local to this rank -- they feed volicePack,
+      !       so a rank-dependent value changes the physics.
+      maxLayers = maxSnowLayers + maxTotoLayers
+
+      ! *****************************************************************************
+      ! *** build the bedrock layers below the soil column
+      ! *****************************************************************************
+      ! NOTE: before the data structures are allocated, so the layers are sized in from the start
+      if(model_decisions(iLookDECISIONS%deepTherml)%iDecision==bedrockLayers)then
+        call addBedrockLayers(err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        maxLayers = maxSnowLayers + maxTotoLayers
+      endif
+
+      ! *****************************************************************************
+      ! *** allocate space for data structures
+      ! *****************************************************************************
+  
+      ! Allocate the non-spatial time structures and the spatial model structures.
+  
+      ! Spatial structures are allocated for the GRUs and HRUs assigned to this rank,
+      ! as defined by the local gru_struc mapping. For a serial run, the local spatial
+      ! domain is identical to the complete run domain.
+  
   
       ! allocate other data structures
       do iStruct=1,size(structInfo)
@@ -391,42 +445,6 @@ contains
   
       end do ! iStruct
   
-      ! *****************************************************************************
-      ! if using NGEN forcing only need to set the hourly data_step (fixed)
-      ! *****************************************************************************
-      if (ngen_forcing_active) then
-        data_step = 3600._rkind
-      
-      ! *****************************************************************************
-      ! *** read description of model forcing datafile used in each HRU
-      ! *****************************************************************************
-      else
-        call ffile_info(nGRU_local,err,cmessage)
-        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
-      
-      ! *****************************************************************************
-      ! *** read model decisions
-      ! *****************************************************************************
-      ! NOTE: Must be after ffile_info because mDecisions uses the data_step
-      call mDecisions(err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      
-      ! get the maximum number of snow layers
-      select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
-       case(sameRulesAllLayers);    maxSnowLayers = 100
-       case(rulesDependLayerIndex)
-         maxSnowLayers = 5
-         if (maxGlaciers>0) maxSnowLayers = int(maxSnowLayers*2.5_rkind) ! increase the number of snow layers for glaciers for firn development in accumulation zone
-       case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
-      end select ! (option to combine/sub-divide snow layers)
-
-      ! get the maximum total number of layers
-      ! NOTE: maxGlaciers and the soil/lake/glacier-ice maxima are file-wide values set in
-      !       read_mapping_vectors and read_icond_nlayers, so they are the same on every rank.
-      !       Do not recompute them from the GRUs local to this rank -- they feed volicePack,
-      !       so a rank-dependent value changes the physics.
-      maxLayers = maxSnowLayers + maxTotoLayers
      
       ! get the number of time steps in the output buffer
       select case(model_decisions(iLookDECISIONS%write_buff)%iDecision)
@@ -503,7 +521,62 @@ contains
     !stop 'end of summa_initialize'
   
   end subroutine summa_initialize
-  
+
+  ! **************************************************************************************************
+  ! Attach the stream domains to the river network: which reach of the network each stream HRU stands
+  ! for.  Call after summa_readRestart, when the domain types and the attributes are both known.
+  ! **************************************************************************************************
+  subroutine summa_initStreamNetwork(summa1_struc, err, message)
+    USE globalData,        only: gru_struc                 ! gru-hru mapping structures
+    USE var_lookup,        only: iLookPROG, iLookFLUX      ! named variables for prognostic variables and fluxes
+    USE streamTemp_module, only: stream_domain_map         ! locate the stream HRU and domain of each GRU
+    implicit none
+
+    type(summa1_type_dec), intent(inout) :: summa1_struc
+    integer(i4b),          intent(out)   :: err
+    character(*),          intent(out)   :: message
+
+    integer(i4b), allocatable :: streamSegId(:)   ! per GRU: reach id of the stream HRU (0 = reach mapped from the GRU id)
+    integer(i4b), allocatable :: ixStreamHRU(:)   ! per GRU: index of the stream HRU within the GRU (0 = none)
+    integer(i4b), allocatable :: ixStreamDOM(:)   ! per GRU: index of the stream domain within that HRU
+    real(rkind),  allocatable :: domArea(:)       ! per GRU: planform area of the stream domain (m2)
+    integer(i4b)              :: nStream          ! number of stream HRUs
+    integer(i4b)              :: iGRU             ! GRU index
+    character(len=256)        :: cmessage
+
+    err = 0
+    message = 'summa_initStreamNetwork/'
+
+    allocate(streamSegId(summa1_struc%nGRU_local), ixStreamHRU(summa1_struc%nGRU_local), &
+             ixStreamDOM(summa1_struc%nGRU_local), domArea(summa1_struc%nGRU_local))
+    call stream_domain_map(summa1_struc%nGRU_local, gru_struc, summa1_struc%typeStruct, &
+                           streamSegId, ixStreamHRU, ixStreamDOM, nStream)
+    domArea(:) = 0._rkind
+    do iGRU=1,summa1_struc%nGRU_local
+      if(ixStreamHRU(iGRU) > 0) domArea(iGRU) = summa1_struc%progStruct%gru(iGRU)%hru(ixStreamHRU(iGRU))%dom(ixStreamDOM(iGRU))%var(iLookPROG%DOMarea)%dat(1)
+    end do
+    ! a stream domain is solved in the network pass, so without the river network it keeps the
+    ! temperature it started at: that is what an unrouted control run of a routed domain wants
+    if(nStream > 0 .and. .not.(mizuroute_active .and. summa1_struc%config%use_mizuroute))then
+      write(iulog,'(a,i0,a)') ' WARNING: ',nStream,' stream domains are present but the river network is not running;'
+      write(iulog,'(a)')      '          their temperature stays at its initial value.  Build with mizuRoute and set'
+      write(iulog,'(a)')      '          simulation.use_mizuroute = true to solve the stream columns.'
+      ! an unsolved stream domain adds nothing to the channel, rather than its missing value to basin__SurfaceRunoff
+      do iGRU=1,summa1_struc%nGRU_local
+        if(ixStreamHRU(iGRU) > 0) summa1_struc%fluxStruct%gru(iGRU)%hru(ixStreamHRU(iGRU))%dom(ixStreamDOM(iGRU)) &
+                                    %var(iLookFLUX%scalarStreamRunoff)%dat(1) = 0._rkind
+      end do
+    endif
+#ifdef MIZUROUTE_ACTIVE
+    if(summa1_struc%config%use_mizuroute)then
+      call init_stream_network_from_summa(summa1_struc, streamSegId, ixStreamHRU, ixStreamDOM, domArea, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+#endif
+    deallocate(streamSegId, ixStreamHRU, ixStreamDOM, domArea)
+
+  end subroutine summa_initStreamNetwork
+
   ! **************************************************************************************************
   ! Initialize SUMMA configuration and global metadata.
   !

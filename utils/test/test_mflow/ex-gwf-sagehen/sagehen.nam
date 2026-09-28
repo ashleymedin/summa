@@ -12,5 +12,6 @@ BEGIN PACKAGES
   STO6   sagehen.sto   sto
   RCH6   sagehen.rcha  RCHA
   CHD6   sagehen.chd   chd
+  DRN6   sagehen.drn   DRN
   OC6    sagehen.oc    oc
 END PACKAGES

@@ -80,7 +80,7 @@ program summa_modflow6_mpi
 
   ! ---- the MODFLOW 6 side, live on rank 0 only ----
   type(mf6_coupler_type) :: coupler
-  logical                :: feedback = .true., have_sy = .false., have_bflow = .false.
+  logical                :: feedback = .true., have_sy = .false., have_bflow = .false., restarted = .false.
   integer                :: err
   character(len=1024)    :: message
 
@@ -217,6 +217,8 @@ contains
       feedback   = coupler%feedback
       have_sy    = coupler%have_sy
       have_bflow = coupler%have_bflow
+      restarted  = coupler%restarted
+      call coupler%restart_state(head_hru, stor_hru)
 
       call coupler%grid_shape(nlay, nrow, ncol)
       write(*,'(a,i0,a,i0,a,i0,a,i0,a,i0,a)') 'summa_modflow6_mpi: coupling ', nHRU, ' SUMMA HRUs across ', &
@@ -228,16 +230,17 @@ contains
     call MPI_Bcast(feedback,   1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
     call MPI_Bcast(have_sy,    1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
     call MPI_Bcast(have_bflow, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
+    call MPI_Bcast(restarted,  1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
   end subroutine initialize_coupler
 
   ! ==================================================================================
   subroutine run_coupler
     do modelTimeStep = 1, numtim
 
-      ! 1. push last step's MODFLOW state into SUMMA (lagged one step): rank 0 scatters its
-      !    global feedback arrays out to every rank's local slice, then every rank applies
-      !    its own slice to its own SUMMA instance
-      if (feedback .and. modelTimeStep > 1) then
+      ! 1. push last step's MODFLOW state into SUMMA (lagged one step; on step 1, a restart's): rank 0
+      !    scatters its global feedback arrays out to every rank's local slice, then every rank
+      !    applies its own slice to its own SUMMA instance
+      if (feedback .and. (modelTimeStep > 1 .or. restarted)) then
         call scatterv_real(head_hru, head_hru_local)
         istat = summa%set_value('soil_water_sat-zone_top__head', head_hru_local)
         if (have_sy) then
