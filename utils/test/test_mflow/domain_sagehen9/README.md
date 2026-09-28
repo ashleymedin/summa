@@ -134,3 +134,22 @@ The one difference is the mapping residual, -1107.1 m3 (0.25%) against the unrou
 run's round-off. Routing solves the nine stream columns, and their soil drainage has no
 cell in `hru2cell_map.txt`, which covers the land HRUs alone. Streambed leakage into the
 aquifer is not represented, so that water is simply dropped.
+
+## SFR and GWE
+
+    ../run_sagehen9_sfr.sh
+    ../run_sagehen9_gwe.sh
+
+`run_sagehen9_sfr.sh` swaps CHD for SFR: `ex-gwf-sagehen-sfr`, written by
+`tools/build_sagehen_sfr.py`, has one reach per D8 channel cell of the nine links. SFR's
+aquifer exchange comes back as `baseflow`, exactly as CHD's did.
+
+`run_sagehen9_gwe.sh` adds a GWE model on the same grid: `ex-gwf-sagehen-gwe`, written by
+`tools/build_sagehen_gwe.py`, with advection, conduction, energy storage, SFE along the
+reaches, and recharge carrying SUMMA's drainage temperature through RCH's `TEMPERATURE`
+auxiliary variable. `deepTherml = aquiferTemp` (`modelDecisions_gwe.txt`) and
+`gwe_model_name` in `summa_modflow6_gwe.config` make GWE's water-table temperature SUMMA's
+`scalarAquiferTemp`. The spin-up's `heads_gwe.bin` carries the GWE temperatures as well as
+the heads. Its water budget is the SFR run's to the cubic metre; the GWE parameters
+(6 degC start, porosity 0.25) are placeholders, and three weeks move the aquifer
+temperature by hundredths of a degree.
