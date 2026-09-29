@@ -23,7 +23,8 @@
 ! terrestrial water storage of a basin once a month, as a departure in millimetres from a multi-year
 ! mean; SUMMA carries the rate that storage is changing at, every time step.  Comparing them means
 ! integrating the rate into a storage and expressing both as departures from the same baseline.
-! Averaging to the month is the alignment's job, which averages the simulation over each observation.
+! Averaging to the month is the alignment's job, which averages the simulation over each observation;
+! removing a trend and matching the spread act on that aligned pair.
 !
 ! Each of those is a separate step here, and each is asked for by the target that needs it, so a
 ! target compares what it means to compare and nothing happens to a series that did not ask for it.
@@ -39,6 +40,8 @@ module series_transform
 
   public :: accumulate_series
   public :: remove_baseline_mean
+  public :: remove_linear_trend
+  public :: scale_to_observed_variability
 
 contains
 
@@ -168,6 +171,95 @@ contains
     anomaly=values-total/real(count,rkind)
 
   end subroutine remove_baseline_mean
+
+  ! **************************************************************************************************
+  ! Remove the linear trend from each of an aligned simulated and observed pair.
+  !
+  ! A glacier basin loses mass over the record, and a model that gets the loss rate wrong would be
+  ! scored on the trend alone and not on the seasonal cycle.  Each series is fitted by least squares
+  ! against time over the points where both are finite, and its own line subtracted from it.
+  ! **************************************************************************************************
+  subroutine remove_linear_trend(time,sim,obs,err,message)
+    real(rkind),  intent(in)    :: time(:)   ! time coordinate, any linear units
+    real(rkind),  intent(inout) :: sim(:)    ! simulated series, detrended on return
+    real(rkind),  intent(inout) :: obs(:)    ! observed series, detrended on return
+    integer(i4b), intent(out)   :: err       ! error code
+    character(*), intent(out)   :: message   ! error message
+    logical(lgt), allocatable   :: valid(:)
+
+    err=0
+    message='remove_linear_trend/'
+    if(size(time) /= size(sim) .or. size(time) /= size(obs))then
+      message=trim(message)//'the time and value vectors have different lengths'
+      err=20; return
+    endif
+
+    valid = ieee_is_finite(sim) .and. ieee_is_finite(obs) .and. ieee_is_finite(time)
+    if(count(valid) < 2)then
+      message=trim(message)//'fewer than two matched values to fit a trend to'
+      err=20; return
+    endif
+
+    call subtract_fit(sim)
+    call subtract_fit(obs)
+
+  contains
+
+    subroutine subtract_fit(values)
+      real(rkind), intent(inout) :: values(:)
+      real(rkind) :: tMean,vMean,slope,denom
+      integer(i4b) :: nValid
+
+      nValid=count(valid)
+      tMean=sum(time,mask=valid)/real(nValid,rkind)
+      vMean=sum(values,mask=valid)/real(nValid,rkind)
+      denom=sum((time-tMean)**2,mask=valid)
+      slope=0._rkind
+      if(denom > 0._rkind) slope=sum((time-tMean)*(values-vMean),mask=valid)/denom
+      where(ieee_is_finite(values)) values=values-(vMean+slope*(time-tMean))
+    end subroutine subtract_fit
+
+  end subroutine remove_linear_trend
+
+  ! **************************************************************************************************
+  ! Scale the simulated departures from their mean to the observed standard deviation.
+  !
+  ! A model with the right timing and the wrong amplitude - a snowpack 20% too deep - is then scored
+  ! on its timing.  The simulated mean is kept; only its spread changes.  Statistics are taken over
+  ! the points where both are finite, and a simulation with no spread is left as it is.
+  ! **************************************************************************************************
+  subroutine scale_to_observed_variability(sim,obs,err,message)
+    real(rkind),  intent(inout) :: sim(:)    ! simulated series, rescaled on return
+    real(rkind),  intent(in)    :: obs(:)    ! observed series
+    integer(i4b), intent(out)   :: err       ! error code
+    character(*), intent(out)   :: message   ! error message
+    logical(lgt), allocatable   :: valid(:)
+    real(rkind)  :: simMean,obsMean,simStd,obsStd
+    integer(i4b) :: nValid
+
+    err=0
+    message='scale_to_observed_variability/'
+    if(size(sim) /= size(obs))then
+      message=trim(message)//'the simulated and observed vectors have different lengths'
+      err=20; return
+    endif
+
+    valid = ieee_is_finite(sim) .and. ieee_is_finite(obs)
+    nValid=count(valid)
+    if(nValid < 2)then
+      message=trim(message)//'fewer than two matched values to take a spread from'
+      err=20; return
+    endif
+
+    simMean=sum(sim,mask=valid)/real(nValid,rkind)
+    obsMean=sum(obs,mask=valid)/real(nValid,rkind)
+    simStd=sqrt(sum((sim-simMean)**2,mask=valid)/real(nValid-1,rkind))
+    obsStd=sqrt(sum((obs-obsMean)**2,mask=valid)/real(nValid-1,rkind))
+    if(simStd <= 0._rkind) return
+
+    where(ieee_is_finite(sim)) sim=simMean+(sim-simMean)*obsStd/simStd
+
+  end subroutine scale_to_observed_variability
 
   ! ---- PRIVATE HELPERS -----------------------------------------------------------------------------
 

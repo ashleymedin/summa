@@ -528,6 +528,9 @@ contains
       call get_value(target_table, 'baseline_end', cvalue, stat=istat)
       if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%baseline_end = trim(cvalue)
 
+      call get_value(target_table, 'detrend', config%calib%targets(i)%detrend, stat=istat)
+      call get_value(target_table, 'scale_to_obs', config%calib%targets(i)%scale_to_obs, stat=istat)
+
     enddo
 
   end subroutine parse_calibration_targets

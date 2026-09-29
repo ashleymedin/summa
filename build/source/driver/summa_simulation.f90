@@ -311,6 +311,8 @@ contains
     use write_evaluation_module, only: write_evaluation
     use series_transform,        only: accumulate_series
     use series_transform,        only: remove_baseline_mean
+    use series_transform,        only: remove_linear_trend
+    use series_transform,        only: scale_to_observed_variability
     use simulated_series,        only: sim_series_type
     use simulated_series,        only: init_simulated_series
     use simulated_series,        only: find_simulated_series
@@ -546,6 +548,22 @@ contains
       if(err/=0)then
         message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
         exit trial
+      endif
+
+      ! compare the aligned pair on its variations rather than on a trend or an amplitude, if asked
+      if(calTarget%detrend)then
+        call remove_linear_trend(timeAligned,flowSimAligned,flowObsAligned,err,cmessage)
+        if(err/=0)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+          exit trial
+        endif
+      endif
+      if(calTarget%scale_to_obs)then
+        call scale_to_observed_variability(flowSimAligned,flowObsAligned,err,cmessage)
+        if(err/=0)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+          exit trial
+        endif
       endif
 
       ! compute this target's metric
