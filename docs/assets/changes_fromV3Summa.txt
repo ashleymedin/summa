@@ -306,6 +306,7 @@ AFTER tag of v4.0.0-exp-Sundials
          building more. The parameter file still holds only the soil layers the user set up; the bedrock entries of the
          depth-varying parameters take the deepest soil value and are then overwritten with thCond_bedrock (2.5 W m-1 K-1)
          and theta_sat_bedrock (0.05), the bedrock starting saturated at zero matric head.
+      6) MODFLOW coupling: deepTherml = aquiferTemp means baseflow contribution to channel heat comes from its baseflow and seepage at the groundwater temperature using GWE package, commit a7dec18d Sep 29, 2026
  70) Hyporheic exchange in a stream domain, after Wade et al. (2024, EMS 171:105866, eqs. 11-12), commit e305fdf1 Sep 24, 2026
      New decision hyporhTdyn (none | proxy, default none), parameters hypFrac and hypLag, restart variable hypTempPast.
 -71) Cap the lateral outflow of a soil layer at the drainable water it holds over the data step, commit aae78d23 Sep 24, 2026
@@ -322,5 +323,3 @@ AFTER tag of v4.0.0-exp-Sundials
      psiScale of an iname_lmpLayer state is loosened to absConvTol_liquid/(absConvTol_matric*dVolTot_dPsi0), never tighter than the old relative test.
 -78) computFlux.f90 calls groundwatr for modLatflow, not qTopmodl alone, commit 0e8947fd Sep 26, 2026
      Lateral flow was gated out of the flux call, so mLayerColumnOutflow was identically zero in every coupled run.
--79) run_oneGRU.f90 channel heat of a MODFLOW-coupled run from its baseflow and seepage at the groundwater temperature, not soil drainage, commit 63dc9d06 Sep 29, 2026
- 80) MODFLOW 6 GWE coupling: deepTherml = aquiferTemp takes scalarAquiferTemp from GWE, coupled runs allow only aquiferTemp or none, commit a7dec18d Sep 29, 2026
