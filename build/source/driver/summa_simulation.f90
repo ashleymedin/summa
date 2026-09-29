@@ -311,14 +311,13 @@ contains
     use write_evaluation_module, only: write_evaluation
     use series_transform,        only: accumulate_series
     use series_transform,        only: remove_baseline_mean
-    use series_transform,        only: remove_linear_trend
-    use series_transform,        only: scale_to_observed_variability
+    use series_transform,        only: balance_between_extremes
     use simulated_series,        only: sim_series_type
     use simulated_series,        only: init_simulated_series
     use simulated_series,        only: find_simulated_series
     use simulated_series,        only: is_routed_streamflow
     use simulated_series,        only: spatial_unit_index
-    use simulated_series,        only: ix_unit_domain, ix_unit_reach
+    use simulated_series,        only: ix_unit_domain, ix_unit_gru, ix_unit_reach
     ! dummy arguments
     type(config_info),           intent(inout) :: config
     type(parallel_context_type), intent(in)    :: domain_parallel
@@ -364,6 +363,8 @@ contains
     character(len=:), allocatable      :: valSimUnits        ! its units
     real(rkind), allocatable           :: valAccum(:)        ! it, integrated from a rate
     real(rkind), allocatable           :: valAnom(:)         ! a series as departures from its baseline mean
+    real(rkind), allocatable           :: timeVal(:)         ! time coordinate of the simulated series for the current target
+    character(len=:), allocatable      :: timeValUnits       ! its units
     character(len=1024)                :: cmessage           ! error message of downwind routine
 
     err=0
@@ -436,6 +437,13 @@ contains
                 trim(calTarget%spatial_unit)//'"; use gru, hru or reach'
         err=20; exit trial
       endif
+      ! with mizuRoute running, streamflow comes from the network, so a GRU's outflow is named by its reach
+      if(is_routed_streamflow(calTarget%variable) .and. targetUnit(iTarget) == ix_unit_gru .and. &
+         mizuroute_active .and. summa1_struc(n)%config%use_mizuroute)then
+        message=trim(message)//'calibration target "'//trim(calTarget%name)//'" asks for streamflow out of a gru '// &
+                'while mizuRoute routes it; name the reach instead'
+        err=20; exit trial
+      endif
       if(is_routed_streamflow(calTarget%variable) .and. targetUnit(iTarget) == ix_unit_domain) cycle
       if(find_series(seriesName(1:nSeries),seriesUnit(1:nSeries),seriesUnitId(1:nSeries), &
                      calTarget%variable,targetUnit(iTarget),calTarget%spatial_id) == integerMissing)then
@@ -470,6 +478,8 @@ contains
       ! the simulated series this target is compared against: routed streamflow at the network
       ! outlet, or the series collected for its variable over its spatial unit
       if(allocated(valSim)) deallocate(valSim)
+      timeVal=timeSim
+      timeValUnits=timeSimUnits
       if(is_routed_streamflow(calTarget%variable) .and. targetUnit(iTarget) == ix_unit_domain)then
         valSim=flowSim
         valSimUnits=flowSimUnits
@@ -503,7 +513,7 @@ contains
 
       ! integrate a simulated rate into the quantity the observations report
       if(calTarget%accumulate)then
-        call accumulate_series(timeSim,valSim,timeSimUnits,valAccum,err,cmessage)
+        call accumulate_series(timeVal,valSim,timeValUnits,valAccum,err,cmessage)
         if(err/=0)then
           message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
           exit trial
@@ -516,7 +526,7 @@ contains
       ! express both sides as departures from the same baseline, which is what an anomaly product
       ! reports and what removes the constant of integration an accumulated series carries
       if(allocated(calTarget%baseline_start) .and. allocated(calTarget%baseline_end))then
-        call remove_baseline_mean(timeSim,valSim,timeSimUnits,                              &
+        call remove_baseline_mean(timeVal,valSim,timeValUnits,                              &
                                   calTarget%baseline_start,calTarget%baseline_end,          &
                                   valAnom,err,cmessage)
         if(err/=0)then
@@ -535,11 +545,24 @@ contains
         call move_alloc(valAnom,flowObs)
       endif
 
+      ! a balance is the simulated change between seasonal extremes, one value at each observed time
+      if(len_trim(calTarget%balance) > 0)then
+        call balance_between_extremes(timeVal,valSim,timeValUnits,timeObs,timeObsUnits,            &
+                                      calTarget%balance,calTarget%balance_window,valAnom,err,cmessage)
+        if(err/=0)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+          exit trial
+        endif
+        call move_alloc(valAnom,valSim)
+        timeVal=timeObs
+        timeValUnits=timeObsUnits
+      endif
+
       ! align simulated and observed series
       if(allocated(timeAligned))    deallocate(timeAligned)
       if(allocated(flowSimAligned)) deallocate(flowSimAligned)
       if(allocated(flowObsAligned)) deallocate(flowObsAligned)
-      call align_timeseries(timeSim,valSim,timeSimUnits,valSimUnits,   &
+      call align_timeseries(timeVal,valSim,timeValUnits,valSimUnits,   &
                             timeObs,flowObs,timeObsUnits,flowObsUnits, &
                             summa1_struc(n)%config%calib%start_date,   &
                             summa1_struc(n)%config%calib%end_date,     &
@@ -548,22 +571,6 @@ contains
       if(err/=0)then
         message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
         exit trial
-      endif
-
-      ! compare the aligned pair on its variations rather than on a trend or an amplitude, if asked
-      if(calTarget%detrend)then
-        call remove_linear_trend(timeAligned,flowSimAligned,flowObsAligned,err,cmessage)
-        if(err/=0)then
-          message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-          exit trial
-        endif
-      endif
-      if(calTarget%scale_to_obs)then
-        call scale_to_observed_variability(flowSimAligned,flowObsAligned,err,cmessage)
-        if(err/=0)then
-          message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-          exit trial
-        endif
       endif
 
       ! compute this target's metric

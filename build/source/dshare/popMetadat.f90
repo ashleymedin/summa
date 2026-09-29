@@ -812,6 +812,7 @@ subroutine popMetadat(err,message)
   bvar_meta(iLookBVAR%routingNrgFuture)        = var_info('routingNrgFuture'       , 'energy flux of runoff in future time steps'                    , 'W m-2' , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%hypTempPast)             = var_info('hypTempPast'            , 'reach outlet temperature in past time steps'                   , 'K'     , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%averageRoutedRunoffTemp) = var_info('averageRoutedRunoffTemp', 'temperature of the routed runoff'                              , 'K'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%basin__GlacierMassChange)= var_info('basin__GlacierMassChange', 'glacier mass change per unit glacier area'                    , 'kg m-2 s-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin glacier grids
   ! -----------------------------------------

@@ -25,13 +25,15 @@ def _minutes(times):
     return np.asarray([(t - TIME_REFERENCE).total_seconds() / 60.0 for t in times], dtype="i8")
 
 
-def write_observations(path, starts, ends, values, varname, units, long_name, attrs=None, time_zone="UTC"):
+def write_observations(path, starts, ends, values, varname, units, long_name, attrs=None, time_zone="UTC",
+                       cell_methods="time: mean"):
     """Write one observed series.
 
     starts, ends: datetimes bounding the span each value covers (end exclusive), on the model's clock
     values:       the observations, NaN where there is none
     attrs:        global attributes, typically title / source / history
     time_zone:    the clock the times are on, which has to be the one the SUMMA forcing is on
+    cell_methods: how each value covers its span, a mean over it or a change across it ("time: sum")
     """
     starts, ends = list(starts), list(ends)
     values = np.asarray(values, dtype="f8")
@@ -63,7 +65,7 @@ def write_observations(path, starts, ends, values, varname, units, long_name, at
         obs_var = out.createVariable(varname, "f8", ("time",), fill_value=np.nan)
         obs_var.units = units
         obs_var.long_name = long_name
-        obs_var.cell_methods = "time: mean"
+        obs_var.cell_methods = cell_methods
         obs_var[:] = values
 
         for key, value in (attrs or {}).items():

@@ -76,6 +76,7 @@ module simulated_series
     integer(i4b)             :: ix_gru    = integerMissing ! local index of the selected GRU
     integer(i4b)             :: ix_hru    = integerMissing ! index of the selected HRU within it
     integer(i4b)             :: ix_seg    = integerMissing ! index of the selected reach
+    logical(lgt)             :: volumetric = .false.       ! a rate per unit area summed to a volume rate over the unit
     real(rkind), allocatable :: values(:)                  ! its value at each model time step
   end type sim_series_type
 
@@ -134,7 +135,8 @@ contains
   ! the caller to resolve against the mizuRoute topology.
   !
   ! Routed streamflow over the whole domain is not a SUMMA variable and is not collected here; callers
-  ! ask for it with is_routed_streamflow and take it from mizuRoute.
+  ! ask for it with is_routed_streamflow and take it from mizuRoute.  Streamflow out of one GRU is its
+  ! averageRoutedRunoff times its area, in m3 s-1, for a run without mizuRoute.
   ! **************************************************************************************************
   subroutine init_simulated_series(names,unitKind,unitId,numtim,series,err,message)
     USE get_ixname_module, only: get_ixBvar,get_ixDiag,get_ixProg,get_ixFlux,get_ixParam
@@ -177,6 +179,13 @@ contains
           err=20; return
         endif
         series(iSeries)%units='m3/s'
+
+      ! streamflow out of a GRU is its routed runoff over its area, as a gauge measures it
+      else if(is_routed_streamflow(names(iSeries)) .and. series(iSeries)%ix_unit == ix_unit_gru)then
+        series(iSeries)%ix_struct=ix_series_bvar
+        series(iSeries)%ix_var=iLookBVAR%averageRoutedRunoff
+        series(iSeries)%volumetric=.true.
+        series(iSeries)%units='m3 s-1'
       else
 
         ! resolve the name against SUMMA's metadata, most likely structure first
@@ -391,7 +400,9 @@ contains
 
       end select
 
-      if(area > 0._rkind)then
+      if(series(iSeries)%volumetric)then
+        series(iSeries)%values(modelTimeStep)=total
+      else if(area > 0._rkind)then
         series(iSeries)%values(modelTimeStep)=total/area
       else
         series(iSeries)%values(modelTimeStep)=realMissing

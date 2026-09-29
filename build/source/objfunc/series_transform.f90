@@ -23,8 +23,7 @@
 ! terrestrial water storage of a basin once a month, as a departure in millimetres from a multi-year
 ! mean; SUMMA carries the rate that storage is changing at, every time step.  Comparing them means
 ! integrating the rate into a storage and expressing both as departures from the same baseline.
-! Averaging to the month is the alignment's job, which averages the simulation over each observation;
-! removing a trend and matching the spread act on that aligned pair.
+! Averaging to the month is the alignment's job, which averages the simulation over each observation.
 !
 ! Each of those is a separate step here, and each is asked for by the target that needs it, so a
 ! target compares what it means to compare and nothing happens to a series that did not ask for it.
@@ -33,15 +32,14 @@ module series_transform
 
   USE nr_type, only: i4b,rkind,lgt
 
-  use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+  use, intrinsic :: ieee_arithmetic, only: ieee_is_finite, ieee_value, ieee_quiet_nan
 
   implicit none
   private
 
   public :: accumulate_series
   public :: remove_baseline_mean
-  public :: remove_linear_trend
-  public :: scale_to_observed_variability
+  public :: balance_between_extremes
 
 contains
 
@@ -173,95 +171,120 @@ contains
   end subroutine remove_baseline_mean
 
   ! **************************************************************************************************
-  ! Remove the linear trend from each of an aligned simulated and observed pair.
+  ! The stratigraphic balance of a storage series, sampled at the times of the observed balances.
   !
-  ! A glacier basin loses mass over the record, and a model that gets the loss rate wrong would be
-  ! scored on the trend alone and not on the seasonal cycle.  Each series is fitted by least squares
-  ! against time over the points where both are finite, and its own line subtracted from it.
+  ! A glacier's seasonal balances are measured between its own extremes: winter from the autumn
+  ! minimum to the spring maximum, summer from that maximum to the next minimum, annual from minimum
+  ! to minimum.  The simulated extremes are found where the simulation puts them, so a melt season
+  ! that runs early or late is scored on its mass and not on its dates:
+  !   winter  the maximum within windowDays of the observed date, less the minimum in the year before it
+  !   summer  the minimum within windowDays of the observed date, less the maximum in the year before it
+  !   annual  the minimum within windowDays of the observed date, less the minimum within windowDays of
+  !           a year before that
+  ! A balance whose search reaches outside the simulation is NaN.
   ! **************************************************************************************************
-  subroutine remove_linear_trend(time,sim,obs,err,message)
-    real(rkind),  intent(in)    :: time(:)   ! time coordinate, any linear units
-    real(rkind),  intent(inout) :: sim(:)    ! simulated series, detrended on return
-    real(rkind),  intent(inout) :: obs(:)    ! observed series, detrended on return
-    integer(i4b), intent(out)   :: err       ! error code
-    character(*), intent(out)   :: message   ! error message
-    logical(lgt), allocatable   :: valid(:)
+  subroutine balance_between_extremes(timeSim,storage,timeSimUnits,timeObs,timeObsUnits, &
+                                      balance,windowDays,simAtObs,err,message)
+    real(rkind),              intent(in)  :: timeSim(:)     ! simulated time coordinate
+    real(rkind),              intent(in)  :: storage(:)     ! simulated storage
+    character(*),             intent(in)  :: timeSimUnits   ! units of the simulated time coordinate
+    real(rkind),              intent(in)  :: timeObs(:)     ! times of the observed balances
+    character(*),             intent(in)  :: timeObsUnits   ! units of the observed time coordinate
+    character(*),             intent(in)  :: balance        ! winter, summer or annual
+    real(rkind),              intent(in)  :: windowDays     ! half-width of the search for an extreme (days)
+    real(rkind), allocatable, intent(out) :: simAtObs(:)    ! simulated balance at each observed time
+    integer(i4b),             intent(out) :: err            ! error code
+    character(*),             intent(out) :: message        ! error message
+    real(rkind), parameter    :: yearDays=365._rkind
+    real(rkind), allocatable  :: daySim(:),dayObs(:)
+    real(rkind)  :: nan
+    integer(i4b) :: i,iEnd,iStart
+    logical(lgt) :: endIsMax,startIsMax
 
     err=0
-    message='remove_linear_trend/'
-    if(size(time) /= size(sim) .or. size(time) /= size(obs))then
+    message='balance_between_extremes/'
+    if(size(timeSim) /= size(storage))then
       message=trim(message)//'the time and value vectors have different lengths'
       err=20; return
     endif
+    select case(trim(balance))
+      case('winter'); endIsMax=.true.;  startIsMax=.false.
+      case('summer'); endIsMax=.false.; startIsMax=.true.
+      case('annual'); endIsMax=.false.; startIsMax=.false.
+      case default
+        message=trim(message)//'balance "'//trim(balance)//'" is not one of winter, summer or annual'
+        err=20; return
+    end select
 
-    valid = ieee_is_finite(sim) .and. ieee_is_finite(obs) .and. ieee_is_finite(time)
-    if(count(valid) < 2)then
-      message=trim(message)//'fewer than two matched values to fit a trend to'
-      err=20; return
+    call absolute_days(timeSim,timeSimUnits,daySim,err,message); if(err/=0) return
+    call absolute_days(timeObs,timeObsUnits,dayObs,err,message); if(err/=0) return
+
+    nan=ieee_value(nan,ieee_quiet_nan)
+    allocate(simAtObs(size(timeObs)),stat=err)
+    if(err/=0)then
+      message=trim(message)//'problem allocating the simulated balances'
+      return
     endif
 
-    call subtract_fit(sim)
-    call subtract_fit(obs)
+    do i=1,size(dayObs)
+      simAtObs(i)=nan
+      iEnd=extreme_in(dayObs(i)-windowDays,dayObs(i)+windowDays,endIsMax)
+      if(iEnd==0) cycle
+      if(trim(balance)=='annual')then
+        iStart=extreme_in(daySim(iEnd)-yearDays-windowDays,daySim(iEnd)-yearDays+windowDays,startIsMax)
+      else
+        iStart=extreme_in(daySim(iEnd)-yearDays,daySim(iEnd),startIsMax)
+      endif
+      if(iStart==0) cycle
+      simAtObs(i)=storage(iEnd)-storage(iStart)
+    enddo
 
   contains
 
-    subroutine subtract_fit(values)
-      real(rkind), intent(inout) :: values(:)
-      real(rkind) :: tMean,vMean,slope,denom
-      integer(i4b) :: nValid
+    ! index of the largest or smallest finite storage in [dayLo,dayHi], or 0 if the simulation does not cover it
+    function extreme_in(dayLo,dayHi,isMax) result(ix)
+      real(rkind),  intent(in) :: dayLo,dayHi
+      logical(lgt), intent(in) :: isMax
+      integer(i4b)             :: ix
+      real(rkind), parameter   :: tol=1.e-6_rkind
+      integer(i4b) :: j
 
-      nValid=count(valid)
-      tMean=sum(time,mask=valid)/real(nValid,rkind)
-      vMean=sum(values,mask=valid)/real(nValid,rkind)
-      denom=sum((time-tMean)**2,mask=valid)
-      slope=0._rkind
-      if(denom > 0._rkind) slope=sum((time-tMean)*(values-vMean),mask=valid)/denom
-      where(ieee_is_finite(values)) values=values-(vMean+slope*(time-tMean))
-    end subroutine subtract_fit
+      ix=0
+      if(dayLo < daySim(1)-tol .or. dayHi > daySim(size(daySim))+tol) return
+      do j=1,size(daySim)
+        if(daySim(j) < dayLo-tol .or. daySim(j) > dayHi+tol) cycle
+        if(.not.ieee_is_finite(storage(j))) cycle
+        if(ix==0)then
+          ix=j
+        else if(isMax .and. storage(j) > storage(ix))then
+          ix=j
+        else if(.not.isMax .and. storage(j) < storage(ix))then
+          ix=j
+        endif
+      enddo
+    end function extreme_in
 
-  end subroutine remove_linear_trend
-
-  ! **************************************************************************************************
-  ! Scale the simulated departures from their mean to the observed standard deviation.
-  !
-  ! A model with the right timing and the wrong amplitude - a snowpack 20% too deep - is then scored
-  ! on its timing.  The simulated mean is kept; only its spread changes.  Statistics are taken over
-  ! the points where both are finite, and a simulation with no spread is left as it is.
-  ! **************************************************************************************************
-  subroutine scale_to_observed_variability(sim,obs,err,message)
-    real(rkind),  intent(inout) :: sim(:)    ! simulated series, rescaled on return
-    real(rkind),  intent(in)    :: obs(:)    ! observed series
-    integer(i4b), intent(out)   :: err       ! error code
-    character(*), intent(out)   :: message   ! error message
-    logical(lgt), allocatable   :: valid(:)
-    real(rkind)  :: simMean,obsMean,simStd,obsStd
-    integer(i4b) :: nValid
-
-    err=0
-    message='scale_to_observed_variability/'
-    if(size(sim) /= size(obs))then
-      message=trim(message)//'the simulated and observed vectors have different lengths'
-      err=20; return
-    endif
-
-    valid = ieee_is_finite(sim) .and. ieee_is_finite(obs)
-    nValid=count(valid)
-    if(nValid < 2)then
-      message=trim(message)//'fewer than two matched values to take a spread from'
-      err=20; return
-    endif
-
-    simMean=sum(sim,mask=valid)/real(nValid,rkind)
-    obsMean=sum(obs,mask=valid)/real(nValid,rkind)
-    simStd=sqrt(sum((sim-simMean)**2,mask=valid)/real(nValid-1,rkind))
-    obsStd=sqrt(sum((obs-obsMean)**2,mask=valid)/real(nValid-1,rkind))
-    if(simStd <= 0._rkind) return
-
-    where(ieee_is_finite(sim)) sim=simMean+(sim-simMean)*obsStd/simStd
-
-  end subroutine scale_to_observed_variability
+  end subroutine balance_between_extremes
 
   ! ---- PRIVATE HELPERS -----------------------------------------------------------------------------
+
+  ! **************************************************************************************************
+  ! Days of a "<unit> since <reference>" time coordinate on the fixed epoch of day_number.
+  ! **************************************************************************************************
+  subroutine absolute_days(time,timeUnits,days,err,message)
+    real(rkind),              intent(in)    :: time(:)
+    character(*),             intent(in)    :: timeUnits
+    real(rkind), allocatable, intent(out)   :: days(:)
+    integer(i4b),             intent(out)   :: err
+    character(*),             intent(inout) :: message
+    real(rkind)  :: scale
+    integer(i4b) :: refYear,refMonth,refDay
+
+    call time_scale(timeUnits,scale,err,message); if(err/=0) return
+    call reference_date(timeUnits,refYear,refMonth,refDay,err,message); if(err/=0) return
+    days=real(day_number(refYear,refMonth,refDay),rkind)+time*scale/86400._rkind
+
+  end subroutine absolute_days
 
   ! **************************************************************************************************
   ! Seconds per unit of a "<unit> since <reference>" time coordinate.

@@ -369,3 +369,4 @@ The tables below list the time-varying variables that can be requested in the [o
 | `routingNrgFuture` | energy flux of runoff in future time steps | W m-2 |
 | `hypTempPast` | reach outlet temperature in past time steps | K |
 | `averageRoutedRunoffTemp` | temperature of the routed runoff | K |
+| `basin__GlacierMassChange` | glacier mass change per unit glacier area | kg m-2 s-1 |

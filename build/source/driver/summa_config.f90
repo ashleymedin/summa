@@ -528,8 +528,20 @@ contains
       call get_value(target_table, 'baseline_end', cvalue, stat=istat)
       if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%baseline_end = trim(cvalue)
 
-      call get_value(target_table, 'detrend', config%calib%targets(i)%detrend, stat=istat)
-      call get_value(target_table, 'scale_to_obs', config%calib%targets(i)%scale_to_obs, stat=istat)
+
+      ! a glacier balance, measured between the seasonal extremes of the simulated storage
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'balance', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue))then
+        select case(trim(cvalue))
+          case('winter','summer','annual'); config%calib%targets(i)%balance = trim(cvalue)
+          case default
+            message=trim(message)//'calibration target "'//trim(config%calib%targets(i)%name)// &
+                    '" asks for balance "'//trim(cvalue)//'"; use winter, summer or annual'
+            ierr=20; return
+        end select
+      endif
+      call get_value(target_table, 'balance_window', config%calib%targets(i)%balance_window, stat=istat)
 
     enddo
 
