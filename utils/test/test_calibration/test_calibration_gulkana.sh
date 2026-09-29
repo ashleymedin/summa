@@ -1,11 +1,12 @@
 #!/bin/bash
 # ---------------------------------------------------------------------------------------
-# Three-objective glacier calibration on the bundled Gulkana domain.
+# Two-objective glacier calibration on the bundled Gulkana domain.
 #
-# NSGA-II on daily discharge (KGE), the GRACE storage anomaly (RMSE) and the glacier-wide
-# annual mass balance (RMSE), 2009-2012 after a 2008 spin-up, over parameters that move
-# snow accumulation, melt and glacier runoff. The script checks the front the way
-# test_calibration_bow_pareto.sh does and prints it.
+# NSGA-II on daily discharge (KGE) and the glacier-wide seasonal mass balance (RMSE),
+# 2009-2012 after a 2008 spin-up, over four parameters that move snow accumulation, melt
+# and glacier runoff. GRACE can stand in for the mass balance (the commented target below);
+# scoring both at once pits two measures of the same storage against each other. The
+# script checks the front the way test_calibration_bow_pareto.sh does and prints it.
 #
 # The budget is tiny, so this exercises the machinery; it does not calibrate the glacier.
 # Needs an executable built with -DUSE_MPI=ON. No mizuRoute topology is used.
@@ -35,7 +36,7 @@ if [ -z "${SUMMA_EXE}" ]; then
 fi
 
 echo "======================================================================"
-echo "SUMMA glacier calibration test (Gulkana, discharge + GRACE + mass balance)"
+echo "SUMMA glacier calibration test (Gulkana, discharge + mass balance)"
 echo "======================================================================"
 echo "  executable:  ${SUMMA_EXE}"
 echo "  work dir:    ${WORK}"
@@ -123,31 +124,33 @@ vname_obs = "q_obs"
 metric    = "kge"
 
 
-[[calibration.target]]
-
-name           = "grace_tws"
-variable       = "basin__StorageChange"
-gru            = 1
-obs_path       = "${DATA}/observations/"
-obs_file       = "gulkana_grace_tws.nc"
-vname_obs      = "tws_obs"
-accumulate     = true
-baseline_start = "2009-01-01"
-baseline_end   = "2012-12-31"
-metric         = "rmse"
-
-
+# winter and summer balances between the simulation's own extremes
 [[calibration.target]]
 
 name       = "mass_balance"
 variable   = "basin__GlacierMassChange"
 gru        = 1
 obs_path   = "${DATA}/observations/"
-obs_file   = "gulkana_mass_balance_annual.nc"
+obs_file   = "gulkana_mass_balance_seasonal.nc"
 vname_obs  = "mb_obs"
 accumulate = true
-balance    = "annual"
+balance    = "seasonal"
 metric     = "rmse"
+
+
+# or basin storage against GRACE, in place of the mass balance
+# [[calibration.target]]
+#
+# name           = "grace_tws"
+# variable       = "basin__StorageChange"
+# gru            = 1
+# obs_path       = "${DATA}/observations/"
+# obs_file       = "gulkana_grace_tws.nc"
+# vname_obs      = "tws_obs"
+# accumulate     = true
+# baseline_start = "2009-01-01"
+# baseline_end   = "2012-12-31"
+# metric         = "rmse"
 EOF
 
 echo "Running nsga2..."
@@ -194,8 +197,8 @@ def check(ok, what):
     fail |= not ok
 
 check(d.algorithm == "nsga2", "trials file records algorithm nsga2")
-check(obj.shape == (3, pop * ngen), f"objective is 3 targets x {pop * ngen} trials")
-check(sense == ["maximize", "minimize", "minimize"], "discharge KGE is maximized, GRACE and mass-balance RMSE minimized")
+check(obj.shape == (2, pop * ngen), f"objective is 2 targets x {pop * ngen} trials")
+check(sense == ["maximize", "minimize"], "discharge KGE is maximized, mass-balance RMSE minimized")
 check(bool(np.all(np.isfinite(obj[:, ~failed]))), "every objective of a trial that ran is finite")
 check(bool(np.all(np.abs(obj[:, ~failed]) < 1e5)), "every objective of a trial that ran is plausible")
 
@@ -216,8 +219,7 @@ check(nf >= 1, f"the front holds {nf} trial(s)")
 print()
 print(f"  NSGA-II front ({nf} trials):")
 for i in np.where(front)[0][np.argsort(-obj[0, front])]:
-    print(f"    sample {i + 1:3d}: KGE {obj[0, i]:7.4f}   GRACE RMSE {obj[1, i]:7.1f} mm   "
-          f"mass balance RMSE {obj[2, i]:7.1f} mm")
+    print(f"    sample {i + 1:3d}: KGE {obj[0, i]:7.4f}   mass balance RMSE {obj[1, i]:7.1f} mm")
 print(f"  failed trials (saved in output/failed_trials): {int(failed.sum())}")
 
 sys.exit(1 if fail else 0)

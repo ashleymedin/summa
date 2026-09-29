@@ -8,11 +8,11 @@ downloads, so the file is downloaded by hand and given here.
 
 Each year carries the winter (Bw), summer (Bs) and annual (Ba) balance in m w.e., and the modelled
 dates of the glacier's mass maximum (Bw_Date) and minimum (Ba_Date).  The balances are stratigraphic,
-measured between those extremes, so one balance per file is written, each value spanning:
+measured between those extremes, and each value spans:
 
-  winter   the previous year's Ba_Date to this year's Bw_Date
-  summer   this year's Bw_Date to its Ba_Date
-  annual   the previous year's Ba_Date to this year's Ba_Date
+  seasonal  winter, the previous year's Ba_Date to this year's Bw_Date, and summer, Bw_Date to Ba_Date,
+            both in one series in date order
+  annual    the previous year's Ba_Date to this year's Ba_Date
 
 A winter or annual balance in the first year, or after a year with no Ba_Date, has no start and is left
 out.  Values are written in mm w.e., each stamped at the end of the day its span ends on; the target
@@ -55,21 +55,19 @@ def read_solutions(path):
 
 
 def spans(rows, balance):
-    """(start, end, value in m w.e.) of each balance that has both ends and a value."""
+    """(start, end, value in m w.e.) of each balance that has both ends and a value, in date order."""
     out = []
     previous = None
     for row in rows:
-        if balance == "winter":
-            start, end, value = (previous or {}).get("ba_date"), row["bw_date"], row["bw"]
-        elif balance == "summer":
-            start, end, value = row["bw_date"], row["ba_date"], row["bs"]
-        else:
-            start, end, value = (previous or {}).get("ba_date"), row["ba_date"], row["ba"]
         # consecutive years only, so a gap in the record does not become a multi-year balance
-        if previous is not None and previous["year"] != row["year"] - 1 and balance != "summer":
-            start = None
-        if start is not None and end is not None and value is not None and end > start:
-            out.append((start, end, value))
+        last_min = previous["ba_date"] if previous is not None and previous["year"] == row["year"] - 1 else None
+        if balance == "seasonal":
+            candidates = [(last_min, row["bw_date"], row["bw"]), (row["bw_date"], row["ba_date"], row["bs"])]
+        else:
+            candidates = [(last_min, row["ba_date"], row["ba"])]
+        for start, end, value in candidates:
+            if start is not None and end is not None and value is not None and end > start:
+                out.append((start, end, value))
         previous = row
     return out
 
@@ -77,7 +75,7 @@ def spans(rows, balance):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("solutions", help="Output_<Glacier>_Glacier_Wide_solutions_calibrated.csv")
-    parser.add_argument("balance", choices=("winter", "summer", "annual"))
+    parser.add_argument("balance", choices=("seasonal", "annual"))
     parser.add_argument("output", help="NetCDF file to write")
     args = parser.parse_args()
 

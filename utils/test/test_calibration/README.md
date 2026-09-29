@@ -134,24 +134,28 @@ storage, between the extremes the simulation itself has:
 name       = "mass_balance"
 variable   = "basin__GlacierMassChange"   # kg m-2 s-1 over the glacier area, not the basin's
 gru        = 1
-obs_file   = "gulkana_mass_balance_annual.nc"
+obs_file   = "gulkana_mass_balance_seasonal.nc"
 vname_obs  = "mb_obs"
 accumulate = true                         # integrate into glacier storage, mm w.e.
-balance    = "annual"                     # winter, summer or annual
+balance    = "seasonal"                   # seasonal or annual
 metric     = "rmse"
 ```
 
-- `winter` is the simulated maximum within `balance_window` days (default 60) of the observed date,
-  less the minimum in the year before it; `summer` is the minimum near the date less the maximum in
-  the year before it; `annual` is the minimum near the date less the minimum near a year earlier. A
-  melt season that runs early or late is scored on its mass, not its dates.
-- A balance whose search reaches outside the simulation is left out, so the first year of a run
-  scores nothing.
+- `seasonal` scores the winter and summer balances of one file, in date order. At each observed date
+  the simulated maximum and minimum within `balance_window` days (default 60) are found, and the one
+  that turns inside the window - the maximum in spring, the minimum in autumn - ends the balance; it
+  starts at the opposite extreme in the year before. A melt season that runs early or late is scored
+  on its mass, not its dates.
+- `annual` uses minima only: the minimum near the observed date less the minimum near a year earlier.
+- A balance whose search reaches outside the simulation, or whose turning point is not clear, is left
+  out, so the first year of a run scores nothing.
+- Score the mass balance or GRACE alongside discharge, not both: they measure the same storage, one
+  over the glacier and one over a ~300 km mascon, and on Gulkana they pull the parameters apart.
 - `basin__GlacierMassChange` is the glacier domains' total mass change over the glacier area, which is
   what a glacier-wide balance is per unit of.
 
 `utils/pre-processing/acquire_glacier_mass_balance.py` writes the USGS Benchmark Glacier glacier-wide
-solutions in this form, one balance per file.
+solutions in this form, seasonal or annual.
 
 ## Parameters that must stay in order
 

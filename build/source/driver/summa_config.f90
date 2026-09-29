@@ -534,10 +534,10 @@ contains
       call get_value(target_table, 'balance', cvalue, stat=istat)
       if(istat==0 .and. allocated(cvalue))then
         select case(trim(cvalue))
-          case('winter','summer','annual'); config%calib%targets(i)%balance = trim(cvalue)
+          case('seasonal','annual'); config%calib%targets(i)%balance = trim(cvalue)
           case default
             message=trim(message)//'calibration target "'//trim(config%calib%targets(i)%name)// &
-                    '" asks for balance "'//trim(cvalue)//'"; use winter, summer or annual'
+                    '" asks for balance "'//trim(cvalue)//'"; use seasonal or annual'
             ierr=20; return
         end select
       endif
