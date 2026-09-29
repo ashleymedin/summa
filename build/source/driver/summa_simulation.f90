@@ -41,6 +41,8 @@ USE build_options, only: openwq_active
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling,        only: get_mizuroute_streamflow
 USE mizuroute_coupling,        only: get_mizuroute_reach_index
+USE mizuroute_coupling,        only: get_mizuroute_stream_temp
+USE mizuroute_coupling,        only: mizuroute_has_stream_temp
 USE finalize_mizuroute_module, only: finalize_mizuroute
 #endif
 
@@ -671,11 +673,13 @@ contains
   ! Resolve the reach of every series scored on one, against the mizuRoute river network.
   !
   ! A reach id the network does not hold is refused here, before the run, as an unknown SUMMA variable
-  ! or GRU is; a reach asked for in a run that does not route is refused the same way.
+  ! or GRU is; a reach asked for in a run that does not route is refused the same way, and so is a
+  ! reach temperature in a network no stream domain solves.
   ! **************************************************************************************************
   subroutine resolve_reach_series(summa_struct, series, err, message)
     use simulated_series, only: sim_series_type
     use simulated_series, only: ix_unit_reach
+    use simulated_series, only: is_routed_stream_temp
     type(summa1_type_dec), intent(in)    :: summa_struct
     type(sim_series_type), intent(inout) :: series(:)
     integer(i4b),          intent(out)   :: err
@@ -696,6 +700,13 @@ contains
         call get_mizuroute_reach_index(summa_struct, series(iSeries)%unit_id, series(iSeries)%ix_seg, err, cmessage)
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       endif
+#ifdef MIZUROUTE_ACTIVE
+      if(is_routed_stream_temp(series(iSeries)%name) .and. .not.mizuroute_has_stream_temp(summa_struct))then
+        message=trim(message)//'a calibration target asks for "'//trim(series(iSeries)%name)//'", but no GRU has '// &
+                'a stream HRU, so the network carries no temperature'
+        err=20; return
+      endif
+#endif
     enddo
 
   end subroutine resolve_reach_series
@@ -710,8 +721,9 @@ contains
     USE simulated_series, only: sim_series_type
     USE simulated_series, only: collect_simulated_series
     USE simulated_series, only: ix_unit_reach
+    USE simulated_series, only: is_routed_stream_temp
 #ifdef MODFLOW_ACTIVE
-    USE globalData, only: data_step                            ! length of a SUMMA data step (s)
+    USE globalData, only: data_step                           ! length of a SUMMA data step (s)
 #endif
     ! dummy arguments
     type(summa1_type_dec), intent(inout)       :: summa_struct  ! top-level SUMMA data structure
@@ -800,16 +812,20 @@ contains
       ! not from the routing, so a target that does not need routed flow still has a time coordinate.
       timeSim(modelTimeStep) = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
 
-      ! save streamflow time series, at the outlet and at any reach a target named (unavailable when
-      ! mizuRoute is not active)
+      ! save streamflow time series at the outlet, and flow or temperature at any reach a target named
+      ! (unavailable when mizuRoute is not active)
       if(mizuroute_active)then ! build-time capability
        if(summa_struct%config%use_mizuroute)then
         call get_mizuroute_streamflow(modelTimeStep, summa_struct, flowSim(modelTimeStep))
         if(present(series))then
           do iSeries=1,size(series)
             if(series(iSeries)%ix_unit /= ix_unit_reach) cycle
-            call get_mizuroute_streamflow(modelTimeStep, summa_struct, series(iSeries)%values(modelTimeStep), &
-                                          series(iSeries)%ix_seg)
+            if(is_routed_stream_temp(series(iSeries)%name))then
+              call get_mizuroute_stream_temp(summa_struct, series(iSeries)%ix_seg, series(iSeries)%values(modelTimeStep))
+            else
+              call get_mizuroute_streamflow(modelTimeStep, summa_struct, series(iSeries)%values(modelTimeStep), &
+                                            series(iSeries)%ix_seg)
+            endif
           enddo
         endif
        endif
