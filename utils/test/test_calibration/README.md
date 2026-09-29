@@ -117,6 +117,15 @@ metric         = "rmse"
 - `baseline_start`/`baseline_end` express **both** series as departures from their own mean over that
   period. Doing it to both sides is what removes the constant of integration an accumulated series
   carries, which is what makes an integrated rate comparable to a storage anomaly at all.
+- `detrend = true` removes each series' own least-squares line, fitted over the aligned months both
+  have. A glacier basin loses mass over the record, and without it a model is scored mostly on its loss
+  rate rather than its seasonal cycle.
+- `scale_to_obs = true` scales the simulated departures from their mean to the observed standard
+  deviation, so a model with the right timing and the wrong amplitude is scored on its timing. It
+  takes amplitude out of the objective altogether, so pair it with a target that still sees it.
+
+Both act on the aligned pair, after the simulation is averaged over each observation, and detrending
+comes first.
 
 ## Parameters that must stay in order
 

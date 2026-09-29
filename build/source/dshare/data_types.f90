@@ -113,6 +113,8 @@ MODULE data_types
   logical(lgt)                   :: accumulate = .false.    ! integrate the simulated rate into its quantity
   character(len=:), allocatable  :: baseline_start          ! start of the anomaly baseline (YYYY-MM-DD)
   character(len=:), allocatable  :: baseline_end            ! end of the anomaly baseline (YYYY-MM-DD)
+  logical(lgt)                   :: detrend = .false.       ! remove each aligned series' linear trend
+  logical(lgt)                   :: scale_to_obs = .false.  ! scale the simulated spread to the observed
  end type target_info
 
  ! -----------------------------------------------------------------------------------------------------------
