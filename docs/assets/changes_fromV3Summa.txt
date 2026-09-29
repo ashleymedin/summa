@@ -284,7 +284,8 @@ AFTER tag of v4.0.0-exp-Sundials
      DDS (single target) or NSGA-II (multiple target) calibration, share one worker pool, commit cc30ba75 Sep 28, 2026
      Calibration ordered chains can be searched by their gaps (sample_gaps = true), always in order and in bounds, commit aee97bff Sep 29, 2026
      Calibration keeps going past a failed physics trial, ranks it last and saves it to failed_trials/ with a serial rerun.sh, commit 66fdb1ef Sep 28, 2026
-     Targets may detrend and scale the simulated spread to the observed (detrend, scale_to_obs), after alignment, commit ad83f249 Sep 29, 2026
+     Glacier balance targets (balance = winter|summer|annual) score change between simulated extremes; new basin__GlacierMassChange, commit 45a6637f Sep 29, 2026
+     Streamflow out of a GRU is averageRoutedRunoff times its area when mizuRoute is off; bundled gulkana demo, commit 45a6637f Sep 29, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits d632b36a to de2ae997 Sep 21, 2026
      A GRU may hold one stream HRU: its reach's water column (lake layers over soil/aquifer, linked via streamSegId). mizuRoute returns reach discharge, 
       volume and lateral inflow; new streamTemp.f90 solves the column energy balance upstream to downstream each step, advecting heat from upstream 
