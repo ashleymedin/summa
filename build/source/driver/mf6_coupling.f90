@@ -39,6 +39,7 @@ module mf6_coupling
   !     bnd_package_roles  = 'baseflow','surface_discharge'    ! baseflow | surface_discharge | gw_et
   !     evt_package_name   = ''        ! EVT package driven with SUMMA's aquifer transpiration demand
   !     gwe_model_name     = ''        ! GWE model whose water-table temperature is SUMMA's aquifer temperature
+  !     esl_package_name   = ''        ! GWE ESL package loaded with SUMMA's conduction out the soil base
   !     head_restart_read  = ''        ! initial head field, in place of IC/STRT
   !     head_restart_write = ''        ! final head field, for a later restart
   !     map_file           = ''        ! HRU->cell weights; blank builds a nearest-cell map
@@ -53,6 +54,8 @@ module mf6_coupling
   ! With gwe_model_name set, SUMMA's drainage temperature goes into RCH's one auxiliary variable,
   ! which GWE's SSM names as the recharge temperature, and GWE's temperature at the water table comes
   ! back per HRU.  GWE runs in degrees Celsius; every temperature exchanged here is in kelvin.
+  ! With esl_package_name also set, SUMMA's conduction out the soil base (W m-2) loads that ESL
+  ! package at each cell's water-table node (W), so the heat SUMMA loses below is the heat GWE gains.
   !
   ! map_file format: one "iHRU cell weight" triple per line, cell being the row-major horizontal
   ! index (irow-1)*ncol + icol, weights normalised per HRU, blank lines and '#' ignored.
@@ -175,6 +178,7 @@ module mf6_coupling
     character(len=256)  :: bflow_package_name = 'CHD'   ! back-compatible alias for a single role=baseflow entry
     character(len=256)  :: evt_package_name   = ''      ! EVT package driven with SUMMA's aquifer transpiration demand
     character(len=256)  :: gwe_model_name     = ''      ! GWE model carrying the aquifer temperature; blank = none
+    character(len=256)  :: esl_package_name   = ''      ! GWE ESL package taking SUMMA's basal conduction; blank = none
     character(len=256)  :: map_file           = ''
     character(len=1024) :: head_restart_read  = ''    ! read the initial head field from here, overriding IC/STRT
     character(len=1024) :: head_restart_write = ''    ! write the final head field here, for a later restart
@@ -190,6 +194,7 @@ module mf6_coupling
     logical, public :: have_gwet    = .false.  ! a role=gw_et package was found
     logical, public :: have_evt     = .false.  ! an EVT package is available to drive with SUMMA demand
     logical, public :: have_gwe     = .false.  ! a GWE model carries the aquifer temperature
+    logical, public :: have_esl     = .false.  ! a GWE ESL package takes SUMMA's basal conduction
     logical, public :: restarted    = .false.  ! heads came from head_restart_read, so step 1 has a known water table
     logical, public :: writes_restart = .false. ! head_restart_write is set; the driver writes SUMMA's restart to match
 
@@ -215,6 +220,8 @@ module mf6_coupling
     double precision :: bud_taken = 0.d0    ! cumulative volume MODFLOW's RCH array received (m3)
     double precision :: bud_back(3) = 0.d0  ! cumulative volume returned, by role (m3)
     double precision :: bud_etdem = 0.d0    ! cumulative aquifer-transpiration demand sent (m3)
+    double precision :: bud_heat_sent = 0.d0  ! cumulative heat SUMMA conducted out the soil base (J)
+    double precision :: bud_heat_taken = 0.d0 ! cumulative heat GWE's ESL package received (J)
 
     ! ---- MODFLOW 6 side ----
     real(c_double), pointer :: mf6_head(:) => null()      ! GWF dependent variable  <MODEL>/X       (REDUCED nodes)
@@ -226,6 +233,9 @@ module mf6_coupling
     real(c_double), pointer :: mf6_top(:) => null()       ! DIS land surface        <MODEL>/DIS/TOP (REDUCED nodes)
     real(c_double), pointer :: mf6_temp(:) => null()      ! GWE temperature         <GWE>/X (degC, REDUCED nodes, then SFE reaches)
     real(c_double), pointer :: mf6_rch_temp(:) => null()  ! RCH recharge temperature __INPUT__/<MODEL>/<RCH>/AUXVAR (degC, user cells)
+    real(c_double), pointer :: mf6_esl_rate(:) => null()  ! ESL energy loading      __INPUT__/<GWE>/<ESL>/SENERRATE (W, per list row)
+    integer(c_int), pointer :: mf6_esl_node(:) => null()  ! ESL list nodes          <GWE>/<ESL>/NODELIST (REDUCED nodes)
+    real(c_double), pointer :: bnrg_cell(:) => null()     ! basal conduction per horizontal cell (W m-2), owned here
     logical                 :: grid_reduced = .false.
 
     ! ---- head-dependent boundary packages fed back to SUMMA, by role ----
@@ -275,6 +285,7 @@ module mf6_coupling
     procedure, private :: gather_role_to_hru    => mf6_gather_role_to_hru
     procedure, private :: gather_gwet_limit    => mf6_gather_gwet_limit
     procedure, private :: gather_temp_to_hru    => mf6_gather_temp_to_hru
+    procedure, private :: scatter_nrg_to_esl    => mf6_scatter_nrg_to_esl
     procedure, private :: nearest_hru           => mf6_nearest_hru
     procedure, private :: top_active_node       => mf6_top_active_node
     procedure, private :: to_reduced            => mf6_to_reduced
@@ -455,6 +466,23 @@ contains
       this%have_gwe = .true.
     end if
 
+    ! -- ESL: one row per cell whose water-table node takes SUMMA's basal conduction
+    if (len_trim(this%esl_package_name) > 0) then
+      if (.not. this%have_gwe) then
+        message = 'esl_package_name needs gwe_model_name'
+        err = 20; call this%leave_run_dir(); return
+      end if
+      if (.not. (mf6_try_ptr_double('__INPUT__/'//trim(this%gwe_model_name)//'/'//trim(this%esl_package_name)// &
+                                    '/SENERRATE', this%mf6_esl_rate) .and. &
+                 mf6_try_ptr_int(trim(this%gwe_model_name)//'/'//trim(this%esl_package_name)//'/NODELIST', &
+                                 this%mf6_esl_node))) then
+        message = 'no ESL package '//trim(this%esl_package_name)//' in GWE model '//trim(this%gwe_model_name)
+        err = 20; call this%leave_run_dir(); return
+      end if
+      allocate(this%bnrg_cell(this%nrow*this%ncol))
+      this%have_esl = .true.
+    end if
+
     ! -- coupling time-step consistency --
     ! NB: MODFLOW's delt is only set once the first time step is prepared, so it is
     ! not meaningful yet right after initialize(); the delt == data_step check is
@@ -481,6 +509,7 @@ contains
     ! the coupled budget needs HRU areas to convert per-HRU fluxes to volumes
     this%budget = allocated(this%hru_area)
     this%bud_sent = 0.d0; this%bud_taken = 0.d0; this%bud_back = 0.d0; this%bud_etdem = 0.d0
+    this%bud_heat_sent = 0.d0; this%bud_heat_taken = 0.d0
 
     call this%leave_run_dir()
   end subroutine mf6_init
@@ -493,7 +522,7 @@ contains
   ! back here for the next step, and are left untouched when feedback is off.
   ! ==================================================================================
   subroutine mf6_step(this, istep, summa_data_step, drain_hru, head_hru, stor_hru, bflow_hru, err, message, &
-                      surfdis_hru, gwet_demand_hru, gwet_hru, gwet_lim_hru, rtemp_hru, atemp_hru)
+                      surfdis_hru, gwet_demand_hru, gwet_hru, gwet_lim_hru, rtemp_hru, atemp_hru, bnrg_hru)
     class(mf6_coupler_type), intent(inout) :: this
     integer,                 intent(in)    :: istep             ! 1-based coupling step index
     double precision,        intent(in)    :: summa_data_step   ! length of a SUMMA data step (s)
@@ -510,6 +539,7 @@ contains
     real, optional,          intent(inout) :: gwet_lim_hru(:)     ! per-HRU aquifer transpiration limiting factor (-), cell-wise mean
     real, optional,          intent(in)    :: rtemp_hru(:)        ! per-HRU drainage temperature from SUMMA (K)
     real, optional,          intent(inout) :: atemp_hru(:)        ! per-HRU aquifer temperature at the water table (K)
+    real, optional,          intent(in)    :: bnrg_hru(:)         ! per-HRU conduction out the soil base (W m-2, + = into the aquifer)
     integer        :: istat
     real(c_double) :: dt_mf6
 
@@ -561,7 +591,10 @@ contains
     if (this%have_gwe .and. present(rtemp_hru)) &
       call this%scatter_hru_to_array(real(rtemp_hru - TFREEZE_K), this%mf6_rch_temp)
 
-    ! 4d. solve
+    ! 4d. SUMMA's conduction out the soil base -> GWE's ESL energy loading
+    if (this%have_esl .and. present(bnrg_hru)) call this%scatter_nrg_to_esl(bnrg_hru, summa_data_step)
+
+    ! 4e. solve
     istat = mf6_do_time_step()
     istat = mf6_finalize_time_step()
 
@@ -626,6 +659,9 @@ contains
     this%mf6_top      => null()
     this%mf6_temp     => null()
     this%mf6_rch_temp => null()
+    this%mf6_esl_rate => null()
+    this%mf6_esl_node => null()
+    if (associated(this%bnrg_cell)) deallocate(this%bnrg_cell)
     this%mf6_mshape   => null()
     this%mf6_nodered  => null()
     this%mf6_sy       => null()
@@ -646,6 +682,7 @@ contains
     this%have_gwet    = .false.
     this%have_evt     = .false.
     this%have_gwe     = .false.
+    this%have_esl     = .false.
     this%restarted    = .false.
     this%writes_restart = .false.
     if (allocated(this%head_rst)) deallocate(this%head_rst)
@@ -712,7 +749,7 @@ contains
     character(len=*),        intent(out)   :: message
     integer :: fu, rc, ib, ir
     character(len=256) :: mf6_model_name, rch_package_name, bflow_package_name, map_file
-    character(len=256) :: evt_package_name, gwe_model_name
+    character(len=256) :: evt_package_name, gwe_model_name, esl_package_name
     character(len=1024):: head_restart_read, head_restart_write
     character(len=256) :: bnd_package_names(MAXBND)
     character(len=32)  :: bnd_package_roles(MAXBND)
@@ -720,7 +757,7 @@ contains
     logical            :: feedback
     namelist /coupler/ mf6_model_name, rch_package_name, bflow_package_name, evt_package_name, &
                        bnd_package_names, bnd_package_roles, map_file, mf6_epsg, feedback, &
-                       head_restart_read, head_restart_write, gwe_model_name
+                       head_restart_read, head_restart_write, gwe_model_name, esl_package_name
 
     err = 0; message = ''
 
@@ -730,6 +767,7 @@ contains
     bflow_package_name = 'CHD'
     evt_package_name   = ''
     gwe_model_name     = ''
+    esl_package_name   = ''
     bnd_package_names  = ''
     bnd_package_roles  = ''
     head_restart_read  = ''
@@ -756,6 +794,7 @@ contains
     this%bflow_package_name = bflow_package_name
     this%evt_package_name   = evt_package_name
     this%gwe_model_name     = gwe_model_name
+    this%esl_package_name   = esl_package_name
     this%head_restart_read  = head_restart_read
     this%head_restart_write = head_restart_write
     this%map_file           = map_file
@@ -767,6 +806,7 @@ contains
     call to_upper(this%bflow_package_name)
     call to_upper(this%evt_package_name)
     call to_upper(this%gwe_model_name)
+    call to_upper(this%esl_package_name)
 
     ! boundary-package table; a blank bnd_package_names falls back to bflow_package_name as role=baseflow
         this%nbnd = 0
@@ -1026,6 +1066,42 @@ contains
       if (wsum > 0.0_c_double) temp_hru(i) = real(tsum / wsum + TFREEZE_K)
     end do
   end subroutine mf6_gather_temp_to_hru
+
+  ! ==================================================================================
+  ! SUMMA conduction out the soil base (W m-2, per HRU)  ->  GWE ESL loading (W, per list row):
+  ! spread over the mapped cells as scatter_hru_to_array does, then placed on the row whose node
+  ! is that cell's water-table node.  Rows at any other node get nothing.
+  ! ==================================================================================
+  subroutine mf6_scatter_nrg_to_esl(this, bnrg_hru, dt)
+    class(mf6_coupler_type), intent(inout) :: this
+    real,                    intent(in)    :: bnrg_hru(:)
+    double precision,        intent(in)    :: dt
+    integer, allocatable :: cell_of_node(:)
+    integer :: i, c, r, node
+
+    call this%scatter_hru_to_array(bnrg_hru, this%bnrg_cell)
+    allocate(cell_of_node(size(this%mf6_head))); cell_of_node = 0
+    do c = 1, this%nrow*this%ncol
+      node = this%top_active_node(c)
+      if (node >= 1) cell_of_node(node) = c
+    end do
+
+    do r = 1, min(size(this%mf6_esl_rate), size(this%mf6_esl_node))
+      this%mf6_esl_rate(r) = 0.0_c_double
+      node = this%mf6_esl_node(r)
+      if (node < 1 .or. node > size(cell_of_node)) cycle
+      c = cell_of_node(node)
+      if (c < 1) cycle
+      this%mf6_esl_rate(r) = this%bnrg_cell(c) * this%cell_area(c)
+      if (this%budget) this%bud_heat_taken = this%bud_heat_taken + this%mf6_esl_rate(r) * dt
+    end do
+    if (this%budget) then
+      do i = 1, this%nHRU
+        this%bud_heat_sent = this%bud_heat_sent + this%hru_area(i) * dble(bnrg_hru(i)) * dt
+      end do
+    end if
+    deallocate(cell_of_node)
+  end subroutine mf6_scatter_nrg_to_esl
 
   ! ==================================================================================
   ! Sum every found boundary package carrying the given role into one per-HRU flux.
@@ -1550,6 +1626,10 @@ contains
     if (this%have_surfdis) write(*,'(a,g0)') '  returned at land surface : ', this%bud_back(ROLE_SURFACE_DISCH)
     if (this%have_gwet)    write(*,'(a,g0)') '  taken as groundwater ET  : ', this%bud_back(ROLE_GW_ET)
     if (this%have_evt)     write(*,'(a,g0)') '  ET demand sent           : ', this%bud_etdem
+    if (this%have_esl) then
+      write(*,'(a,g0)') '  soil-base conduction sent (J)    : ', this%bud_heat_sent
+      write(*,'(a,g0)') '  GWE ESL loading received (J)     : ', this%bud_heat_taken
+    end if
     if (abs(pct) > 1.d0) write(*,'(a)') '  NOTE: a non-zero mapping residual is the HRU/cell area mismatch, '// &
       'not the coupling lag; see the HRU area warnings at start-up.'
 

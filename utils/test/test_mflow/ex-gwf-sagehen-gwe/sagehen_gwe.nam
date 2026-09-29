@@ -11,5 +11,6 @@ BEGIN PACKAGES
   EST6  sagehen_gwe.est  est
   SSM6  sagehen_gwe.ssm  ssm
   SFE6  sagehen_gwe.sfe  SFE
+  ESL6  sagehen_gwe.esl  esl
   OC6   sagehen_gwe.oc   oc
 END PACKAGES

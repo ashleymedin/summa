@@ -152,6 +152,10 @@ auxiliary variable. `deepTherml = aquiferTemp` (`modelDecisions_gwe.txt`) and
 `scalarAquiferTemp`. The spin-up's `heads_gwe.bin` carries the GWE temperatures as well as
 the heads. GWE starts from a thermal equilibrium the build script computes with mf6:
 steady flow, recharge at 6.2 degC at 1932 m less 6.5 degC km-1 (Sagehen's 5.2 degC mean
-air temperature plus 1 degC), and a 60 mW m-2 geothermal flux, which gives 3.0 to 7.4 degC.
-Three weeks move it by at most 0.09 degC, so that field is what the run reports; porosity
-(0.25) and the geothermal flux are still placeholders.
+air temperature plus 1 degC), and a 68 mW m-2 geothermal flux from Lake Tahoe, with porosity
+the GWF model's specific yield, which gives 3.2 to 7.6 degC.
+
+`bcLowrTdyn = presTemp` conducts heat from the base of each soil column to the GWE
+temperature at the water table, over the gap between them, and `esl_package_name` hands that
+flux to GWE's ESL package (one row per active cell, rates set by the coupler each step). The
+budget reports the heat sent and received, in J.

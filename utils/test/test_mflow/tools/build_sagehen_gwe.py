@@ -5,7 +5,8 @@ GWE carries the aquifer temperature by advection and conduction (ADV, CND, EST) 
 the SFR reaches (SFE). Recharge brings SUMMA's drainage temperature in through RCH's
 auxiliary TEMPERATURE, which the coupler overwrites every step and SSM names as the
 recharge source. The coupler returns GWE's water-table temperature to SUMMA as
-scalarAquiferTemp. GWE runs in degrees Celsius, in the GWF model's metres and seconds.
+scalarAquiferTemp, and loads ESL with SUMMA's conduction out the soil base, one row per
+active cell. GWE runs in degrees Celsius, in the GWF model's metres and seconds.
 
 The starting temperatures are a thermal equilibrium: a stand-alone run of this model with
 steady flow, recharge at the long-term recharge temperature of each cell's elevation and a
@@ -53,6 +54,20 @@ def write_array(path, a):
     np.savetxt(path, a, fmt="%9.4f")
 
 
+def add_esl(model_dir, active, rate, comment):
+    """One ESL row per active cell at rate (W), named ESL in the GWE name file."""
+    rows, cols = np.nonzero(active)
+    with open(os.path.join(model_dir, "sagehen_gwe.esl"), "w") as f:
+        f.write(f"# {comment}\nBEGIN DIMENSIONS\n  MAXBOUND  {rows.size}\nEND DIMENSIONS\n\nBEGIN PERIOD 1\n")
+        for r, c in zip(rows, cols):
+            f.write(f"  1 {r + 1:3d} {c + 1:3d} {rate:.4f}\n")
+        f.write("END PERIOD\n")
+    nam = os.path.join(model_dir, "sagehen_gwe.nam")
+    with open(nam) as f:
+        text = f.read()
+    write(nam, text.replace("  OC6 ", "  ESL6  sagehen_gwe.esl  esl\n  OC6 "))
+
+
 def sfr_cells(model_dir):
     """(row, col), zero-based, of each SFR reach in order."""
     cells, inblock = [], False
@@ -88,16 +103,7 @@ def equilibrate(model_dir, nrow, ncol):
         with open(sto) as f:
             text = f.read()
         write(sto, text.replace("  TRANSIENT\n", "  STEADY-STATE\n"))
-        rows, cols = np.nonzero(active)
-        with open(os.path.join(run, "sagehen_gwe.esl"), "w") as f:
-            f.write(f"BEGIN DIMENSIONS\n  MAXBOUND  {rows.size}\nEND DIMENSIONS\n\nBEGIN PERIOD 1\n")
-            for r, c in zip(rows, cols):
-                f.write(f"  1 {r + 1:3d} {c + 1:3d} {Q_GEO * 90.0 * 90.0:.4f}\n")
-            f.write("END PERIOD\n")
-        nam = os.path.join(run, "sagehen_gwe.nam")
-        with open(nam) as f:
-            text = f.read()
-        write(nam, text.replace("  OC6 ", "  ESL6  sagehen_gwe.esl  esl\n  OC6 "))
+        add_esl(run, active, Q_GEO * 90.0 * 90.0, "Basal geothermal flux (W per 90 m cell).")
         write(os.path.join(run, "sagehen_gwe.oc"),
               "BEGIN OPTIONS\n  TEMPERATURE  FILEOUT  sagehen_gwe.ucn\nEND OPTIONS\n\n"
               "BEGIN PERIOD 1\n  SAVE  TEMPERATURE  STEPS 59 60\nEND PERIOD\n")
@@ -274,6 +280,8 @@ END PERIOD
           f"# {T_REF + GW_OFFSET} degC at {Z_REF:.0f} m less {LAPSE * 1000} degC km-1, and {Q_GEO * 1000:.0f} mW m-2 geothermal flux.\n"
           "BEGIN GRIDDATA\n  STRT\n    OPEN/CLOSE  strt_gwe1.txt\nEND GRIDDATA\n")
     write_sfe(out_dir, [temp[r, c] for r, c in sfr_cells(out_dir)])
+    add_esl(out_dir, active, 0.0, "The coupler overwrites SENERRATE (__INPUT__/SAGEHEN_GWE/ESL/SENERRATE, W) with\n"
+            "# SUMMA's conduction out the soil base, at each cell's water-table node.")
     print(f"equilibrium aquifer temperature {temp[active].min():.2f} to {temp[active].max():.2f} degC, "
           f"mean {temp[active].mean():.2f}; last step changed it by at most {change:.1e} degC")
 

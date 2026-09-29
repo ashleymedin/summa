@@ -690,6 +690,7 @@ MODULE var_lookup
   integer(i4b)    :: mLayerLakeAdvNrgFlux            = integerMissing ! advective energy source in each lake layer from reach inflow and outflow (J m-3 s-1)
   integer(i4b)    :: scalarStreamRunoff              = integerMissing ! net water the stream domain itself adds to the reach: rain + melt - evaporation (m s-1)
   integer(i4b)    :: scalarAquiferSeepage            = integerMissing ! groundwater seepage at land surface from the coupled aquifer (m s-1)
+  integer(i4b)    :: scalarLowerBoundNrgFlux         = integerMissing ! conductive energy flux across the lower boundary of the column, positive down (W m-2)
  endtype iLook_flux
 
  ! ***********************************************************************************************************
@@ -1099,7 +1100,7 @@ MODULE var_lookup
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
-                                                                        101,102,103)
+                                                                        101,102,103,104)
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
