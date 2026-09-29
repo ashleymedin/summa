@@ -280,6 +280,10 @@ AFTER tag of v4.0.0-exp-Sundials
  67) Automatic parameter calibration, PR #639
      New build/source/calibration/ (DDS sampling, parameter search, NetCDF output) and driver summa_driver_opt.f90. Two-level MPI: domain parallelism plus instance parallelism across calibration trials, scheduled dynamically. 
      Multi-case runs via a --manifest file. Config moves to TOML (legacy -m/--control still accepted). parallel-utils submodule vendored into build/source/parallel/.
+     Targets read NetCDF observation and may name the gru, hru or reach they score, commit 69e29caa Sep 28, 2026
+     DDS (single target) or NSGA-II (multiple target) calibration, share one worker pool, commit cc30ba75 Sep 28, 2026
+     Choicesalibration ordered chains can be searched by their gaps (sample_gaps = true), always in order and in bounds, commit aee97bff Sep 29, 2026
+     Calibration keeps going past a failed physics trial, ranks it last and saves it to failed_trials/ with a serial rerun.sh, commit 66fdb1ef Sep 28, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits d632b36a to de2ae997 Sep 21, 2026
      A GRU may hold one stream HRU: its reach's water column (lake layers over soil/aquifer, linked via streamSegId). mizuRoute returns reach discharge, 
       volume and lateral inflow; new streamTemp.f90 solves the column energy balance upstream to downstream each step, advecting heat from upstream 
@@ -318,13 +322,6 @@ AFTER tag of v4.0.0-exp-Sundials
  74) aquiferIni=emptyStart empties the aquifer on a cold start only, stamping aqEmptyStarted=1 on every restart file, commit c350f6f2 Sep 25, 2026
  75) run_oneGRU.f90 cascade order built once per GRU, not every step, commit ea5739d5 Sep 25, 2026
 -76) Fix scalarFrozenArea-- the commented out Gamma frozen fraction of the root zone, not zero, and fixed derivatives commit 6bda206f Sep 26, 2026
--77) homegrown solver scale convergence criteria matric head to avoid unnecessarily tight convergence when there is no water or there is saturated flow (matric head is very large), commit c66140cf Sep 26, 2026
-     psiScale of an iname_lmpLayer state is loosened to absConvTol_liquid/(absConvTol_matric*dVolTot_dPsi0), never tighter than the old relative test.
 -78) computFlux.f90 calls groundwatr for modLatflow, not qTopmodl alone, commit 0e8947fd Sep 26, 2026
      Lateral flow was gated out of the flux call, so mLayerColumnOutflow was identically zero in every coupled run.
- 81) calibration targets read one NetCDF observation form (no CSV reader or cadence) and may name the gru, hru or reach they score, commit 69e29caa Sep 28, 2026
- 82) NSGA-II calibration (algorithm = "nsga2") on the targets; DDS and NSGA-II share one worker pool, commit cc30ba75 Sep 28, 2026
- 83) summa_modelRun.f90 returns a GRU's physics error (with gruId and time step) instead of stopping, commit 6af46679 Sep 28, 2026
- 84) calibration keeps going past a failed trial, ranks it last and saves it to failed_trials/ with a serial rerun.sh, commit 66fdb1ef Sep 28, 2026
--85) summaSolv4homegrown.f90 frozen-layer loosening of the matric convergence test removed; it let mass-split substeps drop their inflow, commit ab74f4de Sep 29, 2026
- 86) calibration ordered chains can be searched by their gaps (sample_gaps = true), always in order and in bounds, commit aee97bff Sep 29, 2026
+ 

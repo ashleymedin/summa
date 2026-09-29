@@ -1234,7 +1234,6 @@ contains
    ixSoilMat = ixControlVolume( ixMapSubset2Full(ixMatOnly) ) ! soil layer of each matric head state in the subset
 
    ! check convergence based on the iteration increment for matric head
-   ! NOTE: scale by matric head to avoid unnecessarily tight convergence when there is no water or there is saturated flow (matric head is very large)
    if (size(ixMatOnly)>0) then
     psiScale   = abs( xVec(ixMatOnly) ) + xSmall ! avoid divide by zero
     matric_max = maxval(abs( xInc(ixMatOnly)/psiScale ) )
