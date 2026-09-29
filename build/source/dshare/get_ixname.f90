@@ -1128,6 +1128,7 @@ contains
   case('routingNrgFuture'              ); get_ixBvar = iLookBVAR%routingNrgFuture                ! energy flux of runoff in future time steps (W m-2)
   case('hypTempPast'                   ); get_ixBvar = iLookBVAR%hypTempPast                     ! reach outlet temperature in past time steps (K)
   case('averageRoutedRunoffTemp'       ); get_ixBvar = iLookBVAR%averageRoutedRunoffTemp         ! temperature of the routed runoff (K)
+  case('basin__GlacierMassChange'      ); get_ixBvar = iLookBVAR%basin__GlacierMassChange        ! glacier mass change per unit glacier area (kg m-2 s-1)
   ! get to here if cannot find the variable
   case default
    get_ixBvar = integerMissing

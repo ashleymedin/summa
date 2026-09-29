@@ -954,6 +954,7 @@ MODULE var_lookup
   integer(i4b)    :: routingNrgFuture           = integerMissing ! energy flux of runoff in future time steps (W m-2)
   integer(i4b)    :: hypTempPast               = integerMissing ! reach outlet temperature in past time steps, for the hyporheic return flow (K)
   integer(i4b)    :: averageRoutedRunoffTemp    = integerMissing ! temperature of the routed runoff (K)
+  integer(i4b)    :: basin__GlacierMassChange   = integerMissing ! glacier mass change per unit glacier area (kg m-2 s-1)
  endtype iLook_bvar
 
  ! ***********************************************************************************************************
@@ -1125,7 +1126,7 @@ MODULE var_lookup
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =iLook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21, 22, 23, 24, 25, 26, 27)
+                                                                         21, 22, 23, 24, 25, 26, 27, 28)
  ! named variables: basin-grid variables
  type(iLook_grid),    public,parameter :: iLookGRID     =iLook_grid    (  1,  2,  3,  4,  5)
  ! named variables in variable type structure

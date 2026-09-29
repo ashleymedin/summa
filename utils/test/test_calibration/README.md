@@ -83,6 +83,10 @@ the network does not hold is refused at start-up. A variable SUMMA holds once pe
 `basin__StorageChange`, can be scored over a `gru` but not an `hru`, and a `reach` carries routed
 `streamflow` only. Two targets naming the same variable over the same unit share one collected series.
 
+Without mizuRoute, `streamflow` over a `gru` is that GRU's `averageRoutedRunoff` times its area, in
+m3 s-1, so a gauge below a one-GRU domain can be scored with no river network. With mizuRoute running,
+streamflow comes from the network only, and a `gru` streamflow target is refused: name the `reach`.
+
 ### Observations
 
 Every target reads its observations the same way, from a NetCDF file shaped like the bundled streamflow
@@ -117,15 +121,37 @@ metric         = "rmse"
 - `baseline_start`/`baseline_end` express **both** series as departures from their own mean over that
   period. Doing it to both sides is what removes the constant of integration an accumulated series
   carries, which is what makes an integrated rate comparable to a storage anomaly at all.
-- `detrend = true` removes each series' own least-squares line, fitted over the aligned months both
-  have. A glacier basin loses mass over the record, and without it a model is scored mostly on its loss
-  rate rather than its seasonal cycle.
-- `scale_to_obs = true` scales the simulated departures from their mean to the observed standard
-  deviation, so a model with the right timing and the wrong amplitude is scored on its timing. It
-  takes amplitude out of the objective altogether, so pair it with a target that still sees it.
 
-Both act on the aligned pair, after the simulation is averaged over each observation, and detrending
-comes first.
+### Glacier mass balance
+
+A glaciological mass balance is measured between the glacier's own seasonal extremes: winter from the
+autumn minimum to the spring maximum, summer from that maximum to the next minimum, annual from
+minimum to minimum. `balance` compares each observed balance with the same change in the simulated
+storage, between the extremes the simulation itself has:
+
+```toml
+[[calibration.target]]
+name       = "mass_balance"
+variable   = "basin__GlacierMassChange"   # kg m-2 s-1 over the glacier area, not the basin's
+gru        = 1
+obs_file   = "gulkana_mass_balance_annual.nc"
+vname_obs  = "mb_obs"
+accumulate = true                         # integrate into glacier storage, mm w.e.
+balance    = "annual"                     # winter, summer or annual
+metric     = "rmse"
+```
+
+- `winter` is the simulated maximum within `balance_window` days (default 60) of the observed date,
+  less the minimum in the year before it; `summer` is the minimum near the date less the maximum in
+  the year before it; `annual` is the minimum near the date less the minimum near a year earlier. A
+  melt season that runs early or late is scored on its mass, not its dates.
+- A balance whose search reaches outside the simulation is left out, so the first year of a run
+  scores nothing.
+- `basin__GlacierMassChange` is the glacier domains' total mass change over the glacier area, which is
+  what a glacier-wide balance is per unit of.
+
+`utils/pre-processing/acquire_glacier_mass_balance.py` writes the USGS Benchmark Glacier glacier-wide
+solutions in this form, one balance per file.
 
 ## Parameters that must stay in order
 
