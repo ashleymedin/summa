@@ -113,7 +113,7 @@ MODULE data_types
   logical(lgt)                   :: accumulate = .false.    ! integrate the simulated rate into its quantity
   character(len=:), allocatable  :: baseline_start          ! start of the anomaly baseline (YYYY-MM-DD)
   character(len=:), allocatable  :: baseline_end            ! end of the anomaly baseline (YYYY-MM-DD)
-  character(len=16)              :: balance = ''            ! winter, summer or annual balance between extremes
+  character(len=16)              :: balance = ''            ! seasonal or annual balance between extremes
   real(rkind)                    :: balance_window = 60._rkind ! half-width of the search for an extreme (days)
  end type target_info
 
