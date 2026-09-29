@@ -150,6 +150,8 @@ reaches, and recharge carrying SUMMA's drainage temperature through RCH's `TEMPE
 auxiliary variable. `deepTherml = aquiferTemp` (`modelDecisions_gwe.txt`) and
 `gwe_model_name` in `summa_modflow6_gwe.config` make GWE's water-table temperature SUMMA's
 `scalarAquiferTemp`. The spin-up's `heads_gwe.bin` carries the GWE temperatures as well as
-the heads. Its water budget is the SFR run's to the cubic metre; the GWE parameters
-(6 degC start, porosity 0.25) are placeholders, and three weeks move the aquifer
-temperature by hundredths of a degree.
+the heads. GWE starts from a thermal equilibrium the build script computes with mf6:
+steady flow, recharge at 6.2 degC at 1932 m less 6.5 degC km-1 (Sagehen's 5.2 degC mean
+air temperature plus 1 degC), and a 60 mW m-2 geothermal flux, which gives 3.0 to 7.4 degC.
+Three weeks move it by at most 0.09 degC, so that field is what the run reports; porosity
+(0.25) and the geothermal flux are still placeholders.
