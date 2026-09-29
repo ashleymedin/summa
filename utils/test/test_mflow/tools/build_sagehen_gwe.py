@@ -34,9 +34,8 @@ T_REF = 5.2           # degC, 1991-2020 mean air temperature at Sagehen Creek Fi
 Z_REF = 1932.0        # m, the station's elevation
 LAPSE = 6.5e-3        # degC m-1
 GW_OFFSET = 1.0       # degC, recharge above mean air temperature, from snow insulating the ground
-Q_GEO = 0.06          # W m-2, basal geothermal flux
+Q_GEO = 0.068         # W m-2, basal geothermal flux, Lake Tahoe mean 1.62 HFU (Henyey and Lee, 1976)
 EQ_YEARS = 10000.0    # years of the equilibration run
-POROSITY = 0.25
 RHO_SOLID = 2650.0    # kg m-3
 CP_SOLID = 840.0      # J kg-1 degC-1
 K_WATER = 0.58        # W m-1 degC-1
@@ -208,6 +207,7 @@ BEGIN GRIDDATA
 END GRIDDATA
 """)
     write(os.path.join(out_dir, "sagehen_gwe.est"), f"""\
+# POROSITY is the GWF model's specific yield.
 BEGIN OPTIONS
   SAVE_FLOWS
   DENSITY_WATER        1000.0
@@ -216,7 +216,7 @@ END OPTIONS
 
 BEGIN GRIDDATA
   POROSITY
-    CONSTANT  {POROSITY}
+    OPEN/CLOSE  sy1.txt
   HEAT_CAPACITY_SOLID
     CONSTANT  {CP_SOLID}
   DENSITY_SOLID
