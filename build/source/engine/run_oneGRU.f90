@@ -537,6 +537,15 @@ subroutine run_oneGRU(&
           if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket)then
             if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn) &
               basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarAquiferBaseflow)%dat(1)*tempGW
+          else if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == modflowCpl .or. &
+                  model_decisions(iLookDECISIONS%groundwatr)%iDecision == modLatflow)then
+            ! MODFLOW's baseflow and land-surface seepage, the groundwater that reaches the channel
+            if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn)then
+              if(allocated(mfAquiferBaseflow)) &
+                basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*mfAquiferBaseflow(gruInfo%hruInfo(iHRU)%hru_ix)*tempGW
+              if(allocated(mfSurfaceDischarge)) &
+                basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*mfSurfaceDischarge(gruInfo%hruInfo(iHRU)%hru_ix)*tempGW
+            endif
           else
             basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarSoilDrainage)%dat(1)*tempGW
           endif
