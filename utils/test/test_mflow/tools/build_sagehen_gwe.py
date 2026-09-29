@@ -7,6 +7,10 @@ auxiliary TEMPERATURE, which the coupler overwrites every step and SSM names as 
 recharge source. The coupler returns GWE's water-table temperature to SUMMA as
 scalarAquiferTemp. GWE runs in degrees Celsius, in the GWF model's metres and seconds.
 
+The starting temperatures are a thermal equilibrium: a stand-alone run of this model with
+steady flow, recharge at the long-term recharge temperature of each cell's elevation and a
+basal geothermal flux, carried for EQ_YEARS. It needs mf6 (MF6, default the repository's).
+
 Usage:
     build_sagehen_gwe.py [<output model dir>]      (default ../ex-gwf-sagehen-gwe)
 """
@@ -14,13 +18,24 @@ Usage:
 import os
 import re
 import shutil
+import subprocess
 import sys
+import tempfile
+
+import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SFR = os.path.join(HERE, "..", "ex-gwf-sagehen-sfr")
 GWE = "SAGEHEN_GWE"
+MF6 = os.environ.get("MF6", os.path.join(HERE, *[".."] * 6, "bin", "mf6"))
 
-STRT = 6.0            # degC, initial aquifer and reach temperature
+STRT = 6.0            # degC, placeholder for the equilibration's own start
+T_REF = 5.2           # degC, 1991-2020 mean air temperature at Sagehen Creek Field Station
+Z_REF = 1932.0        # m, the station's elevation
+LAPSE = 6.5e-3        # degC m-1
+GW_OFFSET = 1.0       # degC, recharge above mean air temperature, from snow insulating the ground
+Q_GEO = 0.06          # W m-2, basal geothermal flux
+EQ_YEARS = 10000.0    # years of the equilibration run
 POROSITY = 0.25
 RHO_SOLID = 2650.0    # kg m-3
 CP_SOLID = 840.0      # J kg-1 degC-1
@@ -33,6 +48,73 @@ BED_THK = 0.5         # m, as build_sagehen_sfr.py's RBED_THK
 def write(path, text):
     with open(path, "w") as f:
         f.write(text)
+
+
+def write_array(path, a):
+    np.savetxt(path, a, fmt="%9.4f")
+
+
+def sfr_cells(model_dir):
+    """(row, col), zero-based, of each SFR reach in order."""
+    cells, inblock = [], False
+    with open(os.path.join(model_dir, "sagehen.sfr")) as f:
+        for line in f:
+            if line.strip().startswith("BEGIN PACKAGEDATA"):
+                inblock = True
+            elif line.strip().startswith("END PACKAGEDATA"):
+                break
+            elif inblock and line.strip() and not line.lstrip().startswith("#"):
+                w = line.split()
+                cells.append((int(w[2]) - 1, int(w[3]) - 1))
+    return cells
+
+
+def read_arrays(path, nrow, ncol):
+    """Every array in a single-layer MODFLOW 6 binary head or temperature file, after its 52-byte header."""
+    raw = open(path, "rb").read()
+    rec = 52 + 8 * nrow * ncol
+    return [np.frombuffer(raw[i + 52:i + rec], dtype="<f8").reshape(nrow, ncol) for i in range(0, len(raw), rec)]
+
+
+def equilibrate(model_dir, nrow, ncol):
+    """Run model_dir to thermal equilibrium in a scratch copy and return (temperature, change in the last step)."""
+    active = np.loadtxt(os.path.join(model_dir, "idomain1.txt")) > 0
+    with tempfile.TemporaryDirectory() as tmp:
+        run = os.path.join(tmp, "eq")
+        shutil.copytree(model_dir, run)
+        write(os.path.join(run, "sagehen.tdis"),
+              f"BEGIN OPTIONS\n  TIME_UNITS  SECONDS\nEND OPTIONS\n\nBEGIN DIMENSIONS\n  NPER  1\nEND DIMENSIONS\n\n"
+              f"BEGIN PERIODDATA\n  {EQ_YEARS * 365.25 * 86400.0:.6e}  60  1.1\nEND PERIODDATA\n")
+        sto = os.path.join(run, "sagehen.sto")
+        with open(sto) as f:
+            text = f.read()
+        write(sto, text.replace("  TRANSIENT\n", "  STEADY-STATE\n"))
+        rows, cols = np.nonzero(active)
+        with open(os.path.join(run, "sagehen_gwe.esl"), "w") as f:
+            f.write(f"BEGIN DIMENSIONS\n  MAXBOUND  {rows.size}\nEND DIMENSIONS\n\nBEGIN PERIOD 1\n")
+            for r, c in zip(rows, cols):
+                f.write(f"  1 {r + 1:3d} {c + 1:3d} {Q_GEO * 90.0 * 90.0:.4f}\n")
+            f.write("END PERIOD\n")
+        nam = os.path.join(run, "sagehen_gwe.nam")
+        with open(nam) as f:
+            text = f.read()
+        write(nam, text.replace("  OC6 ", "  ESL6  sagehen_gwe.esl  esl\n  OC6 "))
+        write(os.path.join(run, "sagehen_gwe.oc"),
+              "BEGIN OPTIONS\n  TEMPERATURE  FILEOUT  sagehen_gwe.ucn\nEND OPTIONS\n\n"
+              "BEGIN PERIOD 1\n  SAVE  TEMPERATURE  STEPS 59 60\nEND PERIOD\n")
+        subprocess.run([MF6], cwd=run, check=True, stdout=subprocess.DEVNULL)
+        prev, last = read_arrays(os.path.join(run, "sagehen_gwe.ucn"), nrow, ncol)
+    return np.where(active, last, 0.0), np.abs(last - prev)[active].max()
+
+
+def write_sfe(out_dir, strt):
+    with open(os.path.join(out_dir, "sagehen_gwe.sfe"), "w") as f:
+        f.write("# Streamflow energy along the SFR reaches, with conduction through the streambed.\n")
+        f.write("BEGIN OPTIONS\n  FLOW_PACKAGE_NAME  SFR\n  SAVE_FLOWS\nEND OPTIONS\n\n")
+        f.write("BEGIN PACKAGEDATA\n# rno strt ktf rbthcnd\n")
+        for n, t in enumerate(strt, 1):
+            f.write(f"  {n:4d} {t:.4f} {K_BED} {BED_THK}\n")
+        f.write("END PACKAGEDATA\n")
 
 
 def main(out_dir):
@@ -49,8 +131,13 @@ def main(out_dir):
     with open(rch) as f:
         text = f.read()
     text = text.replace("  READASARRAYS\n", "  READASARRAYS\n  AUXILIARY  TEMPERATURE\n")
-    text = text.replace("    CONSTANT  1.0e-8\n", f"    CONSTANT  1.0e-8\n  TEMPERATURE\n    CONSTANT  {STRT}\n")
-    write(rch, "# The coupler also overwrites TEMPERATURE (__INPUT__/SAGEHEN/RCHA/AUXVAR, degC) with SUMMA's\n"
+    text = text.replace("    CONSTANT  1.0e-8\n", "    CONSTANT  1.0e-8\n  TEMPERATURE\n    OPEN/CLOSE  rchtemp1.txt\n")
+    top = np.loadtxt(os.path.join(out_dir, "top1.txt"))
+    active = np.loadtxt(os.path.join(out_dir, "idomain1.txt")) > 0
+    trch = np.where(active, T_REF + GW_OFFSET - LAPSE * (top - Z_REF), 0.0)
+    write_array(os.path.join(out_dir, "rchtemp1.txt"), trch)
+    write(rch, "# TEMPERATURE (degC) is the long-term recharge temperature at each cell's elevation.\n"
+               "# The coupler also overwrites TEMPERATURE (__INPUT__/SAGEHEN/RCHA/AUXVAR, degC) with SUMMA's\n"
                "# drainage temperature; GWE's SSM reads it as the recharge temperature.\n" + text)
 
     write(os.path.join(out_dir, "mfsim.nam"), f"""\
@@ -146,13 +233,7 @@ BEGIN SOURCES
   RCHA  AUX  TEMPERATURE
 END SOURCES
 """)
-    with open(os.path.join(out_dir, "sagehen_gwe.sfe"), "w") as f:
-        f.write("# Streamflow energy along the SFR reaches, with conduction through the streambed.\n")
-        f.write("BEGIN OPTIONS\n  FLOW_PACKAGE_NAME  SFR\n  SAVE_FLOWS\nEND OPTIONS\n\n")
-        f.write("BEGIN PACKAGEDATA\n# rno strt ktf rbthcnd\n")
-        for n in range(1, nreach + 1):
-            f.write(f"  {n:4d} {STRT} {K_BED} {BED_THK}\n")
-        f.write("END PACKAGEDATA\n")
+    write_sfe(out_dir, [STRT] * nreach)
 
     write(os.path.join(out_dir, "sagehen_gwe.ims"), """\
 BEGIN OPTIONS
@@ -184,6 +265,17 @@ BEGIN PERIOD 1
   SAVE  BUDGET       LAST
 END PERIOD
 """)
+
+    nrow, ncol = top.shape
+    temp, change = equilibrate(out_dir, nrow, ncol)
+    write_array(os.path.join(out_dir, "strt_gwe1.txt"), temp)
+    write(os.path.join(out_dir, "sagehen_gwe.ic"),
+          f"# Thermal equilibrium from tools/build_sagehen_gwe.py, degC: {EQ_YEARS:.0f} years of steady flow, recharge at\n"
+          f"# {T_REF + GW_OFFSET} degC at {Z_REF:.0f} m less {LAPSE * 1000} degC km-1, and {Q_GEO * 1000:.0f} mW m-2 geothermal flux.\n"
+          "BEGIN GRIDDATA\n  STRT\n    OPEN/CLOSE  strt_gwe1.txt\nEND GRIDDATA\n")
+    write_sfe(out_dir, [temp[r, c] for r, c in sfr_cells(out_dir)])
+    print(f"equilibrium aquifer temperature {temp[active].min():.2f} to {temp[active].max():.2f} degC, "
+          f"mean {temp[active].mean():.2f}; last step changed it by at most {change:.1e} degC")
 
 
 if __name__ == "__main__":
