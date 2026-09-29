@@ -20,6 +20,8 @@ module mizuroute_coupling
   public :: define_mizuroute_output_from_summa
   public :: write_mizuroute_output_from_summa
   public :: get_mizuroute_streamflow
+  public :: get_mizuroute_stream_temp
+  public :: mizuroute_has_stream_temp
   public :: get_mizuroute_reach_index
   public :: init_stream_network_from_summa
   public :: get_mizuroute_reach_hydraulics
@@ -411,6 +413,32 @@ contains
   simFlow = summaStruct%mizu_domain%river_network%driver%method(1)%streamflow(ixSeg,idx_buff)
 
   end subroutine get_mizuroute_streamflow
+
+  !-----------------------------------------------------------------------
+  ! Get the routed water temperature (degC) leaving a reach, ixReach an
+  ! index from get_mizuroute_reach_index, for the step just run
+  !-----------------------------------------------------------------------
+  subroutine get_mizuroute_stream_temp(summaStruct, ixReach, simTemp)
+  type(summa1_type_dec),  intent(in)  :: summaStruct
+  integer(i4b),           intent(in)  :: ixReach
+  real(rkind),            intent(out) :: simTemp
+  real(rkind), parameter :: kelvinAtZeroC = 273.15_rkind
+
+  simTemp = summaStruct%stream_net%tOut(ixReach) - kelvinAtZeroC
+
+  end subroutine get_mizuroute_stream_temp
+
+  !-----------------------------------------------------------------------
+  ! Report whether the river network carries stream temperature, which it
+  ! does only when some reach is represented by a stream domain
+  !-----------------------------------------------------------------------
+  logical function mizuroute_has_stream_temp(summaStruct)
+  type(summa1_type_dec),  intent(in)  :: summaStruct
+
+  mizuroute_has_stream_temp = .false.
+  if(allocated(summaStruct%stream_net%ixDOM)) mizuroute_has_stream_temp = any(summaStruct%stream_net%ixDOM > 0)
+
+  end function mizuroute_has_stream_temp
 
   !-----------------------------------------------------------------------
   ! Index of the reach with a given id in the river network, refusing an

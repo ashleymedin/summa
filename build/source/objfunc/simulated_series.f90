@@ -84,6 +84,7 @@ module simulated_series
   public :: collect_simulated_series
   public :: find_simulated_series
   public :: is_routed_streamflow
+  public :: is_routed_stream_temp
   public :: spatial_unit_index
 
 contains
@@ -104,6 +105,20 @@ contains
     end select
 
   end function is_routed_streamflow
+
+  ! **************************************************************************************************
+  ! Report whether a variable name means the routed water temperature leaving a reach, in degC.
+  ! **************************************************************************************************
+  pure function is_routed_stream_temp(name) result(isTemp)
+    character(*), intent(in) :: name
+    logical(lgt)             :: isTemp
+
+    select case(trim(name))
+      case ('T_reach','stream_temperature'); isTemp = .true.
+      case default;                          isTemp = .false.
+    end select
+
+  end function is_routed_stream_temp
 
   ! **************************************************************************************************
   ! The spatial unit a configuration word names, or integerMissing when it names none of them.
@@ -171,14 +186,22 @@ contains
       call resolve_spatial_unit(series(iSeries),err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      ! a reach carries routed streamflow, which mizuRoute produces rather than SUMMA
+      ! a reach carries routed streamflow and water temperature, which the network produces rather than SUMMA
       if(series(iSeries)%ix_unit == ix_unit_reach)then
-        if(.not.is_routed_streamflow(names(iSeries)))then
+        if(is_routed_streamflow(names(iSeries)))then
+          series(iSeries)%units='m3/s'
+        else if(is_routed_stream_temp(names(iSeries)))then
+          series(iSeries)%units='degC'
+        else
           message=trim(message)//'"'//trim(names(iSeries))//'" is asked for on a reach, which carries '// &
-                  'routed streamflow only'
+                  'routed streamflow or T_reach only'
           err=20; return
         endif
-        series(iSeries)%units='m3/s'
+
+      ! a reach temperature belongs to one reach, and a mean of it over land is not a coarser version of it
+      else if(is_routed_stream_temp(names(iSeries)))then
+        message=trim(message)//'"'//trim(names(iSeries))//'" is the temperature leaving a reach: name the reach'
+        err=20; return
 
       ! streamflow out of a GRU is its routed runoff over its area, as a gauge measures it
       else if(is_routed_streamflow(names(iSeries)) .and. series(iSeries)%ix_unit == ix_unit_gru)then
@@ -332,7 +355,7 @@ contains
   ! to one number the same way, as an area-weighted mean over the GRUs and HRUs the unit covers - every
   ! one for the domain, one GRU's for a GRU, one HRU for an HRU - so a target compares a series against
   ! an observation of the same place whichever structure its variable came from.  Storage and flux
-  ! densities (per unit area) are what this suits.  A reach is routed flow, which the caller records.
+  ! densities (per unit area) are what this suits.  A reach belongs to the network, and the caller records it.
   ! **************************************************************************************************
   subroutine collect_simulated_series(modelTimeStep,summa_struct,series,err,message)
     implicit none
