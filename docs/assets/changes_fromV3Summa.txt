@@ -335,4 +335,3 @@ AFTER tag of v4.0.0-exp-Sundials
 -77) computFlux.f90 calls groundwatr for modLatflow, not qTopmodl alone, commit 0e8947fd Sep 26, 2026
      Lateral flow was gated out of the flux call, so mLayerColumnOutflow was identically zero in every coupled run.
      
--79) vegNrgFlux.f90 lake surface roughness, emissivity and latent heat follow the ice cover, not the freezing point, commit 8adc4adc Sep 30, 2026
