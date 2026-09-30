@@ -15,8 +15,8 @@ purely to compare against t-route.
   units so that `tmZoneInfo = ncTime` places the sun correctly, and
   `CAN_05BB001_rdrs_2002-2017.nc` (`forcingFileList_rdrs.txt`), hourly RDRS
   v2.1 on UTC, 2002-04 to 2017-12, which overlaps GRACE. The RDRS file joins
-  the SYMFLUENCE `Bow_at_Banff_multivar` basin-average forcing, with `hruId`
-  set to this domain's 101 and `data_step` added.
+  the `Bow_at_Banff_multivar` basin-average forcing, with `hruId` set to 
+  this domain's 101 and `data_step` added.
 - `observations/` -- observations for the RDRS period, both on UTC and
   written by `utils/pre-processing/`: daily flow
   (`CAN_05BB001_daily_flow_2002-2017.nc`, from `acquire_streamflow.py wsc

@@ -12,9 +12,7 @@ from GRACE, and the glacier's own mass balance.
 | Storage | GRACE JPL RL06.3 mascon cell holding the basin centroid, mm |
 | Mass balance | USGS Benchmark Glacier glacier-wide seasonal (winter and summer) balance, mm w.e. |
 
-The domain is a slice of SYMFLUENCE's `domain_Gulkana` (`settings/SUMMA`, with `attributes_glac.nc`
-and `coldstate_glac.nc` renamed). The observations were written by the scripts in
-`utils/pre-processing/`:
+The observations were written by the scripts in `utils/pre-processing/`:
 
 ```bash
 cd utils/pre-processing
