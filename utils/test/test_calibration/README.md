@@ -370,8 +370,9 @@ about 6 minutes a simulated year); `grid` is `domain_sagehen9`, one land HRU per
 trial). The MODFLOW model is copied with a TDIS as long as the forcing. It needs
 `bin/summa_modflow6_opt_sundials_mizuroute.exe` and a python3 with netCDF4 and pyproj.
 
-Not yet passing: the spin-up runs, but trials fail with a SWE balance error of about 0.1 kg m-2 in snow
-over a stream column, at the edge of the tolerance.
+At 4 x 2 on 5 ranks it takes about 8 minutes, and every trial runs. The front runs from KGE -0.21 at
+2.21 degC RMSE to KGE -0.26 at 2.06 degC, over `frozenPrecipMultip`, `tempCritRain`, `k_macropore` and
+`routingGammaScale`.
 
 ## `multi_case_example/` -- multi-case calibration
 
