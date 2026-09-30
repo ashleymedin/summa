@@ -134,3 +134,28 @@ The one difference is the mapping residual, -1107.1 m3 (0.25%) against the unrou
 run's round-off. Routing solves the nine stream columns, and their soil drainage has no
 cell in `hru2cell_map.txt`, which covers the land HRUs alone. Streambed leakage into the
 aquifer is not represented, so that water is simply dropped.
+
+## SFR and GWE
+
+    ../run_sagehen9_sfr.sh
+    ../run_sagehen9_gwe.sh
+
+`run_sagehen9_sfr.sh` swaps CHD for SFR: `ex-gwf-sagehen-sfr`, written by
+`tools/build_sagehen_sfr.py`, has one reach per D8 channel cell of the nine links. SFR's
+aquifer exchange comes back as `baseflow`, exactly as CHD's did.
+
+`run_sagehen9_gwe.sh` adds a GWE model on the same grid: `ex-gwf-sagehen-gwe`, written by
+`tools/build_sagehen_gwe.py`, with advection, conduction, energy storage, SFE along the
+reaches, and recharge carrying SUMMA's drainage temperature through RCH's `TEMPERATURE`
+auxiliary variable. `deepTherml = aquiferTemp` (`modelDecisions_gwe.txt`) and
+`gwe_model_name` in `summa_modflow6_gwe.config` make GWE's water-table temperature SUMMA's
+`scalarAquiferTemp`. The spin-up's `heads_gwe.bin` carries the GWE temperatures as well as
+the heads. GWE starts from a thermal equilibrium the build script computes with mf6:
+steady flow, recharge at 6.2 degC at 1932 m less 6.5 degC km-1 (Sagehen's 5.2 degC mean
+air temperature plus 1 degC), and a 68 mW m-2 geothermal flux from Lake Tahoe, with porosity
+the GWF model's specific yield, which gives 3.2 to 7.6 degC.
+
+`bcLowrTdyn = presTemp` conducts heat from the base of each soil column to the GWE
+temperature at the water table, over the gap between them, and `esl_package_name` hands that
+flux to GWE's ESL package (one row per active cell, rates set by the coupler each step). The
+budget reports the heat sent and received, in J.

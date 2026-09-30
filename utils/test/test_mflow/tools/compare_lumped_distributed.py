@@ -25,7 +25,8 @@ ATTR = "domain_sagehen{}/settings/SUMMA/attributes.nc"
 PAIRS = {
     "wet": [("lumped", 1, "run1_wet_G1-1"),
             ("distributed", 9, "run1_noLatflow_G1-9"),
-            ("distributed + latflow", 9, "run1_latflow_G1-9")],
+            ("distributed + latflow", 9, "run1_latflow_G1-9"),
+            ("latflow + SFR", 9, "run1_sfr_G1-9")],
     "deeproot": [("lumped", 1, "run1_wet_deeproot_G1-1"),
                  ("distributed", 9, "run1_deeproot_G1-9")],
 }

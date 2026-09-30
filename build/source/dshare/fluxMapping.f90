@@ -160,6 +160,7 @@ contains
  flux2state_orig(iLookFLUX%scalarSurfaceRunoff_IE)          = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarSurfaceRunoff_SE)          = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarAquiferSeepage)            = flux2state(state1=integerMissing, state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarLowerBoundNrgFlux)         = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerSatHydCondMP)              = flux2state(state1=integerMissing,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerSatHydCond)                = flux2state(state1=integerMissing,  state2=integerMissing)
  flux2state_orig(iLookFLUX%iLayerSatHydCond)                = flux2state(state1=integerMissing,  state2=integerMissing)
