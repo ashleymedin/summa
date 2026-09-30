@@ -81,7 +81,24 @@ reach    = 710289040          # one reach of the mizuRoute network, by its segId
 `gru`, `hru` and `reach` are the three choices, and a target names at most one. An id the domain or
 the network does not hold is refused at start-up. A variable SUMMA holds once per GRU, like
 `basin__StorageChange`, can be scored over a `gru` but not an `hru`, and a `reach` carries routed
-`streamflow` only. Two targets naming the same variable over the same unit share one collected series.
+`streamflow` and `T_reach` only. Two targets naming the same variable over the same unit share one collected series.
+
+### Stream temperature
+
+`T_reach` (or `stream_temperature`) is the water temperature leaving a reach, in degC, and needs a
+`reach`. It is scored in degC rather than K because a KGE's bias ratio would otherwise sit near one
+for any plausible error. The network carries a temperature only when some GRU has a stream HRU, and a
+`T_reach` target in a network without one is refused at start-up.
+
+```toml
+[[calibration.target]]
+name      = "stream_temperature"
+variable  = "T_reach"
+reach     = 9
+obs_file  = "USGS_10343500_daily_temperature.nc"   # from utils/pre-processing/acquire_stream_temperature.py
+vname_obs = "t_obs"
+metric    = "rmse"
+```
 
 Without mizuRoute, `streamflow` over a `gru` is that GRU's `averageRoutedRunoff` times its area, in
 m3 s-1, so a gauge below a one-GRU domain can be scored with no river network. With mizuRoute running,
@@ -285,11 +302,7 @@ happened, so each sample keeps the spun-up aquifer rather than emptying it again
 objective compares routed streamflow against gauge observations. A coupled calibration build
 is therefore `-DUSE_MPI=ON -DUSE_MIZUROUTE=ON -DUSE_MODFLOW6=ON`.
 
-There is no bundled end-to-end test of this path: it needs a domain that has a MODFLOW model,
-a mizuRoute topology, streamflow observations, and a year of forcing before the calibration
-period, and no domain in this repository has all four. The pieces it is built from are
-covered separately - `utils/test/test_mflow` exercises the coupling itself, and
-`test_calibration_bow.sh` below exercises the calibration machinery.
+`test_calibration_sagehen.sh` below is the bundled end-to-end test of this path.
 
 ## `test_calibration_bow.sh`
 
@@ -339,6 +352,26 @@ fronts and their hypervolumes.
 It calibrates `k_soil`, `aquiferScaleFactor` and the two routing parameters. `theta_sat` is left out:
 sampling it needs the soil ordering constraint, and under that constraint some trials stop SUMMA
 with a soil water balance error.
+
+## `test_calibration_sagehen.sh`
+
+A coupled SUMMA / MODFLOW 6 / mizuRoute calibration on Sagehen Creek, scoring discharge (KGE) and
+stream temperature (`T_reach` RMSE, degC) at USGS 10343500, the outlet of reach 9. NSGA-II scores water
+year 2018 after a water-year-2017 spin-up.
+
+```bash
+./test_calibration_sagehen.sh [lumped|grid] [population] [generations] [n_ranks]   # defaults: lumped, 6, 3, 7
+```
+
+The domain is built at run time by `utils/test/test_mflow/tools/build_sagehen9_calibration.py` from the
+9 D8 subcatchments of `ex-gwf-sagehen`, each with a stream HRU for its reach, and the bundled basin-mean
+forcing in `sagehen/forcing/`. `lumped` gives each GRU one land HRU mapped onto all its cells (18 HRUs,
+about 6 minutes a simulated year); `grid` is `domain_sagehen9`, one land HRU per cell (3396 HRUs, hours a
+trial). The MODFLOW model is copied with a TDIS as long as the forcing. It needs
+`bin/summa_modflow6_opt_sundials_mizuroute.exe` and a python3 with netCDF4 and pyproj.
+
+Not yet passing: the spin-up runs, but trials fail with a SWE balance error of about 0.1 kg m-2 in snow
+over a stream column, at the edge of the tolerance.
 
 ## `multi_case_example/` -- multi-case calibration
 
