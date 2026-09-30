@@ -1080,6 +1080,8 @@ contains
   case('latMoraineWidth'          ); get_ixBpar = iLookBPAR%latMoraineWidth           ! lateral moraine width or rockfall length (m)
   ! temperature of the groundwater reaching the channel
   case('C_ATGW'                   ); get_ixBpar = iLookBPAR%C_ATGW                    ! air temperature to groundwater temperature coefficient (-)
+  ! geometry of the reach a stream domain stands for
+  case('streamWidthMultip'        ); get_ixBpar = iLookBPAR%streamWidthMultip         ! multiplier on the reach width and the stream domain area (-)
   ! get to here if cannot find the variable
   case default
    get_ixBpar = integerMissing

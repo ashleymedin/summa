@@ -307,6 +307,8 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
  USE globalData,only:gru_struc                               ! gru-hru mapping structures
  USE globalData,only:model_decisions                         ! model decision structure
  USE globalData,only:greenVegFrac_monthly                    ! fraction of green vegetation in each month (0-1)
+ USE globalData,only:stream                                  ! horizontal domain type for a stream reach
+ USE var_lookup,only:iLookBPAR                               ! look-up values for basin-average model parameters
  USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
  USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
  implicit none
@@ -413,6 +415,13 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
    enddo ! looping through domains
 
   end do ! HRU
+
+  ! a stream HRU is its reach, so it widens with the reach
+  do iHRU=1,gru_struc(iGRU)%hruCount
+   if(any(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(:)%dom_type==stream)) &
+    attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea) = attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea) &
+                                                           *bparStruct%gru(iGRU)%var(iLookBPAR%streamWidthMultip)
+  end do
 
   ! compute total area of the upstream HRUS that flow into each HRU
   do iHRU=1,gru_struc(iGRU)%hruCount
