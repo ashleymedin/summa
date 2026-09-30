@@ -275,6 +275,7 @@ subroutine vegNrgFlux(&
     ! input: layer geometry
     nSnow                           => indx_data%var(iLookINDEX%nSnow)%dat(1),                         & ! intent(in): [i4b] number of snow layers
     nLake                           => indx_data%var(iLookINDEX%nLake)%dat(1),                         & ! intent(in): [i4b] number of lake layers
+    nLakeFrz                        => indx_data%var(iLookINDEX%nLakeFrz)%dat(1),                      & ! intent(in): [i4b] number of frozen (ice cover) lake layers
     nSoil                           => indx_data%var(iLookINDEX%nSoil)%dat(1),                         & ! intent(in): [i4b] number of soil layers
     nGlce                           => indx_data%var(iLookINDEX%nGlce)%dat(1),                         & ! intent(in): [i4b] number of glacier ice layers
     nLayers                         => indx_data%var(iLookINDEX%nLayers)%dat(1),                       & ! intent(in): [i4b] total number of layers
@@ -556,8 +557,8 @@ subroutine vegNrgFlux(&
             ! case when the ground is snow-free
           else ! case when the ground is less than a layer of snow (e.g., bare soil or snow without a layer)
             if (nLake>0)then
-              if (groundTempTrial> Tfreeze) scalarLatHeatSubVapGround = LH_vap  ! evaporation of water
-              if (groundTempTrial<=Tfreeze) scalarLatHeatSubVapGround = LH_sub  ! sublimation from lake ice
+              if (nLakeFrz==0) scalarLatHeatSubVapGround = LH_vap  ! evaporation of open water, frozen at the surface only under an ice cover
+              if (nLakeFrz> 0) scalarLatHeatSubVapGround = LH_sub  ! sublimation from lake ice
             else if (nSoil>0)then
               scalarLatHeatSubVapGround = LH_vap  ! evaporation of water in the soil pores: this occurs even if frozen because of super-cooled water
             else if (nGlce>0)then
@@ -571,8 +572,8 @@ subroutine vegNrgFlux(&
         ! compute the roughness length (m) of the ground (ground below the canopy or non-vegetated surface)
         if (nLake>0)then
           ! NOTE: these should eventually be adjusted to account for fetch
-          if (groundTempTrial> Tfreeze) z0Ground = z0Water*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction ! depends on surface waves
-          if (groundTempTrial<=Tfreeze) z0Ground = z0Ice*  (1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction
+          if (nLakeFrz==0) z0Ground = z0Water*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction ! depends on surface waves
+          if (nLakeFrz> 0) z0Ground = z0Ice*  (1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction
         else if (nSoil>0)then
           z0Ground = z0Soil*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction
         else if (nGlce>0)then
@@ -606,8 +607,8 @@ subroutine vegNrgFlux(&
 
         ! compute emissivity of the ground surface (-)
         if (nLake>0)then
-          if (groundTempTrial> Tfreeze) groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*watEmissivity
-          if (groundTempTrial<=Tfreeze) groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*iceEmissivity
+          if (nLakeFrz==0) groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*watEmissivity
+          if (nLakeFrz> 0) groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*iceEmissivity
         else if (nSoil>0)then
           groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*soilEmissivity
         else if (nGlce>0)then
