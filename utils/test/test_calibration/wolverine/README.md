@@ -36,10 +36,11 @@ the gauge (357 m), falling 60 m, and 5 m wide, the width mizuRoute's `wscale` gi
 and within the 15–30 ft single-thread channel at the gauge. The stream HRU takes the forcing and soil
 of HRU 1, the lowest land HRU.
 
-`modelDecisions.txt` differs from Gulkana's in one decision, `deepTherml = airTempGW`: the
-groundwater reaching the channel follows the air temperature. With the default, it leaves at the
+`modelDecisions.txt` differs from Gulkana's in two decisions. `deepTherml = airTempGW` makes the
+groundwater reaching the channel follow the air temperature; with the default, it leaves at the
 temperature of the base of the soil column, near freezing, and the water entering the reach in July
-is 0.07 °C against 1.37 °C at the gauge.
+is 0.07 °C against 1.37 °C at the gauge. `hyporhTdyn = proxy` returns part of the reach flow at the
+temperature it had earlier, which damps the daily swing.
 
 ## Running it
 
