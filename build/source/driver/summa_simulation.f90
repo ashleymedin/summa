@@ -814,6 +814,7 @@ contains
 
       ! save streamflow time series at the outlet, and flow or temperature at any reach a target named
       ! (unavailable when mizuRoute is not active)
+#ifdef MIZUROUTE_ACTIVE
       if(mizuroute_active)then ! build-time capability
        if(summa_struct%config%use_mizuroute)then
         call get_mizuroute_streamflow(modelTimeStep, summa_struct, flowSim(modelTimeStep))
@@ -830,6 +831,7 @@ contains
         endif
        endif
       endif
+#endif
 
       ! record the SUMMA variables any calibration target asked for
       if(present(series))then
