@@ -334,7 +334,8 @@ The tables below list the time-varying variables that can be requested in the [o
 | `scalarStreamLatInflowTemp` | temperature of the lateral inflow | K |
 | `scalarStreamOutflow` | discharge leaving the reach | m3 s-1 |
 | `scalarStreamSfcInflow` | rain plus melt drainage entering the top of the open water column | m s-1 |
-| `mLayerLakeAdvNrgFlux` | advective energy source in each lake layer from reach inflow and outflow | J m-3 s-1 |
+| `mLayerLakeAdvNrgFlux` | energy source in each lake layer from the reach flow, advected and dissipated | J m-3 s-1 |
+| `scalarStreamFrictionHeat` | heat the reach flow dissipates falling through the reach, per unit reach area | W m-2 |
 | `scalarStreamRunoff` | net water the stream domain adds to the reach (rain + snowmelt - evaporation - sublimation) | m s-1 |
 
 <a id="outvar_bvar"></a>
