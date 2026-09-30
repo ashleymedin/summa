@@ -292,6 +292,7 @@ AFTER tag of v4.0.0-exp-Sundials
      Wolverine trial glacier storage constants given in seconds, were hours, commits af52263e, 822a2453 Sep 30, 2026
      Wolverine calibration test searches eight glacier parameters, commit fbf7a397 Sep 30, 2026
      Wolverine calibration test also searches streamWidthMultip, commit 06e071c3 Sep 30, 2026
+     Wolverine groundwater follows the air temperature (airTempGW), test calibrates C_ATGW in place of streamWidthMultip, commit fa30bced Oct 1, 2026
      A trial that leaves a target's observations nothing to pair with fails rather than stopping the calibration, commit 37291b53 Sep 30, 2026
      acquire_groundwater_level.py writes a USGS well's water level (m, positive up) as an observation file, commit e9644deb Sep 30, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits d632b36a to de2ae997 Sep 21, 2026
@@ -305,7 +306,8 @@ AFTER tag of v4.0.0-exp-Sundials
       of bed and ice underside weighted by wetted perimeter (Wanders eqs 12-13, Nezhikovskiy ice roughness), floodplain term of eq 11 stubbed in, inert.
      New outputs T_reach, v_reach, n_reach, ice_reach, scalarStreamTemp, scalarLakeIceThick, averageRoutedRunoffTemp, scalarStream* fluxes;
       new parameters streamMinDepth, lakeMixingThermalC, lakeIceMinThick; new restart variables routingNrgFuture, nLakeFrz.
-     New basin parameter streamWidthMultip scales a stream domain's reach width and area together, commit dfbf9300 Sep 30, 2026
+     New basin parameter streamWidthMultip scales a stream domain's reach width and area together, 0.5-3, commits dfbf9300, 2dd50ad8 Oct 1, 2026
+     Stream column gains the heat friction dissipates down the reach, new flux scalarStreamFrictionHeat, commit d1cbc263 Oct 1, 2026
  69) Allow baseflow to have a temperature, various commits Sept 24-26 2026
       1) Geothermal heat flux as a lower boundary condition for thermodynamics-- New bcLowrTdyn option presFlux prescribes lowerBoundNrgFlux (W m-2, default 0.06) into the base of a soil column.
       2) Frozen-ground diagnostics, and ice-impeded lateral flow, scalarFrostTableDepth and scalarActiveLayerDepth; each layer's transmissivity scaled by its ice impedance factor.
