@@ -379,16 +379,20 @@ At 4 x 2 on 5 ranks it takes about 8 minutes, and every trial runs. The front ru
 A glacier calibration routed by mizuRoute, scoring discharge (KGE) and water temperature (RMSE, degC)
 at USGS 15236900, and the glacier-wide seasonal mass balance (RMSE), on the bundled `wolverine/`
 domain: three glacier land HRUs and a stream HRU for the one reach. It spins up over 2016 and scores
-2017–2019, over `frozenPrecipMultip`, `tempCritRain`, `albedoMax` and `glacStor_kIce`.
+2017–2019, over `frozenPrecipMultip`, `tempCritRain`, `albedoMax`, `glacierWindFactor`,
+`glacierTempReduction` and the three glacier storage constants `glacStor_kIce`, `glacStor_kSnow` and
+`glacStor_kFirn`.
 
 ```bash
 ./test_calibration_wolverine.sh [population] [generations] [n_ranks]   # defaults: 8, 4, 5
 ```
 
 It needs `bin/summa_sundials_mizuroute_opt.exe`. At the defaults it takes about 9 minutes. The front
-runs from KGE 0.79 at 1.17 degC and 907 mm to KGE 0.79 at 1.34 degC and 581 mm, and to KGE 0.72 at
-1.14 degC; one trial of 32 fails in the stream HRU's column and ranks last. `wolverine/README.md`
-says how the domain and observations were built.
+runs from KGE 0.86 at 1.22 degC and 527 mm, through KGE 0.82 at 1.21 degC and 311 mm, to KGE 0.30 at
+1.08 degC. The temperature barely moves: the glacier runoff enters the reach within 0.1 degC of
+freezing whatever these parameters do. Five trials of 32 fail in the stream HRU's column as it cools
+to freezing on a late-summer night, and rank last. `wolverine/README.md` says how the domain and
+observations were built.
 
 ## `multi_case_example/` -- multi-case calibration
 

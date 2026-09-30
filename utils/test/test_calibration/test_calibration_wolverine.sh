@@ -4,7 +4,7 @@
 #
 # NSGA-II on daily discharge (KGE) and water temperature (RMSE, degC) at USGS 15236900,
 # the outlet of the one reach, and the glacier-wide seasonal mass balance (RMSE), 2017-2019
-# after a 2016 spin-up, over four parameters that move snow accumulation, melt and glacier
+# after a 2016 spin-up, over eight parameters that move snow accumulation, melt and glacier
 # runoff. The script checks the front the way test_calibration_gulkana.sh does and prints it.
 #
 # The budget is tiny, so this exercises the machinery; it does not calibrate the glacier.
@@ -130,7 +130,11 @@ param_list = [
     "frozenPrecipMultip",
     "tempCritRain",
     "albedoMax",
-    "glacStor_kIce"
+    "glacierWindFactor",
+    "glacierTempReduction",
+    "glacStor_kIce",
+    "glacStor_kSnow",
+    "glacStor_kFirn"
 ]
 
 write_aligned = false
