@@ -319,6 +319,7 @@ contains
   associate(&
    nSoil                => indx_data%var(iLookINDEX%nSoil)%dat(1)              ,& ! intent(in): [i4b] number of soil layers
    nGlce                => indx_data%var(iLookINDEX%nGlce)%dat(1)              ,& ! intent(in): [i4b] number of glacier ice layers
+   nLake                => indx_data%var(iLookINDEX%nLake)%dat(1)              ,& ! intent(in): [i4b] number of lake layers
    ixSpatialGroundwater => model_decisions(iLookDECISIONS%spatial_gw)%iDecision,& ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
    ixGroundwater        => model_decisions(iLookDECISIONS%groundwatr)%iDecision & ! intent(in): [i4b] groundwater parameterization
    &)
@@ -334,8 +335,9 @@ contains
    call allocate_memory; if (return_flag) return 
 
    ! identify the matrix solution method, using the full matrix can be slow in many-layered systems
+   ! a lake takes the full matrix: its reach-flow source couples every liquid lake layer, and the column is short
    ! (the type of matrix used to solve the linear system A.X=B)
-   if (local_ixGroundwater==qbaseTopmodel .or. local_ixGroundwater==modLatflow .or. (nGlce>0 .and. nSoil>0) .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
+   if (local_ixGroundwater==qbaseTopmodel .or. local_ixGroundwater==modLatflow .or. (nGlce>0 .and. nSoil>0) .or. nLake>0 .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
      nLeadDim=nState         ! length of the leading dimension
      ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
    else

@@ -763,7 +763,7 @@ subroutine fluxJacAdd(&
     ! * the reach flow's energy source in the liquid lake layers of a stream, through their liquid water...
     ! ------------------------------------------------------------------------------------------------------
     ! the source of each layer changes with every liquid layer's water, which changes with its temperature where it freezes
-    ! NOTE: in a band matrix, entries between layers too far apart to fit in the band are left out
+    ! NOTE: a lake takes the full matrix (systemSolv), since this couples every liquid layer; the band check is a fallback
     if(nLakeOnlyNrg>0)then
       do iLayer=nSnow+nLakeFrz+1,nSnow+nLake
         nrgState = ixSnLaSoGlNrg(iLayer)
