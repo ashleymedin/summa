@@ -5,8 +5,9 @@
 # NSGA-II on daily discharge (KGE) and water temperature (RMSE, degC) at USGS 15236900,
 # the outlet of the one reach, and the glacier-wide seasonal mass balance (RMSE), 2017-2019
 # after a 2016 spin-up, over eight parameters that move snow accumulation, melt and glacier
-# runoff and the reach width, which sets how much the glacier water warms in the reach. The
-# script checks the front the way test_calibration_gulkana.sh does and prints it.
+# runoff, and C_ATGW, which sets the temperature of the groundwater reaching the channel
+# (deepTherml = airTempGW). The script checks the front the way test_calibration_gulkana.sh
+# does and prints it.
 #
 # The budget is tiny, so this exercises the machinery; it does not calibrate the glacier.
 # Needs an executable built with -DUSE_MPI=ON -DUSE_MIZUROUTE=ON.
@@ -136,15 +137,10 @@ param_list = [
     "glacStor_kIce",
     "glacStor_kSnow",
     "glacStor_kFirn",
-    "streamWidthMultip"
+    "C_ATGW"
 ]
 
 write_aligned = false
-
-
-[calibration.parameter_transformations]
-
-streamWidthMultip = "log"
 
 
 [calibration.nsga2]

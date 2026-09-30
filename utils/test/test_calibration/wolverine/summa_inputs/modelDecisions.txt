@@ -41,6 +41,7 @@ infRateMax                      GreenAmpt       ! (31) choice of infiltration ra
 surfRun_SE                      homegrown_SE    ! (32) saturation excess surface runoff parameterization
 read_force                      readPerStep     ! (33) method used to read forcing data
 write_buff                      writePerStep    ! (34) method used to write model output
+deepTherml                      airTempGW       ! (45) deep thermal state below the soil column: groundwater follows the air temperature
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************

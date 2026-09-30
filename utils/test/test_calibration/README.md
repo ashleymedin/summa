@@ -381,18 +381,19 @@ at USGS 15236900, and the glacier-wide seasonal mass balance (RMSE), on the bund
 domain: three glacier land HRUs and a stream HRU for the one reach. It spins up over 2016 and scores
 2017–2019, over `frozenPrecipMultip`, `tempCritRain`, `albedoMax`, `glacierWindFactor`,
 `glacierTempReduction`, the three glacier storage constants `glacStor_kIce`, `glacStor_kSnow` and
-`glacStor_kFirn`, and `streamWidthMultip`, searched on a log scale.
+`glacStor_kFirn`, and `C_ATGW`, which sets the temperature of the groundwater reaching the channel
+under `deepTherml = airTempGW`.
 
 ```bash
 ./test_calibration_wolverine.sh [population] [generations] [n_ranks]   # defaults: 8, 4, 5
 ```
 
 It needs `bin/summa_sundials_mizuroute_opt.exe`. At the defaults it takes about 9 minutes, and every
-trial runs. The front runs from KGE 0.87 at 1.21 degC and 549 mm, through KGE 0.80 at 1.07 degC and
-403 mm, to KGE 0.57 at 1.01 degC. Glacier runoff enters the reach at freezing, so the water warms only
-in the reach, as much as its surface area allows: `streamWidthMultip` is what moves the temperature,
-and the best temperature fits widen the 5 m reach about elevenfold. `wolverine/README.md` says how the
-domain and observations were built.
+trial runs. The front runs from KGE 0.87 at 1.03 degC and 553 mm, through KGE 0.83 at 0.71 degC and
+501 mm, to KGE 0.71 at 0.62 degC. Glacier runoff enters the reach at freezing; the water warms from
+the groundwater of the unglaciated third of the basin, which `C_ATGW` scales, and from the heat
+friction dissipates down the reach. The reach keeps the 5 m width the gauge's channel has.
+`wolverine/README.md` says how the domain and observations were built.
 
 ## `multi_case_example/` -- multi-case calibration
 
