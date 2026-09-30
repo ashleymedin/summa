@@ -291,6 +291,7 @@ AFTER tag of v4.0.0-exp-Sundials
      Bundled Wolverine routed glacier calibration test, discharge, stream temperature and seasonal balance at USGS 15236900, commit 650d9b91 Sep 30, 2026
      Wolverine trial glacier storage constants given in seconds, were hours, commits af52263e, 822a2453 Sep 30, 2026
      Wolverine calibration test searches eight glacier parameters, commit fbf7a397 Sep 30, 2026
+     acquire_groundwater_level.py writes a USGS well's water level (m, positive up) as an observation file, commit e9644deb Sep 30, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits d632b36a to de2ae997 Sep 21, 2026
      A GRU may hold one stream HRU: its reach's water column (lake layers over soil/aquifer, linked via streamSegId). mizuRoute returns reach discharge, 
       volume and lateral inflow; new streamTemp.f90 solves the column energy balance upstream to downstream each step, advecting heat from upstream 
