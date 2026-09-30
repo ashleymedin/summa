@@ -262,7 +262,7 @@ contains
   if (parFallback(iLookBPAR%streamWidthMultip)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%streamWidthMultip)%default_val = 1._rkind
     parFallback(iLookBPAR%streamWidthMultip)%lower_limit = 0.5_rkind
-    parFallback(iLookBPAR%streamWidthMultip)%upper_limit = 20._rkind
+    parFallback(iLookBPAR%streamWidthMultip)%upper_limit = 3._rkind
   endif
  end if
 
