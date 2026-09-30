@@ -33,8 +33,14 @@ S=~/Research/Symfluence/SYMFLUENCE_data/domain_Wolverine
 ```
 
 The reach geometry is an estimate, since the domain has no river network: 2 km from the terminus to
-the gauge (357 m), falling 60 m, and 5 m wide, the width mizuRoute's `wscale` gives this basin area.
-The stream HRU takes the forcing and soil of HRU 1, the lowest land HRU.
+the gauge (357 m), falling 60 m, and 5 m wide, the width mizuRoute's `wscale` gives this basin area
+and within the 15–30 ft single-thread channel at the gauge. The stream HRU takes the forcing and soil
+of HRU 1, the lowest land HRU.
+
+`modelDecisions.txt` differs from Gulkana's in one decision, `deepTherml = airTempGW`: the
+groundwater reaching the channel follows the air temperature. With the default, it leaves at the
+temperature of the base of the soil column, near freezing, and the water entering the reach in July
+is 0.07 °C against 1.37 °C at the gauge.
 
 ## Running it
 
