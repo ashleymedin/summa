@@ -456,6 +456,8 @@ subroutine fluxJacAdd(&
   logical(i4b)                         :: solid                      ! flag to indicate if layer is solid ice (frozen lake or glacier ice)
   ! conversion factors
   real(rkind)                          :: convLiq2tot                ! factor to convert liquid water derivative to total water derivative
+  real(rkind)                          :: dSrc_dLiq                  ! derivative of a lake layer's energy source w.r.t. another layer's liquid water (J m-3 s-1)
+  integer(i4b)                         :: colState                   ! state variable of the Jacobian column
   ! --------------------------------------------------------------
   ! associate variables from data structures
   associate(&
@@ -519,6 +521,8 @@ subroutine fluxJacAdd(&
     dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow)%dat              ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. water state in the layer below
     ! derivative in the advective energy source of the lake layers w.r.t. the layer temperature
     dLakeAdvNrgFlux_dTemp        => deriv_data%var(iLookDERIV%dLakeAdvNrgFlux_dTemp)%dat           ,& ! intent(in): [dp(:)]  derivative of the lake advective energy source w.r.t. temperature
+    dLakeAdvNrgFlux_dLiq         => deriv_data%var(iLookDERIV%dLakeAdvNrgFlux_dLiq)%dat            ,& ! intent(in): [dp(:)]  derivative of the lake energy source w.r.t. liquid water at fixed liquid depth
+    dLakeAdvNrgFlux_dDepth       => deriv_data%var(iLookDERIV%dLakeAdvNrgFlux_dDepth)%dat          ,& ! intent(in): [dp(:)]  derivative of the lake energy source w.r.t. the column liquid depth
     nLakeFrz                     => indx_data%var(iLookINDEX%nLakeFrz)%dat(1)                      ,& ! intent(in): [i4b]    number of frozen (ice cover) lake layers at the top of the lake
     ! derivatives in soil transpiration w.r.t. canopy state variables
     mLayerdTrans_dTCanair        => deriv_data%var(iLookDERIV%mLayerdTrans_dTCanair)%dat           ,& ! intent(in): [dp(:)]  derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
@@ -755,6 +759,36 @@ subroutine fluxJacAdd(&
 
       end do ! (looping through snow, lake, glce layers)
     endif ! (if there are state variables for both water and energy in the snow, lake, glce domains)
+
+    ! -----
+    ! * the reach flow's energy source in the liquid lake layers of a stream, through their liquid water...
+    ! ------------------------------------------------------------------------------------------------------
+    ! the source of each layer changes with every liquid layer's water, which changes with its temperature where it freezes
+    ! NOTE: in a band matrix, entries between layers too far apart to fit in the band are left out
+    if(nLakeOnlyNrg>0)then
+      do iLayer=nSnow+nLakeFrz+1,nSnow+nLake
+        nrgState = ixSnLaSoGlNrg(iLayer)
+        if(nrgState==integerMissing) cycle
+        do jLayer=nSnow+nLakeFrz+1,nSnow+nLake
+          dSrc_dLiq = dLakeAdvNrgFlux_dDepth(iLayer-nSnow)*mLayerDepth(jLayer)
+          if(jLayer==iLayer) dSrc_dLiq = dSrc_dLiq + dLakeAdvNrgFlux_dLiq(iLayer-nSnow)
+          colState = ixSnLaSoGlNrg(jLayer)
+          if(colState/=integerMissing)then
+            if(full .or. (nrgState-colState<=kl .and. colState-nrgState<=ku)) &
+              aJac(ixInd(full,nrgState,colState),colState) = aJac(ixInd(full,nrgState,colState),colState) - dt*dSrc_dLiq*mLayerdTheta_dTk(jLayer)
+          endif
+          colState = ixSnLaSoGlHyd(jLayer)
+          if(colState/=integerMissing)then
+            select case( ixHydType(jLayer) )
+              case(iname_watLayer); convLiq2tot = mLayerFracLiq(jLayer)
+              case default;         convLiq2tot = 1._rkind
+            end select
+            if(full .or. (nrgState-colState<=kl .and. colState-nrgState<=ku)) &
+              aJac(ixInd(full,nrgState,colState),colState) = aJac(ixInd(full,nrgState,colState),colState) - dt*dSrc_dLiq*convLiq2tot
+          endif
+        end do
+      end do
+    endif
 
     ! -----
     ! * liquid water fluxes for the soil domain...
