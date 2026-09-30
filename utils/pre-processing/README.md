@@ -5,6 +5,7 @@ Helpful scripts for a variety of pre-processing purposes:
 - `subsetGRU.sh`: subset out a NA HRU forcing, parameter, and attribute files where GRU matches HRU
 - `SUMMA_merge_restarts_into_warmState.py`: combine split domain state files (with 2 dimensions, hru and gru)
 - `create_lumped_to_hru_mapping.sh`: build the lumped-to-HRU mapping used to pass SUMMA runoff to mizuRoute
+- `add_stream_hru.py`: give a single-GRU domain a stream HRU and a one-reach mizuRoute topology, for stream temperature
 
 ## Calibration observations
 

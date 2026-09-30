@@ -334,6 +334,8 @@ if (USE_MODFLOW6)
         # built a second time (two targets over one set of sources would also race for the
         # shared Fortran module directory).
         set(EXEC_NAME_OPT "summa_modflow6_opt${EXEC_SUFFIX}.exe")
+        # the plain driver, which a failed trial's rerun.sh runs; the serial EXEC_NAME is the coupler
+        set(EXEC_NAME_MODFLOW_SERIAL "summa_modflow6_serial${EXEC_SUFFIX}.exe")
     endif()
 endif()
 
@@ -343,6 +345,7 @@ if (USE_MPI)
     if (USE_MODFLOW6)
         message("MPI MODFLOW 6 coupler executable name: ${EXEC_NAME_MODFLOW_MPI}")
         message("MODFLOW 6 calibration executable name: ${EXEC_NAME_OPT}")
+        message("MODFLOW 6 serial driver executable name: ${EXEC_NAME_MODFLOW_SERIAL}")
     endif()
 endif()
 
@@ -552,6 +555,15 @@ else()
     target_link_libraries(${EXEC_NAME_MODFLOW_MPI} PRIVATE summa PARALLEL_UTILS)
     # so the executable can find libmf6 at run time without LD_LIBRARY_PATH
     set_target_properties(${EXEC_NAME_MODFLOW_MPI} PROPERTIES
+      BUILD_RPATH "${MODFLOW6_LIB_DIR}"
+      INSTALL_RPATH "${MODFLOW6_LIB_DIR}")
+
+    # serial driver for rerunning one calibration trial, coupled when simulation.use_modflow is set
+    add_executable(${EXEC_NAME_MODFLOW_SERIAL} ${DRIVER_DIR}/summa_driver.f90)
+    target_compile_options(${EXEC_NAME_MODFLOW_SERIAL} PRIVATE ${FLAGS_ALL})
+    set_property(TARGET ${EXEC_NAME_MODFLOW_SERIAL} PROPERTY LINKER_LANGUAGE Fortran)
+    target_link_libraries(${EXEC_NAME_MODFLOW_SERIAL} PRIVATE summa)
+    set_target_properties(${EXEC_NAME_MODFLOW_SERIAL} PROPERTIES
       BUILD_RPATH "${MODFLOW6_LIB_DIR}"
       INSTALL_RPATH "${MODFLOW6_LIB_DIR}")
   endif()
