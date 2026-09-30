@@ -269,6 +269,7 @@ subroutine run_oneGRU(&
     ! storage change and glacier variables
     bvar(iLookBVAR%basin__StorageChange)%dat(1)    = 0._rkind ! change in total basin storage (kg m-2 s-1)
     bvar(iLookBVAR%basin__GlacierArea)%dat(1)      = 0._rkind ! glacier area (m2)
+    bvar(iLookBVAR%basin__GlacierMassChange)%dat(1)= 0._rkind ! glacier mass change per unit glacier area (kg m-2 s-1)
   end associate
   glacIceMelt    = 0._rkind
   glacSnowMelt   = 0._rkind
@@ -571,11 +572,14 @@ subroutine run_oneGRU(&
           bvar(iLookBVAR%basin__GlacierArea)%dat(1)    = bvar(iLookBVAR%basin__GlacierArea)%dat(1) + DOMarea ! m2
           bvar(iLookBVAR%basin__GlacierStorage)%dat(1) = bvar(iLookBVAR%basin__GlacierStorage)%dat(1) &
                                                          + diag(iLookDIAG%scalarTotalMassChange)%dat(1)*data_step*DOMarea*1.e-12_rkind ! Gt (km3 of water equivalent)
+          bvar(iLookBVAR%basin__GlacierMassChange)%dat(1) = bvar(iLookBVAR%basin__GlacierMassChange)%dat(1) + diag(iLookDIAG%scalarTotalMassChange)%dat(1)*DOMarea ! kg s-1 until divided by the glacier area
         endif ! (if domain type)
       end associate
     enddo ! (looping through domains)
   enddo  ! (looping through HRUs)
   ! ********** END LOOP THROUGH HRUS **************************************************************************************
+  if(bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1) > 0._rkind) &
+    bvarData%var(iLookBVAR%basin__GlacierMassChange)%dat(1) = bvarData%var(iLookBVAR%basin__GlacierMassChange)%dat(1)/bvarData%var(iLookBVAR%basin__GlacierArea)%dat(1)
 
   ! ----- collect the state of each glacier domain for the area update ----------------------------------------------------
   if(updateGlacArea)then
