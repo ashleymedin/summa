@@ -231,4 +231,5 @@ These are the spatially constant, GRU-level parameters set in the [basin paramet
 | `debrisCritStress` | critical driving stress where debris slides on terminal wedge | Pa |
 | `latMoraineWidth` | lateral moraine width or rockfall length | m |
 | `C_ATGW` | air temperature to groundwater temperature coefficient | - |
+| `streamWidthMultip` | multiplier on the reach width and the stream domain area | - |
 
