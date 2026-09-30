@@ -163,6 +163,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
     scalarStreamSfcInflow      => flux_data%var(iLookFLUX%scalarStreamSfcInflow)%dat(1),   & ! intent(in):    rain plus melt entering the open water column (m s-1)
     scalarStreamSfcInflowTemp  => diag_data%var(iLookDIAG%scalarStreamSfcInflowTemp)%dat(1),&! intent(in):    temperature of the rain plus melt (K)
     scalarHypTemp              => diag_data%var(iLookDIAG%scalarHypTemp)%dat(1),           & ! intent(in):    temperature of the hyporheic return flow (K)
+    scalarStreamFrictionHeat   => flux_data%var(iLookFLUX%scalarStreamFrictionHeat)%dat(1),& ! intent(in):    heat the reach flow dissipates falling through the reach (W m-2)
     hypFrac                    => mpar_data%var(iLookPARAM%hypFrac)%dat(1),                & ! intent(in):    fraction of the reach flow returned as hyporheic flow (-)
     ! input: derivatives
     dThermalC_dWatAbove        => in_snowLakeSoilGlceNrgFlux % dThermalC_dWatAbove,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -306,6 +307,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! ***** compute the advective energy source in the lake layers of a stream *****
     ! -------------------------------------------------------------------------------------------------------------------------
     ! a well-mixed column (Wanders et al. 2019, after van Beek et al. 2012), each inflow as theta_i*rho_w*c_p*Q*(T_in - T_i)/(A*h_liq) per unit layer volume
+    ! plus the heat friction dissipates as the flow falls through the reach, spread the same way
     ! the ice cover, the top nLakeFrz lake layers, takes no part
     if(nLake>0)then
       mLayerLakeAdvNrgFlux(:)  = 0._rkind
@@ -323,7 +325,8 @@ subroutine snowLakeSoilGlceNrgFlux(&
                                                     scalarStreamInflow   *(scalarStreamInflowTemp    - mLayerTempTrial(iLayer)) &
                                                   + scalarStreamLatInflow*(scalarStreamLatInflowTemp - mLayerTempTrial(iLayer)) &
                                                   + scalarStreamSfcInflow*DOMarea*(scalarStreamSfcInflowTemp - mLayerTempTrial(iLayer)) &
-                                                  + hypFlow*(scalarHypTemp - mLayerTempTrial(iLayer)) )
+                                                  + hypFlow*(scalarHypTemp - mLayerTempTrial(iLayer)) ) &
+                                               + mLayerVolFracLiqTrial(iLayer)*scalarStreamFrictionHeat/lakeLiqDepth
             dLakeAdvNrgFlux_dTemp(iLayer-nSnow) = -mLayerVolFracLiqTrial(iLayer)*advScale*(scalarStreamInflow + scalarStreamLatInflow + scalarStreamSfcInflow*DOMarea &
                                                                        + hypFlow)
           end do

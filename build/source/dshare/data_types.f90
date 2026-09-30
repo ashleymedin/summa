@@ -291,6 +291,7 @@ MODULE data_types
    integer(i4b), allocatable             :: ixHRU(:)                      ! that HRU, within its GRU
    integer(i4b), allocatable             :: ixDOM(:)                      ! the stream domain, within that HRU (0 = none)
    real(rkind), allocatable              :: length(:)                     ! reach length (m)
+   real(rkind), allocatable              :: slope(:)                      ! reach slope, from the routing parameters (-)
    real(rkind), allocatable              :: qUp(:)                        ! discharge entering from upstream reaches (m3 s-1)
    real(rkind), allocatable              :: qLat(:)                       ! lateral inflow from the local catchment (m3 s-1)
    real(rkind), allocatable              :: qOut(:)                       ! discharge leaving the reach (m3 s-1)

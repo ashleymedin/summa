@@ -675,8 +675,9 @@ subroutine popMetadat(err,message)
   flux_meta(iLookFLUX%scalarStreamLatInflowTemp)       = var_info('scalarStreamLatInflowTemp'      , 'temperature of the lateral inflow'                                , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarStreamOutflow)             = var_info('scalarStreamOutflow'            , 'discharge leaving the reach'                                      , 'm3 s-1'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarStreamSfcInflow)           = var_info('scalarStreamSfcInflow'          , 'rain plus melt drainage entering the top of the open water column', 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  flux_meta(iLookFLUX%mLayerLakeAdvNrgFlux)            = var_info('mLayerLakeAdvNrgFlux'           , 'advective energy source in each lake layer from reach inflow and outflow', 'J m-3 s-1', get_ixVarType('midLake'), iMissVec, iMissVec, .false.)
+  flux_meta(iLookFLUX%mLayerLakeAdvNrgFlux)            = var_info('mLayerLakeAdvNrgFlux'           , 'energy source in each lake layer from the reach flow, advected and dissipated', 'J m-3 s-1', get_ixVarType('midLake'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%scalarStreamRunoff)              = var_info('scalarStreamRunoff'             , 'net water the stream domain adds to the reach (rain + snowmelt - evaporation - sublimation)', 'm s-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  flux_meta(iLookFLUX%scalarStreamFrictionHeat)        = var_info('scalarStreamFrictionHeat'       , 'heat the reach flow dissipates falling through the reach'         , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local flux derivatives...
   ! ---------------------------
