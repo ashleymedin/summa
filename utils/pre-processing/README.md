@@ -17,4 +17,5 @@ worked examples for the bundled test domains, not a general framework.
 
 - `acquire_streamflow.py`: daily streamflow from the Water Survey of Canada or the USGS, in m3 s-1
 - `acquire_grace_tws.py`: the JPL GRACE/GRACE-FO mascon anomaly for a basin or a GRU, in mm (downloading needs a NASA Earthdata login)
-- `observation_netcdf.py`: the writer both share
+- `acquire_groundwater_level.py`: daily or field-measured water level in a USGS well, relative to land surface in m, positive up
+- `observation_netcdf.py`: the writer they share
