@@ -940,6 +940,8 @@ contains
   case('dTemp_dTheta'                   ); get_ixDeriv = iLookDERIV%dTemp_dTheta                   ! derivative of temperature w.r.t. volumetric water content         
   case('dTemp_dPsi0'                    ); get_ixDeriv = iLookDERIV%dTemp_dPsi0                    ! derivative of temperature w.r.t. total water matric potential         
   case('dLakeAdvNrgFlux_dTemp'          ); get_ixDeriv = iLookDERIV%dLakeAdvNrgFlux_dTemp          ! derivative of the lake advective energy source w.r.t. layer temperature
+  case('dLakeAdvNrgFlux_dLiq'           ); get_ixDeriv = iLookDERIV%dLakeAdvNrgFlux_dLiq           ! derivative of the lake energy source w.r.t. liquid water at fixed liquid depth
+  case('dLakeAdvNrgFlux_dDepth'         ); get_ixDeriv = iLookDERIV%dLakeAdvNrgFlux_dDepth         ! derivative of the lake energy source w.r.t. the column liquid depth
 
   case default
    get_ixDeriv = integerMissing

@@ -782,6 +782,8 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%dTemp_dTheta)                  = var_info('dTemp_dTheta'                 , 'derivative of temperature w.r.t. volumetric water content'            , 'K'              , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dTemp_dPsi0)                   = var_info('dTemp_dPsi0'                  , 'derivative of temperature w.r.t. total water matric potential'        , 'K m-1'          , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dLakeAdvNrgFlux_dTemp)         = var_info('dLakeAdvNrgFlux_dTemp'        , 'derivative of the lake advective energy source w.r.t. layer temperature', 'J m-3 s-1 K-1', get_ixVarType('midLake'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dLakeAdvNrgFlux_dLiq)          = var_info('dLakeAdvNrgFlux_dLiq'         , 'derivative of the lake energy source w.r.t. liquid water at fixed liquid depth', 'J m-3 s-1', get_ixVarType('midLake'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dLakeAdvNrgFlux_dDepth)        = var_info('dLakeAdvNrgFlux_dDepth'       , 'derivative of the lake energy source w.r.t. the column liquid depth', 'J m-4 s-1', get_ixVarType('midLake'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin-wide runoff and aquifer fluxes...
   ! -----------------------------------------
