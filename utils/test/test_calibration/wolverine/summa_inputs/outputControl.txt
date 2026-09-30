@@ -1,0 +1,15 @@
+! -------------------
+!  model variables
+! -------------------
+averageRoutedRunoff   | 1
+basin__StorageChange  | 1
+!surface_elev | annual
+!debris_thick | annual
+! DON'T NEED THE FOLLOWING, JUST FOR DEBUGGING
+!basin__GlacierStorage | 24
+!basin__GlacierArea    | 24
+!scalarCanopyWat       | 24
+!scalarSWE             | 24
+!scalarTotalSoilWat    | 24
+!scalarGlceWE          | 24
+!scalarAquiferStorage  | 24
