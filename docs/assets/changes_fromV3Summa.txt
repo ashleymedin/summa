@@ -336,3 +336,4 @@ AFTER tag of v4.0.0-exp-Sundials
      Lateral flow was gated out of the flux call, so mLayerColumnOutflow was identically zero in every coupled run.
 -78) thermConductivity.f90 bottom-interface conductivity derivatives on the layer above, so a presTemp lower boundary converges, commit a40ddbd7 Sep 30, 2026
      
+-79) vegNrgFlux.f90 lake surface roughness, emissivity and latent heat follow the ice cover, not the freezing point, commit 8adc4adc Sep 30, 2026
