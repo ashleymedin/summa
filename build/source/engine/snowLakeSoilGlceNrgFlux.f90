@@ -126,8 +126,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
   real(rkind)                         :: baseDz                     ! distance from the bottom layer mid-point to baseTemp (m)
   real(rkind)                         :: hypFlow                    ! hyporheic return flow (m3 s-1)
   real(rkind)                         :: lakeLiqDepth               ! total liquid depth of the lake layers (m)
-  real(rkind)                         :: liqWeight                  ! share of the reach exchange taken by a lake layer (-)
-  real(rkind)                         :: advScale                   ! rho*Cp/(area*liquid depth): converts m3 s-1 K to J m-3 s-1 (J m-6 K-1... per layer share)
+  real(rkind)                         :: advScale                   ! rho*Cp/(area*liquid depth): converts m3 s-1 K to J m-3 s-1 of water (J m-6 K-1)
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! allocate intent(out) data structure components
   nLayers=indx_data%var(iLookINDEX%nLayers)%dat(1)
@@ -306,7 +305,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! -------------------------------------------------------------------------------------------------------------------------
     ! ***** compute the advective energy source in the lake layers of a stream *****
     ! -------------------------------------------------------------------------------------------------------------------------
-    ! a well-mixed column (Wanders et al. 2019, after van Beek et al. 2012), each inflow as w_i*rho_w*c_p*Q*(T_in - T_i)/(A*h_liq)
+    ! a well-mixed column (Wanders et al. 2019, after van Beek et al. 2012), each inflow as theta_i*rho_w*c_p*Q*(T_in - T_i)/(A*h_liq) per unit layer volume
     ! the ice cover, the top nLakeFrz lake layers, takes no part
     if(nLake>0)then
       mLayerLakeAdvNrgFlux(:)  = 0._rkind
@@ -320,13 +319,12 @@ subroutine snowLakeSoilGlceNrgFlux(&
           advScale = Cp_water*iden_water/(DOMarea*lakeLiqDepth)
           do iLayer=nSnow+nLakeFrz+1,nSnow+nLake
             if(iLayer<ixTop .or. iLayer>ixBot) cycle ! scalar solution: only the layer being solved
-            liqWeight = mLayerDepth(iLayer)*mLayerVolFracLiqTrial(iLayer)/lakeLiqDepth
-            mLayerLakeAdvNrgFlux(iLayer-nSnow) = liqWeight*advScale*( &
+            mLayerLakeAdvNrgFlux(iLayer-nSnow) = mLayerVolFracLiqTrial(iLayer)*advScale*( &
                                                     scalarStreamInflow   *(scalarStreamInflowTemp    - mLayerTempTrial(iLayer)) &
                                                   + scalarStreamLatInflow*(scalarStreamLatInflowTemp - mLayerTempTrial(iLayer)) &
                                                   + scalarStreamSfcInflow*DOMarea*(scalarStreamSfcInflowTemp - mLayerTempTrial(iLayer)) &
                                                   + hypFlow*(scalarHypTemp - mLayerTempTrial(iLayer)) )
-            dLakeAdvNrgFlux_dTemp(iLayer-nSnow) = -liqWeight*advScale*(scalarStreamInflow + scalarStreamLatInflow + scalarStreamSfcInflow*DOMarea &
+            dLakeAdvNrgFlux_dTemp(iLayer-nSnow) = -mLayerVolFracLiqTrial(iLayer)*advScale*(scalarStreamInflow + scalarStreamLatInflow + scalarStreamSfcInflow*DOMarea &
                                                                        + hypFlow)
           end do
         end if
