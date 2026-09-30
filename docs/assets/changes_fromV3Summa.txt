@@ -335,5 +335,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -77) computFlux.f90 calls groundwatr for modLatflow, not qTopmodl alone, commit 0e8947fd Sep 26, 2026
      Lateral flow was gated out of the flux call, so mLayerColumnOutflow was identically zero in every coupled run.
 -78) thermConductivity.f90 bottom-interface conductivity derivatives on the layer above, so a presTemp lower boundary converges, commit a40ddbd7 Sep 30, 2026
- 79) summa_modelRun.f90 stream-network physics errors name the time step and date, commit 1c9f0d61 Sep 30, 2026
      
