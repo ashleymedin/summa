@@ -529,8 +529,9 @@ contains
   ! (DDS has no generations, so dds_s<sample>/).
   !
   ! The directory holds trial.json (parameters, error, worker, source revision), the configuration,
-  ! the spun-up initial state every trial starts from, and rerun.sh, which reruns the trial with the
-  ! serial executable built beside this one. Returns the directory in dir.
+  ! the spun-up initial state every trial starts from (with the worker's MODFLOW heads when coupled),
+  ! and rerun.sh, which reruns the trial with the serial driver built beside this one. Returns the
+  ! directory in dir.
   ! **************************************************************************************************
   subroutine write_failed_trial(config,sample_id,worker_rank,param_names,param_values,error_message,dir)
     USE summa_type,       only: config_info
@@ -543,7 +544,7 @@ contains
     real(rkind),       intent(in)  :: param_values(:)
     character(*),      intent(in)  :: error_message
     character(len=:), allocatable, intent(out) :: dir
-    character(len=:), allocatable :: exe,serial_exe,init_state,source_rev
+    character(len=:), allocatable :: exe,serial_exe,init_state,source_rev,launch_dir
     character(len=32)   :: val
     character(len=4096) :: line
     integer(i4b) :: unit,iParam,ix,ios
@@ -559,16 +560,21 @@ contains
     dir=trim(OUTPUT_PATH)//'failed_trials/'//trim(line)//'/'
     call execute_command_line('mkdir -p "'//dir//'"')
 
-    ! the executable that ran the trial, and its serial counterpart (the same name without _opt)
+    ! the executable that ran the trial, and its serial driver (_opt dropped, or _serial with MODFLOW)
+    call getcwd(line)
+    launch_dir=trim(line)
     call get_command_argument(0,line)
     exe=trim(line)
-    if(exe(1:1) /= '/')then
-      call getcwd(line)
-      exe=trim(line)//'/'//exe
-    endif
+    if(exe(1:1) /= '/') exe=launch_dir//'/'//exe
     ix=index(exe,'_opt',back=.true.)
     serial_exe=exe
-    if(ix > index(exe,'/',back=.true.)) serial_exe=exe(1:ix-1)//exe(ix+4:)
+    if(ix > index(exe,'/',back=.true.))then
+      if(index(exe,'/summa_modflow6_opt',back=.true.)+15 == ix)then
+        serial_exe=exe(1:ix-1)//'_serial'//exe(ix+4:)
+      else
+        serial_exe=exe(1:ix-1)//exe(ix+4:)
+      endif
+    endif
 
     ! the source revision of the checkout the executable lives in
     call execute_command_line('git -C "'//exe(1:index(exe,'/',back=.true.))//'" describe --always --dirty > "'// &
@@ -588,6 +594,13 @@ contains
       init_state=trim(STATE_PATH)//trim(MODEL_INITCOND)
     endif
     call execute_command_line('cp "'//init_state//'" "'//dir//'initial_state.nc"')
+
+    ! a coupled trial also starts from its worker's spun-up MODFLOW heads
+    if(config%use_modflow)then
+      write(val,'(i4.4)') worker_rank
+      call execute_command_line('cp "'//trim(OUTPUT_PATH)//'modflow_spinup_heads_rank'//trim(val)//'.bin" "'// &
+                                dir//'modflow_spinup_heads.bin"')
+    endif
 
     ! a manifest case is built from a template, so only a single configuration file can be rerun as it stands
     rerunnable=allocated(config%config_file) .and. .not.allocated(config%manifest_file)
@@ -630,11 +643,15 @@ contains
       write(unit,'(a)') 'here="$(cd "$(dirname "$0")" && pwd)"'
       write(unit,'(a)') 'SUMMA_EXE="${SUMMA_EXE:-'//serial_exe//'}"'
       write(unit,'(a)') 'mkdir -p "${here}/output"'
+      if(config%use_modflow) &
+        write(unit,'(a)') 'cp "${here}/modflow_spinup_heads.bin" "${here}/output/modflow_spinup_heads_rank0000.bin"'
       write(unit,'(a)') 'sed -e "s|^\([[:space:]]*state_path[[:space:]]*=\).*|\1 \"${here}/\"|" \'
       write(unit,'(a)') '    -e "s|^\([[:space:]]*init_condition[[:space:]]*=\).*|\1 \"initial_state.nc\"|" \'
       write(unit,'(a)') '    -e "s|^\([[:space:]]*output_path[[:space:]]*=\).*|\1 \"${here}/output/\"|" \'
       write(unit,'(a)') '    -e "s|^\([[:space:]]*work_path[[:space:]]*=\).*|\1 \"${here}/output\"|" \'
       write(unit,'(a)') '    "${here}/config.toml" > "${here}/rerun.toml"'
+      write(unit,'(a)') '# relative paths in the configuration resolve from where the calibration was launched'
+      write(unit,'(a)') 'cd "'//launch_dir//'"'
       write(unit,'(a)') '"${SUMMA_EXE}" -c "${here}/rerun.toml" \'
       do iParam=1,size(param_names)
         write(val,'(es24.16)') param_values(iParam)
