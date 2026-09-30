@@ -329,6 +329,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -78) computFlux.f90 calls groundwatr for modLatflow, not qTopmodl alone, commit 0e8947fd Sep 26, 2026
      Lateral flow was gated out of the flux call, so mLayerColumnOutflow was identically zero in every coupled run.
 -79) run_oneGRU.f90 runoff heat of modflow/modLatflow is MODFLOW baseflow and seepage, not soil drainage, commit 605880a8 Sep 30, 2026
--80) computFlux.f90 lake ice cover liquid flux before the snow on it, as for glacier ice, commit 2d80cb02 Sep 30, 2026
-     The ice overwrote the snow drainage at their shared interface, so snow on a frozen reach broke its SWE balance.
  
