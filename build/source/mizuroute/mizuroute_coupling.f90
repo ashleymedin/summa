@@ -492,7 +492,7 @@ contains
     maxUps = max(maxUps, size(core%ntopo(iSeg)%UREACHI))
   end do
   allocate(net%segId(net%nSeg), net%rchOrder(net%nSeg), net%nUps(net%nSeg), net%ixUps(max(maxUps,1),net%nSeg), &
-           net%ixGRU(net%nSeg), net%ixHRU(net%nSeg), net%ixDOM(net%nSeg), net%length(net%nSeg),                 &
+           net%ixGRU(net%nSeg), net%ixHRU(net%nSeg), net%ixDOM(net%nSeg), net%length(net%nSeg), net%slope(net%nSeg), &
            net%qUp(net%nSeg), net%qLat(net%nSeg), net%qOut(net%nSeg), net%vol(net%nSeg), net%depth(net%nSeg),     &
            net%velocity(net%nSeg), net%eLat(net%nSeg), net%tLat(net%nSeg), net%tUp(net%nSeg), net%tOut(net%nSeg),   &
            net%manN(net%nSeg), net%manNeff(net%nSeg), net%liqDepth(net%nSeg), net%iceThick(net%nSeg),               &
@@ -507,6 +507,7 @@ contains
     net%segId(iSeg)    = core%ntopo(iSeg)%REACHID
     net%rchOrder(iSeg) = core%topology%ntopo(iSeg)%var(ixNTOPO%rchOrder)%dat(1)
     net%length(iSeg)   = core%param(iSeg)%RLENGTH
+    net%slope(iSeg)    = core%param(iSeg)%R_SLOPE
     nUps = size(core%ntopo(iSeg)%UREACHI)
     net%nUps(iSeg) = nUps
     if(nUps>0) net%ixUps(1:nUps,iSeg) = core%ntopo(iSeg)%UREACHI(1:nUps)
