@@ -12,10 +12,9 @@ records both discharge and water temperature, so a routed calibration can score 
 | Water temperature | USGS 15236900, daily mean, degC, open-water season only: 144–209 days a year |
 | Mass balance | USGS Benchmark Glacier glacier-wide seasonal (winter and summer) balance, mm w.e. |
 
-The land HRUs, their parameters and forcing are the SYMFLUENCE `domain_Wolverine` glacier setup
-(`attributes_glac.nc`, `coldstate_glac.nc`). The text settings are the bundled Gulkana ones, with
-Wolverine's own `basinParamInfo.txt`. `utils/pre-processing/add_stream_hru.py` appends the stream HRU
-and writes the one-reach topology:
+The land HRUs, their parameters and forcing are the Wolverine glacier setup. The text settings are
+the bundled Gulkana ones, with Wolverine's own `basinParamInfo.txt`. 
+`utils/pre-processing/add_stream_hru.py` appends the stream HRU and writes the one-reach topology:
 
 ```bash
 cd utils/pre-processing
