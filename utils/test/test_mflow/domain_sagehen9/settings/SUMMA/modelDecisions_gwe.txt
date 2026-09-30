@@ -19,7 +19,7 @@ LAI_method                      monTable        ! (07) method used to determine 
 groundwatr                      modLatflow      ! (08) choice of groundwater parameterization
 hc_profile                      exp_prof        ! (09) choice of hydraulic conductivity profile
 bcUpprTdyn                      nrg_flux        ! (10) choice of upper boundary conditions for thermodynamics
-bcLowrTdyn                      zeroFlux        ! (11) choice of lower boundary conditions for thermodynamics
+bcLowrTdyn                      presTemp        ! (11) choice of lower boundary conditions for thermodynamics
 bcUpprSoiH                      liq_flux        ! (12) choice of upper boundary conditions for soil hydrology
 bcLowrSoiH                      presHead        ! (13) choice of lower boundary conditions for soil hydrology
 veg_traits                      Raupach_BLM1994 ! (14) choice of parameterization for vegetation roughness length and displacement height
