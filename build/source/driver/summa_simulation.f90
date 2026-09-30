@@ -320,6 +320,7 @@ contains
     use simulated_series,        only: is_routed_streamflow
     use simulated_series,        only: spatial_unit_index
     use simulated_series,        only: ix_unit_domain, ix_unit_gru, ix_unit_reach
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     ! dummy arguments
     type(config_info),           intent(inout) :: config
     type(parallel_context_type), intent(in)    :: domain_parallel
@@ -581,6 +582,8 @@ contains
                           objective(iTarget),err,cmessage)
       if(err/=0)then
         message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+        ! observations in the scored period that this simulation gives nothing to pair with: the parameter set failed
+        failed = any(ieee_is_finite(flowObsAligned)) .and. .not.any(ieee_is_finite(flowSimAligned))
         exit trial
       endif
 
