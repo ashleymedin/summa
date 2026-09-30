@@ -1079,6 +1079,7 @@ MODULE data_types
    ! input: model control
    integer(i4b) :: bc_lower                  ! index defining the type of boundary conditions
    integer(i4b) :: nGlce                     ! number of glacier ice layers
+   integer(i4b) :: ix_groundwatr             ! index defining the groundwater parameterization
    ! input: state and diagnostic variables
    real(rkind)  :: nodeMatricHeadLiq         ! liquid matric head in the lowest unsaturated node (m)
    ! input: model coordinate variables
@@ -2379,6 +2380,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
   associate(&
    ! intent(in): model control
    ixBcLowerSoilHydrology => model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision,& ! index of the lower boundary conditions for soil hydrology
+   ix_groundwatr          => model_decisions(iLookDECISIONS%groundwatr)%iDecision,& ! index defining the groundwater parameterization
    ! intent(in): state variables
    mLayerMatricHeadLiqTrial => in_soilLiqFlux % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
    mLayerVolFracLiqTrial    => in_soilLiqFlux % mLayerVolFracLiqTrial,    & ! volumetric fraction of liquid water at the current iteration (-)
@@ -2407,6 +2409,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
    ! intent(in): model control
    in_qDrainFlux % bc_lower   = ixBcLowerSoilHydrology ! index defining the type of boundary conditions
    in_qDrainFlux % nGlce      = nGlce                  ! number of glacier ice layers
+   in_qDrainFlux % ix_groundwatr = ix_groundwatr       ! index defining the groundwater parameterization
    ! intent(in): state variables
    in_qDrainFlux % nodeMatricHeadLiq = mLayerMatricHeadLiqTrial(nSoil) ! liquid matric head in the lowest unsaturated node (m)
    ! intent(in): model coordinate variables

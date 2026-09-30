@@ -1937,6 +1937,9 @@ subroutine qDrainFlux(in_qDrainFlux,io_qDrainFlux,out_qDrainFlux)
   real(rkind)                      :: dPsi                    ! spatial difference in matric head (m)
   real(rkind)                      :: dz                      ! spatial difference in layer mid-points (m)
   real(rkind)                      :: cflux                   ! capillary flux (m s-1)
+  real(rkind)                      :: baseHydCond             ! hydraulic conductivity at the lower boundary head (m s-1)
+  real(rkind)                      :: pathLength              ! distance from the lowest node to the water table (m)
+  real(rkind)                      :: headDrop                ! total head drop from the lowest node to the water table (m)
   integer(i4b)                     :: bc_lower_use            ! mutable copy of lower boundary-condition index
   ! error control
   logical(lgt)                     :: return_flag             ! flag for return statements
@@ -2001,14 +2004,18 @@ contains
   associate(&
    ! input: state and diagnostic variables
    nodeMatricHeadLiq => in_qDrainFlux % nodeMatricHeadLiq, &  ! liquid matric head in the lowest unsaturated node (m)
+   ix_groundwatr     => in_qDrainFlux % ix_groundwatr    , &  ! index defining the groundwater parameterization
+   node_dPsiLiq_dTemp => in_qDrainFlux % node_dPsiLiq_dTemp, & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! input: model coordinate variables
    nodeDepth  => in_qDrainFlux % nodeDepth , &                ! depth of the lowest unsaturated soil layer (m)
    ! input: diriclet boundary conditions
    lowerBoundHead  => in_qDrainFlux % lowerBoundHead , &      ! lower boundary condition for matric head (m)
    ! input: transmittance
    bottomSatHydCond  => in_qDrainFlux % bottomSatHydCond , &  ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
+   nodeHydCond       => in_qDrainFlux % nodeHydCond      , &  ! hydraulic conductivity at the node itself (m s-1)
    iceImpedeFac      => in_qDrainFlux % iceImpedeFac     , &  ! ice impedence factor in the upper-most soil layer (-)
    ! input: transmittance derivatives
+   dHydCond_dMatric => in_qDrainFlux % dHydCond_dMatric, &    ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
    dHydCond_dTemp   => in_qDrainFlux % dHydCond_dTemp  , &    ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
    ! input: soil parameters
    vGn_alpha       => in_qDrainFlux % vGn_alpha      , &      ! van Genuchten "alpha" parameter (m-1)
@@ -2026,16 +2033,36 @@ contains
    message => out_qDrainFlux % message  &                     ! error message
   &)
 
-   ! compute flux
-   bottomHydCond = hydCond_psi(lowerBoundHead,bottomSatHydCond,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac
-   cflux = -bottomHydCond*(lowerBoundHead  - nodeMatricHeadLiq) / (nodeDepth*0.5_rkind)
-   scalarDrainage = cflux + bottomHydCond
+   baseHydCond = hydCond_psi(lowerBoundHead,bottomSatHydCond,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac
 
-   ! hydrology derivatives
-   dq_dHydStateUnsat = bottomHydCond/(nodeDepth/2._rkind)
-   ! energy derivatives
-   dq_dNrgStateUnsat = -(dHydCond_dTemp/2._rkind)*(lowerBoundHead  - nodeMatricHeadLiq)/(nodeDepth*0.5_rkind)&
-                     & + dHydCond_dTemp/2._rkind
+   ! a coupled water table below the column base: Darcy flux from the node to the water table across a quasi-steady
+   ! unsaturated gap, at the wetter of the boundary and node conductivities, so a deep water table gives free drainage
+   if((ix_groundwatr==modflowCpl .or. ix_groundwatr==modLatflow) .and. lowerBoundHead < 0._rkind)then
+     pathLength = nodeDepth*0.5_rkind - lowerBoundHead
+     headDrop   = nodeMatricHeadLiq + pathLength
+     if(nodeHydCond > baseHydCond)then
+       bottomHydCond     = nodeHydCond
+       scalarDrainage    = bottomHydCond*headDrop/pathLength
+       dq_dHydStateUnsat = (dHydCond_dMatric*headDrop + bottomHydCond)/pathLength
+       dq_dNrgStateUnsat = (dHydCond_dTemp*headDrop + bottomHydCond*node_dPsiLiq_dTemp)/pathLength
+     else
+       bottomHydCond     = baseHydCond
+       scalarDrainage    = bottomHydCond*headDrop/pathLength
+       dq_dHydStateUnsat = bottomHydCond/pathLength
+       dq_dNrgStateUnsat = bottomHydCond*node_dPsiLiq_dTemp/pathLength
+     end if
+   else
+     ! compute flux
+     bottomHydCond = baseHydCond
+     cflux = -bottomHydCond*(lowerBoundHead  - nodeMatricHeadLiq) / (nodeDepth*0.5_rkind)
+     scalarDrainage = cflux + bottomHydCond
+
+     ! hydrology derivatives
+     dq_dHydStateUnsat = bottomHydCond/(nodeDepth/2._rkind)
+     ! energy derivatives
+     dq_dNrgStateUnsat = -(dHydCond_dTemp/2._rkind)*(lowerBoundHead  - nodeMatricHeadLiq)/(nodeDepth*0.5_rkind)&
+                       & + dHydCond_dTemp/2._rkind
+   end if
 
   end associate
  end subroutine update_qDrainFlux_prescribedHead
