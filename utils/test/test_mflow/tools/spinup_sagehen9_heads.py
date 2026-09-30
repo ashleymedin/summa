@@ -90,7 +90,7 @@ def run_coupled(exe, work, period):
 def mean_recharge(work, active):
     """The mean soil drainage (m s-1) of each HRU, spread over the cells it maps to."""
     with Dataset(glob.glob(os.path.join(work, "out", "*_day.nc"))[0]) as d:
-        drainage = np.asarray(d["scalarSoilDrainage"][:]).mean(axis=0).reshape(len(d.dimensions["hru"]), -1)[:, 0]
+        drainage = np.asarray(d["scalarSoilDrainage_mean"][:]).mean(axis=0).reshape(len(d.dimensions["hru"]), -1)[:, 0]
     recharge = np.zeros(active.shape)
     for line in open(os.path.join(work, "hru2cell_map.txt")):
         if line.strip() and not line.startswith("#"):
