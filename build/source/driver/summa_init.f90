@@ -529,6 +529,7 @@ contains
   subroutine summa_initStreamNetwork(summa1_struc, err, message)
     USE globalData,        only: gru_struc                 ! gru-hru mapping structures
     USE var_lookup,        only: iLookPROG, iLookFLUX      ! named variables for prognostic variables and fluxes
+    USE var_lookup,        only: iLookBPAR                 ! named variables for basin-average parameters
     USE streamTemp_module, only: stream_domain_map         ! locate the stream HRU and domain of each GRU
     implicit none
 
@@ -540,6 +541,7 @@ contains
     integer(i4b), allocatable :: ixStreamHRU(:)   ! per GRU: index of the stream HRU within the GRU (0 = none)
     integer(i4b), allocatable :: ixStreamDOM(:)   ! per GRU: index of the stream domain within that HRU
     real(rkind),  allocatable :: domArea(:)       ! per GRU: planform area of the stream domain (m2)
+    real(rkind),  allocatable :: widthMultip(:)   ! per GRU: multiplier on the width of the reach of its stream domain (-)
     integer(i4b)              :: nStream          ! number of stream HRUs
     integer(i4b)              :: iGRU             ! GRU index
     character(len=256)        :: cmessage
@@ -548,12 +550,13 @@ contains
     message = 'summa_initStreamNetwork/'
 
     allocate(streamSegId(summa1_struc%nGRU_local), ixStreamHRU(summa1_struc%nGRU_local), &
-             ixStreamDOM(summa1_struc%nGRU_local), domArea(summa1_struc%nGRU_local))
+             ixStreamDOM(summa1_struc%nGRU_local), domArea(summa1_struc%nGRU_local), widthMultip(summa1_struc%nGRU_local))
     call stream_domain_map(summa1_struc%nGRU_local, gru_struc, summa1_struc%typeStruct, &
                            streamSegId, ixStreamHRU, ixStreamDOM, nStream)
     domArea(:) = 0._rkind
     do iGRU=1,summa1_struc%nGRU_local
       if(ixStreamHRU(iGRU) > 0) domArea(iGRU) = summa1_struc%progStruct%gru(iGRU)%hru(ixStreamHRU(iGRU))%dom(ixStreamDOM(iGRU))%var(iLookPROG%DOMarea)%dat(1)
+      widthMultip(iGRU) = summa1_struc%bparStruct%gru(iGRU)%var(iLookBPAR%streamWidthMultip)
     end do
     ! a stream domain is solved in the network pass, so without the river network it keeps the
     ! temperature it started at: that is what an unrouted control run of a routed domain wants
@@ -569,11 +572,11 @@ contains
     endif
 #ifdef MIZUROUTE_ACTIVE
     if(summa1_struc%config%use_mizuroute)then
-      call init_stream_network_from_summa(summa1_struc, streamSegId, ixStreamHRU, ixStreamDOM, domArea, err, cmessage)
+      call init_stream_network_from_summa(summa1_struc, streamSegId, ixStreamHRU, ixStreamDOM, domArea, widthMultip, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 #endif
-    deallocate(streamSegId, ixStreamHRU, ixStreamDOM, domArea)
+    deallocate(streamSegId, ixStreamHRU, ixStreamDOM, domArea, widthMultip)
 
   end subroutine summa_initStreamNetwork
 

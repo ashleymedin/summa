@@ -60,6 +60,8 @@ contains
  USE globalData,only:model_decisions                         ! model decision structure
  USE globalData,only:iulog                                   ! i/o unit for logging messages
  USE globalData,only:isPrint                                 ! flag to enable informational screen/log output
+ USE globalData,only:stream                                  ! horizontal domain type for a stream reach
+ USE var_lookup,only:iLookATTR                               ! look-up values for local attributes
  ! file paths
  USE summaFileManager,only:SETTINGS_PATH                     ! path to settings files (e.g., Noah vegetation tables)
  USE summaFileManager,only:STATE_PATH                        ! optional path to state/init. condition files (defaults to SETTINGS_PATH)
@@ -159,6 +161,16 @@ contains
                  aq_started,                    & ! intent(out):   flag that the aquifer in the initial conditions has already been started
                  err,cmessage)                    ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! a stream domain has a fixed area, the whole of its HRU, which streamWidthMultip has already scaled
+ do iGRU=1,nGRU_local
+   do iHRU=1,gru_struc(iGRU)%hruCount
+     do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+       if(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==stream) &
+         progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) = attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
+     end do
+   end do
+ end do
 
 ! check initial conditions
  checkEnthalpy = .false.

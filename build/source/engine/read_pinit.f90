@@ -258,6 +258,12 @@ contains
     parFallback(iLookBPAR%C_ATGW)%lower_limit = 0._rkind
     parFallback(iLookBPAR%C_ATGW)%upper_limit = 1._rkind
   endif
+  ! reach width, only used for a GRU with a stream domain
+  if (parFallback(iLookBPAR%streamWidthMultip)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%streamWidthMultip)%default_val = 1._rkind
+    parFallback(iLookBPAR%streamWidthMultip)%lower_limit = 0.5_rkind
+    parFallback(iLookBPAR%streamWidthMultip)%upper_limit = 20._rkind
+  endif
  end if
 
  ! check we have populated all variables

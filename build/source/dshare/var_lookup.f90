@@ -917,6 +917,8 @@ MODULE var_lookup
   integer(i4b)    :: latMoraineWidth            = integerMissing ! lateral moraine width or rockfall length (m)
   ! temperature of the groundwater reaching the channel
   integer(i4b)    :: C_ATGW                     = integerMissing ! air temperature to groundwater temperature coefficient (-)
+  ! geometry of the reach a stream domain stands for
+  integer(i4b)    :: streamWidthMultip          = integerMissing ! multiplier on the reach width and the stream domain area (-)
  endtype iLook_bpar
 
  ! ***********************************************************************************************************
@@ -1123,7 +1125,7 @@ MODULE var_lookup
                                                                          71, 72, 73, 74)
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =iLook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8, 9,  10,&
-                                                                          11, 12, 13)
+                                                                          11, 12, 13, 14)
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =iLook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

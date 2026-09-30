@@ -367,6 +367,8 @@ subroutine popMetadat(err,message)
   bpar_meta(iLookBPAR%latMoraineWidth)                 = var_info('latMoraineWidth'                , 'lateral moraine width or rockfall length'                         , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! temperature of the groundwater reaching the channel
   bpar_meta(iLookBPAR%C_ATGW)                          = var_info('C_ATGW'                         , 'air temperature to groundwater temperature coefficient'           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! geometry of the reach a stream domain stands for
+  bpar_meta(iLookBPAR%streamWidthMultip)               = var_info('streamWidthMultip'              , 'multiplier on the reach width and the stream domain area'         , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model prognostic (state) variables...
   ! ---------------------------------------------

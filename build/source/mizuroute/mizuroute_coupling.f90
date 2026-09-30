@@ -467,7 +467,7 @@ contains
   ! The SUMMA side supplies, per GRU, the reach id its stream HRU stands for
   ! (0 = the reach the GRU drains to) and where that stream domain lives.
   ! Everything else comes from the mizuRoute topology.
-  subroutine init_stream_network_from_summa(summaStruct, streamSegId, ixStreamHRU, ixStreamDOM, domArea, ierr, message)
+  subroutine init_stream_network_from_summa(summaStruct, streamSegId, ixStreamHRU, ixStreamDOM, domArea, widthMultip, ierr, message)
   USE var_lookup, only: ixNTOPO, ixHRU2SEG
   USE public_var, only: realMissing, iulog
   type(summa1_type_dec), intent(inout) :: summaStruct
@@ -475,6 +475,7 @@ contains
   integer(i4b),          intent(in)    :: ixStreamHRU(:)   ! per GRU: index of the stream HRU within the GRU (0 = none)
   integer(i4b),          intent(in)    :: ixStreamDOM(:)   ! per GRU: index of the stream domain within that HRU
   real(rkind),           intent(in)    :: domArea(:)       ! per GRU: planform area of the stream domain (m2)
+  real(rkind),           intent(in)    :: widthMultip(:)   ! per GRU: multiplier on the width of the reach of its stream domain (-)
   integer(i4b),          intent(out)   :: ierr
   character(*),          intent(out)   :: message
   integer(i4b)                         :: iGRU, iSeg, iHRU, jSeg, nUps, maxUps
@@ -537,6 +538,7 @@ contains
     net%ixGRU(jSeg) = iGRU
     net%ixHRU(jSeg) = ixStreamHRU(iGRU)
     net%ixDOM(jSeg) = ixStreamDOM(iGRU)
+    core%param(jSeg)%R_WIDTH = core%param(jSeg)%R_WIDTH*widthMultip(iGRU)
     ! the column is the reach: its area should be the reach planform area, or the residence time is off by the ratio
     reachArea = core%param(jSeg)%RLENGTH*core%param(jSeg)%R_WIDTH
     if(abs(domArea(iGRU) - reachArea) > 0.1_rkind*reachArea) &
