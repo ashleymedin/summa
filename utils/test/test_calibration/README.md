@@ -356,8 +356,29 @@ with a soil water balance error.
 ## `test_calibration_sagehen.sh`
 
 A coupled SUMMA / MODFLOW 6 / mizuRoute calibration on Sagehen Creek, scoring discharge (KGE) and
-stream temperature (`T_reach` RMSE, degC) at USGS 10343500, the outlet of reach 9. NSGA-II scores water
-year 2018 after a water-year-2017 spin-up.
+stream temperature (`T_reach` RMSE, degC) at USGS 10343500, the outlet of reach 9, and the water level
+in a synthetic well (`lowerBoundHead` RMSE, m). NSGA-II scores water year 2018 after a water-year-2017
+spin-up.
+
+Sagehen has no observation well, so the test makes one up. It sits on the lower valley side two cells
+from the channel above the gauge (row 41, column 75, in GRU 7), where the water table is about 10 m
+down and moves 3 m over water year 2018; the valley floor is held at land surface by the drains. Its record is the head there in a
+reference coupled run at the default parameters, written by
+`utils/test/test_mflow/tools/make_sagehen_synthetic_well.py` as a saved USGS daily-values response
+(`sagehen/observations/SYNTHETIC-SAGEHEN-1_daily_values.json`). `acquire_groundwater_level.py --features`
+turns that into the observation file exactly as it would a real well's. The target scores departures
+from the water-year mean, since a well's datum is not the model's; on the `lumped` layout it is GRU 7's
+land HRU, averaged over 103 cells, that is compared against one cell's head.
+
+To remake the record, run the lumped domain once for water years 2017-2018 with the coupler and the
+MODFLOW OC saving `HEAD FREQUENCY 6`, then
+
+```bash
+make_sagehen_synthetic_well.py <run>/sagehen.hds "2016-10-01 00:00" sagehen/observations/SYNTHETIC-SAGEHEN-1_daily_values.json
+../../pre-processing/acquire_groundwater_level.py SYNTHETIC-SAGEHEN-1 2016-10-01 2018-09-30 \
+    sagehen/observations/SYNTHETIC-SAGEHEN-1_daily_level.nc --model-utc-offset 0 --gauge-utc-offset -8 \
+    --features sagehen/observations/SYNTHETIC-SAGEHEN-1_daily_values.json
+```
 
 ```bash
 ./test_calibration_sagehen.sh [lumped|grid] [population] [generations] [n_ranks]   # defaults: lumped, 6, 3, 7

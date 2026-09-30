@@ -457,7 +457,6 @@ subroutine fluxJacAdd(&
   ! conversion factors
   real(rkind)                          :: convLiq2tot                ! factor to convert liquid water derivative to total water derivative
   real(rkind)                          :: dSrc_dLiq                  ! derivative of a lake layer's energy source w.r.t. another layer's liquid water (J m-3 s-1)
-  integer(i4b)                         :: colState                   ! state variable of the Jacobian column
   ! --------------------------------------------------------------
   ! associate variables from data structures
   associate(&
@@ -772,19 +771,17 @@ subroutine fluxJacAdd(&
         do jLayer=nSnow+nLakeFrz+1,nSnow+nLake
           dSrc_dLiq = dLakeAdvNrgFlux_dDepth(iLayer-nSnow)*mLayerDepth(jLayer)
           if(jLayer==iLayer) dSrc_dLiq = dSrc_dLiq + dLakeAdvNrgFlux_dLiq(iLayer-nSnow)
-          colState = ixSnLaSoGlNrg(jLayer)
-          if(colState/=integerMissing)then
-            if(full .or. (nrgState-colState<=kl .and. colState-nrgState<=ku)) &
-              aJac(ixInd(full,nrgState,colState),colState) = aJac(ixInd(full,nrgState,colState),colState) - dt*dSrc_dLiq*mLayerdTheta_dTk(jLayer)
+          if(ixSnLaSoGlNrg(jLayer)/=integerMissing)then
+            if(full .or. (nrgState-ixSnLaSoGlNrg(jLayer)<=kl .and. ixSnLaSoGlNrg(jLayer)-nrgState<=ku)) &
+              aJac(ixInd(full,nrgState,ixSnLaSoGlNrg(jLayer)),ixSnLaSoGlNrg(jLayer)) = aJac(ixInd(full,nrgState,ixSnLaSoGlNrg(jLayer)),ixSnLaSoGlNrg(jLayer)) - dt*dSrc_dLiq*mLayerdTheta_dTk(jLayer)
           endif
-          colState = ixSnLaSoGlHyd(jLayer)
-          if(colState/=integerMissing)then
+          if(ixSnLaSoGlHyd(jLayer)/=integerMissing)then
             select case( ixHydType(jLayer) )
               case(iname_watLayer); convLiq2tot = mLayerFracLiq(jLayer)
               case default;         convLiq2tot = 1._rkind
             end select
-            if(full .or. (nrgState-colState<=kl .and. colState-nrgState<=ku)) &
-              aJac(ixInd(full,nrgState,colState),colState) = aJac(ixInd(full,nrgState,colState),colState) - dt*dSrc_dLiq*convLiq2tot
+            if(full .or. (nrgState-ixSnLaSoGlHyd(jLayer)<=kl .and. ixSnLaSoGlHyd(jLayer)-nrgState<=ku)) &
+              aJac(ixInd(full,nrgState,ixSnLaSoGlHyd(jLayer)),ixSnLaSoGlHyd(jLayer)) = aJac(ixInd(full,nrgState,ixSnLaSoGlHyd(jLayer)),ixSnLaSoGlHyd(jLayer)) - dt*dSrc_dLiq*convLiq2tot
           endif
         end do
       end do
