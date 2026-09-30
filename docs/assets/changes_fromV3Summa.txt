@@ -293,6 +293,7 @@ AFTER tag of v4.0.0-exp-Sundials
      Wolverine calibration test searches eight glacier parameters, commit fbf7a397 Sep 30, 2026
      Wolverine calibration test also searches streamWidthMultip, commit 06e071c3 Sep 30, 2026
      Wolverine groundwater follows the air temperature (airTempGW), test calibrates C_ATGW in place of streamWidthMultip, commit fa30bced Oct 1, 2026
+     Wolverine calibration test also searches hypFrac and hypLag (hyporhTdyn = proxy), commit 22e3a63f Oct 1, 2026
      A trial that leaves a target's observations nothing to pair with fails rather than stopping the calibration, commit 37291b53 Sep 30, 2026
      acquire_groundwater_level.py writes a USGS well's water level (m, positive up) as an observation file, commit e9644deb Sep 30, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits d632b36a to de2ae997 Sep 21, 2026
