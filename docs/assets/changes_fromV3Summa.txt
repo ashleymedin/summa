@@ -288,6 +288,7 @@ AFTER tag of v4.0.0-exp-Sundials
      Streamflow out of a GRU is averageRoutedRunoff times its area when mizuRoute is off; bundled gulkana demo, commit 45a6637f Sep 29, 2026
      Targets may score routed stream temperature (variable = "T_reach", degC) at a named reach with stream HRUs, commit 926b7d26 Sep 30, 2026
      Bundled Sagehen coupled MODFLOW calibration test, discharge and stream temperature at USGS 10343500, commit d514a11e Sep 30, 2026
+     Bundled Wolverine routed glacier calibration test, discharge, stream temperature and seasonal balance at USGS 15236900, commit 650d9b91 Sep 30, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits d632b36a to de2ae997 Sep 21, 2026
      A GRU may hold one stream HRU: its reach's water column (lake layers over soil/aquifer, linked via streamSegId). mizuRoute returns reach discharge, 
       volume and lateral inflow; new streamTemp.f90 solves the column energy balance upstream to downstream each step, advecting heat from upstream 
