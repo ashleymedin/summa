@@ -70,6 +70,10 @@ program summa_modflow6_mpi
    liquidFlux,                      & ! liquid water flux
    zeroFlux                           ! zero flux
 
+  ! look-up values for the deep thermal state below the soil column
+  USE mDecisions_module,only:       &
+   aquiferTempState                   ! the aquifer temperature, from MODFLOW 6 GWE
+
   implicit none
 
   integer, parameter :: BMI_OK = 0
@@ -160,6 +164,10 @@ contains
     end if
     if (model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= prescribedHead) then
       write(*,*) 'summa_modflow6_mpi: SUMMA model decision bcLowrSoiH must be "presHead" for the coupler'
+      call MPI_Abort(MPI_COMM_WORLD, 1, mpi_ierr)
+    end if
+    if (model_decisions(iLookDECISIONS%deepTherml)%iDecision == aquiferTempState) then
+      write(*,*) 'summa_modflow6_mpi: deepTherml = aquiferTemp needs GWE, which only summa_modflow6 exchanges'
       call MPI_Abort(MPI_COMM_WORLD, 1, mpi_ierr)
     end if
 
