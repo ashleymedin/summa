@@ -43,6 +43,7 @@ module summa_mf6_exchange
   USE nr_type,    only: i4b, rkind
   USE globalData, only: realMissing  ! a domain that never solved a soil column
   USE multiconst, only: iden_water     ! intrinsic density of liquid water (kg m-3)
+  USE multiconst, only: Tfreeze        ! freezing point of pure water (K)
   USE summa_type, only: summa1_type_dec
 
   USE globalData, only: gru_struc            ! HRU information for given GRU
@@ -76,6 +77,9 @@ module summa_mf6_exchange
   public :: mf6x_get_aquifer_transpire
   public :: mf6x_put_aquifer_transpire
   public :: mf6x_put_transpire_lim_aqfr
+  public :: mf6x_get_drainage_temp
+  public :: mf6x_get_base_nrg_flux
+  public :: mf6x_put_aquifer_temp
 
 contains
 
@@ -415,5 +419,87 @@ contains
       end do
     end associate
   end subroutine mf6x_get_aquifer_transpire
+
+  ! **************************************************************************************************
+  ! Temperature of the soil drainage (K): the lowest soil layer, floored at freezing since the water
+  ! leaves as liquid, averaged over the HRU's soil domains by area.  The recharge temperature for GWE.
+  ! **************************************************************************************************
+  subroutine mf6x_get_drainage_temp(summa_struct, temp)
+    type(summa1_type_dec), intent(in)  :: summa_struct
+    real,                  intent(out) :: temp(:)
+    integer(i4b) :: iGRU, jHRU, iDOM, i, nLyr
+    real(rkind)  :: tsum, asum, areaDOM
+    associate(progStruct => summa_struct%progStruct, &
+              fluxStruct => summa_struct%fluxStruct, &
+              indxStruct => summa_struct%indxStruct)
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
+          tsum = 0._rkind; asum = 0._rkind
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            ! a stream reach drains nothing to the aquifer, as in mf6x_get_drainage
+            if(fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1) <= realMissing) cycle
+            if(indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1) < 1) cycle
+            areaDOM = progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
+            if(areaDOM <= 0._rkind) cycle
+            nLyr = indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nLayers)%dat(1)
+            tsum = tsum + areaDOM*max(progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%mLayerTemp)%dat(nLyr), Tfreeze)
+            asum = asum + areaDOM
+          end do
+          temp(i) = real(merge(tsum/asum, Tfreeze, asum > 0._rkind))
+        end do
+      end do
+    end associate
+  end subroutine mf6x_get_drainage_temp
+
+  ! **************************************************************************************************
+  ! Conduction out the base of the soil column (W m-2, + = down into the aquifer,
+  ! "scalarLowerBoundNrgFlux"), per unit of the HRU; a stream reach conducts nothing to the aquifer.
+  ! **************************************************************************************************
+  subroutine mf6x_get_base_nrg_flux(summa_struct, flux)
+    type(summa1_type_dec), intent(in)  :: summa_struct
+    real,                  intent(out) :: flux(:)
+    integer(i4b) :: iGRU, jHRU, iDOM, i
+    real(rkind)  :: fsum, asum, areaDOM
+    associate(progStruct => summa_struct%progStruct, &
+              fluxStruct => summa_struct%fluxStruct)
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
+          fsum = 0._rkind; asum = 0._rkind
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            areaDOM = progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
+            asum = asum + areaDOM
+            if(fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1) <= realMissing) cycle
+            fsum = fsum + areaDOM*fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarLowerBoundNrgFlux)%dat(1)
+          end do
+          flux(i) = real(merge(fsum/asum, 0._rkind, asum > 0._rkind))
+        end do
+      end do
+    end associate
+  end subroutine mf6x_get_base_nrg_flux
+
+  ! **************************************************************************************************
+  ! Aquifer temperature from the coupled MODFLOW 6 GWE model ("scalarAquiferTemp", K); a value <= 0
+  ! marks an HRU with no GWE cell.
+  ! **************************************************************************************************
+  subroutine mf6x_put_aquifer_temp(summa_struct, temp)
+    type(summa1_type_dec), intent(inout) :: summa_struct
+    real,                  intent(in)    :: temp(:)
+    integer(i4b) :: iGRU, jHRU, iDOM, i
+    associate(progStruct => summa_struct%progStruct, &
+              indxStruct => summa_struct%indxStruct)
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
+          if (temp(i) <= 0.0) cycle ! no GWE cell under this HRU, so it keeps its own
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            if (indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) &
+              progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferTemp)%dat(1) = temp(i)
+          end do
+        end do
+      end do
+    end associate
+  end subroutine mf6x_put_aquifer_temp
 
 end module summa_mf6_exchange

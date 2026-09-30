@@ -57,6 +57,9 @@ module summabmi
   USE summa_mf6_exchange, only: mf6x_put_lower_bound_head
   USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
   USE summa_mf6_exchange, only: mf6x_put_aquifer_baseflow
+  USE summa_mf6_exchange, only: mf6x_get_drainage_temp
+  USE summa_mf6_exchange, only: mf6x_get_base_nrg_flux
+  USE summa_mf6_exchange, only: mf6x_put_aquifer_temp
   USE summa_init, only: summa_initialize                      ! used to allocate/initialize summa data structures
   USE summa_init, only: summa_initStreamNetwork               ! used to attach the stream domains to the river network
   USE summa_setup, only: summa_paramSetup                     ! used to initialize parameter data structures (e.g. vegetation and soil parameters)
@@ -248,11 +251,11 @@ module summabmi
   ! NOTE: the final input item ('soil_water_sat-zone_top__head') is only used by the coupled
   !       MODFLOW 6 driver (summa_modflow6); it is harmless for other drivers, which never set it.
 #ifdef NGEN_ACTIVE
-  integer, parameter :: input_item_count = 13
+  integer, parameter :: input_item_count = 14
 #else
-  integer, parameter :: input_item_count = 12
+  integer, parameter :: input_item_count = 13
 #endif
-  integer, parameter :: output_item_count = 18
+  integer, parameter :: output_item_count = 20
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
   character (len=BMI_MAX_VAR_NAME), target,dimension(output_item_count) :: output_items
   ! Buffers behind summa_get_ptr_int/float.  The BMI contract is that the returned pointer
@@ -648,8 +651,10 @@ module summabmi
      ! MODFLOW 6 solution (groundwatr="modflow" or "modLatflow"): aquifer baseflow flux (m s-1) and
      ! relative aquifer storage (m).  (Recharge is not exchanged - it equals the
      ! SUMMA soil drainage, which SUMMA already has.)
-     input_items(input_item_count-3) = 'land_surface_water__baseflow_volume_flux'
-     input_items(input_item_count-2) = 'aquifer_water__storage_thickness'
+     input_items(input_item_count-4) = 'land_surface_water__baseflow_volume_flux'
+     input_items(input_item_count-3) = 'aquifer_water__storage_thickness'
+     ! aquifer temperature (K) at the water table, from a MODFLOW 6 GWE model
+     input_items(input_item_count-2) = 'aquifer_water__temperature'
      ! groundwater discharge at land surface (m s-1), from a MODFLOW boundary package with
      ! role = surface_discharge (a DRN at DIS/TOP).  Added to SUMMA's surface runoff.
      input_items(input_item_count-1) = 'land_surface_water__domain_outflow_volume_flux'
@@ -687,6 +692,8 @@ module summabmi
      ! below the soil column.  Read as an output (SUMMA -> MODFLOW EVT) and written back as an
      ! input with what MODFLOW could actually supply.
      output_items(18)= 'land_vegetation_water__aquifer_transpiration_volume_flux'
+     output_items(19)= 'soil_water~drainage__temperature'   ! temperature of the drainage (recharge to MODFLOW 6 GWE)
+     output_items(20)= 'soil_bottom_surface__conductive_energy_flux' ! conduction out the base of the soil column (to MODFLOW 6 GWE)
      names => output_items
      bmi_status = BMI_SUCCESS
    end function summa_output_var_names
@@ -1075,6 +1082,7 @@ module summabmi
      case('land_surface_air__pressure')                             ; units = 'kg m-1 s-2'; bmi_status = BMI_SUCCESS
      case('soil_water_sat-zone_top__head')                          ; units = 'm'         ; bmi_status = BMI_SUCCESS
      case('aquifer_water__storage_thickness')                       ; units = 'm'         ; bmi_status = BMI_SUCCESS
+     case('aquifer_water__temperature')                             ; units = 'K'         ; bmi_status = BMI_SUCCESS
 
      ! output (note: 'land_surface_water__baseflow_volume_flux' below is also a valid input)
      case('land_surface_water__runoff_volume_flux')        ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
@@ -1095,6 +1103,8 @@ module summabmi
      case('land_surface_water__baseflow_volume_flux')      ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case('land_surface_water__domain_outflow_volume_flux'); units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case('soil_water__drainage_volume_flux')              ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
+     case('soil_water~drainage__temperature')              ; units = 'K'         ; bmi_status = BMI_SUCCESS
+     case('soil_bottom_surface__conductive_energy_flux')   ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_vegetation_water__aquifer_transpiration_volume_flux') ; units = 'm s-1' ; bmi_status = BMI_SUCCESS
      case('land_vegetation_water__aquifer_transpiration_limit') ; units = '-'   ; bmi_status = BMI_SUCCESS
      case default; units = "-"; bmi_status = BMI_FAILURE
@@ -1472,6 +1482,8 @@ module summabmi
        call mf6x_put_aquifer_transpire(this%model%summa1_struc(n), src_arr); return
      case('land_vegetation_water__aquifer_transpiration_limit')  ! cell-wise aquifer transpiration limiting factor
        call mf6x_put_transpire_lim_aqfr(this%model%summa1_struc(n), src_arr); return
+     case('aquifer_water__temperature')             ! water-table temperature from the coupled GWE model
+       call mf6x_put_aquifer_temp(this%model%summa1_struc(n), src_arr); return
      end select
 
      summaVars: associate(&
@@ -1544,6 +1556,16 @@ module summabmi
      if (name == 'land_vegetation_water__aquifer_transpiration_volume_flux') then
        itarget_arr = -999
        call mf6x_get_aquifer_transpire(this%model%summa1_struc(n), target_arr)
+       return
+     end if
+     if (name == 'soil_water~drainage__temperature') then
+       itarget_arr = -999
+       call mf6x_get_drainage_temp(this%model%summa1_struc(n), target_arr)
+       return
+     end if
+     if (name == 'soil_bottom_surface__conductive_energy_flux') then
+       itarget_arr = -999
+       call mf6x_get_base_nrg_flux(this%model%summa1_struc(n), target_arr)
        return
      end if
 

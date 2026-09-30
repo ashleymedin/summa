@@ -308,6 +308,16 @@ The flux is applied only where the bottom layer is soil; under a glacier or lake
 base stays zero flux, since the impermeable ice at the base of a glacier column has no way to
 drain the melt the flux would produce.
 
+Under MODFLOW coupling ([`groundwatr`](#groundwatr) `modflow` or `modLatflow`) with
+[`deepTherml`](#deeptherml) `aquiferTemp`, `presTemp` conducts to the GWE aquifer temperature,
+`scalarAquiferTemp`, instead of `lowerBoundTemp`. The conduction path runs from the middle of
+the bottom layer to the water table, so it lengthens by the depth of the water table below the
+column base (the negative of `lowerBoundHead`). The flux is written as
+`scalarLowerBoundNrgFlux` (W m-2, positive down). With `esl_package_name` in the coupler config,
+it loads that GWE ESL package at each cell's water-table node, so the heat the column loses
+below is the heat the aquifer gains. A stream domain has no GWE cell beneath it and keeps a
+zero-flux base.
+
 <a id="bcupprsoih"></a>
 ## 21. bcUpprSoiH — upper boundary condition, soil hydrology
 
