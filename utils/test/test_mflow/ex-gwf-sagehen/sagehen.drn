@@ -1,6 +1,6 @@
 # Drain at land surface - groundwater discharge / saturation excess (section 8.1).
 #
-# One drain per active cell, elevation = DIS TOP, so the aquifer cannot hold a water table above
+# One drain per active cell, elevation = land surface (land1.txt), so the aquifer cannot hold a water table above
 # the ground: once it reaches land surface the excess leaves here instead of mounding.  The
 # coupler returns this flow to SUMMA as surface runoff (role = surface_discharge).
 #
