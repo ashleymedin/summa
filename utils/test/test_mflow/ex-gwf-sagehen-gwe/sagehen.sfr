@@ -1,6 +1,6 @@
 # Streamflow routing in place of CHD, written by tools/build_sagehen_sfr.py.
 # One reach per D8 channel cell (acc >= threshold of build_sagehen9.py), 114 in all.
-# Streambed top 1.0 m below DIS/TOP, 0.5 m thick, K = the cell's kv (m/s).
+# Streambed top 1.0 m below land surface, 0.5 m thick, K = the cell's kv (m/s).
 # The coupler returns the reach-aquifer exchange to SUMMA as baseflow.
 BEGIN OPTIONS
   SAVE_FLOWS

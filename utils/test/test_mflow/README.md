@@ -275,3 +275,7 @@ of the cells it maps to, because the coupler forms
 so a mismatch hands the soil column a water table metres above or below it. The coupler
 checks this against `DIS/TOP` at start-up and stops with the offending HRU named, rather
 than letting SUMMA fail to converge for no visible reason.
+
+`DIS/TOP` is land surface by default. With `mf6_top = 'soil_base'` in the config it is the
+base of SUMMA's soil column instead, and the check adds the column depth back; the two
+models then share no pore space (`ex-gwf-sagehen-sfr` and `ex-gwf-sagehen-gwe`).
