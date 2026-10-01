@@ -1689,13 +1689,17 @@ contains
       'not the coupling lag; see the HRU area warnings at start-up.'
 
     ! the drain caps the water table; water the aquifer cannot hold should leave through the soil column
-    if (this%have_surfdis .and. abs(this%bud_sent) > 0.d0) then
-      if (abs(this%bud_back(ROLE_SURFACE_DISCH)) > 0.1d0*abs(this%bud_sent)) &
+    if (this%have_surfdis .and. this%bud_sent > 0.d0) then
+      if (abs(this%bud_back(ROLE_SURFACE_DISCH)) > 0.1d0*this%bud_sent) &
         write(*,'(a,f0.1,a)') '  WARNING: land-surface seepage is ', &
           100.d0*abs(this%bud_back(ROLE_SURFACE_DISCH)/this%bud_sent), &
           '% of the recharge sent. The drain is a head cap, not a transport path: check that the '// &
           'aquifer can accept its recharge (conductivity, outlet capacity, STRT) rather than '// &
           'pinning the water table at land surface.'
+    else if (this%have_surfdis .and. abs(this%bud_back(ROLE_SURFACE_DISCH)) > 0.d0) then
+      ! no net recharge to compare against: the seepage is the aquifer's own discharge
+      write(*,'(a)') '  NOTE: net recharge is upward, so the land-surface seepage is the aquifer''s own '// &
+        'discharge, not recharge passed through.'
     end if
   end subroutine mf6_budget_report
 
