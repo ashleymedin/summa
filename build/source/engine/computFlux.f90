@@ -108,6 +108,7 @@ subroutine computFlux(&
                       scalarSolution,           & ! intent(in):    flag to indicate the scalar solution
                       checkLWBalance,           & ! intent(in):    flag to check longwave balance
                       drainageMeltPond,         & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
+                      whole_step,               & ! intent(in):    length of the whole step the melt pond and glacier excess water drain over (s)
                       ! input: state variables
                       scalarCanairTempTrial,    & ! intent(in):    trial value for the temperature of the canopy air space (K)
                       scalarCanopyTempTrial,    & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
@@ -165,6 +166,7 @@ subroutine computFlux(&
   logical(lgt),intent(in)            :: scalarSolution              ! flag to denote if implementing the scalar solution
   logical(lgt),intent(in)            :: checkLWBalance              ! flag to check longwave balance
   real(rkind),intent(in)             :: drainageMeltPond            ! drainage from the surface melt pond (kg m-2 s-1)
+  real(rkind),intent(in)             :: whole_step                  ! length of the whole step the melt pond and glacier excess water drain over (s)
   ! input: state variables
   real(rkind),intent(in)             :: scalarCanairTempTrial       ! trial value for temperature of the canopy air space (K)
   real(rkind),intent(in)             :: scalarCanopyTempTrial       ! trial value for temperature of the vegetation canopy (K)
@@ -652,7 +654,7 @@ contains
    bottom_flux = 0._rkind ! no bottom flux for glacier ice layers
    nStart = nSnow + nLake + nSoil
    do_snow = .false. ! not doing snow layers here
-   call in_snowLakeGlceLiqFlux%initialize(nGlce-noThetaChange,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   call in_snowLakeGlceLiqFlux%initialize(nGlce-noThetaChange,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,whole_step,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(flux_data,deriv_data) ! only compute liquid water fluxes for top layers
   end associate
  end subroutine initialize_glceLiqFlux
@@ -704,7 +706,7 @@ contains
   bottom_flux = 0._rkind  ! no flux at the base of the ice: melt leaves upward
   nStart = nSnow
   do_snow = .false. ! not doing snow layers here
-  call in_snowLakeGlceLiqFlux%initialize(nLakeFrz,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+  call in_snowLakeGlceLiqFlux%initialize(nLakeFrz,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,whole_step,mLayerVolFracLiqTrial)
   call io_snowLakeGlceLiqFlux%initialize(flux_data,deriv_data)
  end subroutine initialize_frzlakeLiqFlux
 
@@ -753,7 +755,7 @@ contains
    bottom_flux = 0._rkind ! no seepage through the bed yet (a lake on glacier ice would couple to scalarGlceMelt here)
    nStart = nSnow + nLakeFrz
    do_snow = .false. ! not doing snow layers here
-   call in_snowLakeGlceLiqFlux%initialize(nLake-nLakeFrz,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   call in_snowLakeGlceLiqFlux%initialize(nLake-nLakeFrz,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,whole_step,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(flux_data,deriv_data)
   end associate
  end subroutine initialize_lakeLiqFlux
@@ -813,7 +815,7 @@ contains
    !if (nLake==0 .and. nSoil==0) bottom_flux = scalarGlceMelt ! leave this here in case want to couple with glacier ice melt for slush layer, will change derivatives
    nStart = 0
    do_snow = .true. ! doing snow layers here, so set to true
-   call in_snowLakeGlceLiqFlux%initialize(nSnow,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   call in_snowLakeGlceLiqFlux%initialize(nSnow,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,whole_step,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(flux_data,deriv_data)
   end associate
  end subroutine initialize_snowLiqFlux

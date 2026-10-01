@@ -402,17 +402,18 @@ at USGS 15236900, and the glacier-wide seasonal mass balance (RMSE), on the bund
 domain: three glacier land HRUs and a stream HRU for the one reach. It spins up over 2016 and scores
 2017–2019, over `frozenPrecipMultip`, `tempCritRain`, `albedoMax`, `glacierWindFactor`,
 `glacierTempReduction`, the three glacier storage constants `glacStor_kIce`, `glacStor_kSnow` and
-`glacStor_kFirn`, `C_ATGW`, which sets the temperature of the groundwater reaching the channel
-under `deepTherml = airTempGW`, and `hypFrac` and `hypLag`, the hyporheic exchange under
-`hyporhTdyn = proxy`.
+`glacStor_kFirn`, and `C_ATGW` and `gwTempWindow`, which set the temperature of the groundwater
+reaching the channel under `deepTherml = airTempGW`. `gwTempWindow` is bounded to the 2–14 days
+Wade et al. (2024) tuned. `hypFrac` and `hypLag` are left at their defaults: the hyporheic proxy damps
+the daily swing, which a daily-mean target cannot see, and halving `hypLag` leaves the RMSE unchanged.
 
 ```bash
 ./test_calibration_wolverine.sh [population] [generations] [n_ranks]   # defaults: 8, 4, 5
 ```
 
 It needs `bin/summa_sundials_mizuroute_opt.exe`. At the defaults it takes about 10 minutes, and every
-trial runs. The front is tight: KGE 0.86 at 0.58 degC and 403 mm, to KGE 0.83 at 0.55 degC and
-575 mm, with `C_ATGW` 0.65, `hypFrac` 0.16 and `hypLag` at 24 h, the top of its range. Glacier runoff
+trial runs. The front runs from KGE 0.88 at 0.72 degC and 401 mm, through KGE 0.88 at 0.63 degC and
+755 mm, to KGE 0.79 at 0.63 degC, with `C_ATGW` 0.52–0.56 and `gwTempWindow` 8–13 days. Glacier runoff
 enters the reach at freezing; the water warms from the groundwater of the unglaciated third of the
 basin, which `C_ATGW` scales, and from the heat friction dissipates down the reach. The reach keeps
 the 5 m width the gauge's channel has.
