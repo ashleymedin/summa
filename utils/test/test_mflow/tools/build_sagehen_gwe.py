@@ -25,6 +25,8 @@ import tempfile
 
 import numpy as np
 
+from build_sagehen_sfr import soil_depth
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 SFR = os.path.join(HERE, "..", "ex-gwf-sagehen-sfr")
 GWE = "SAGEHEN_GWE"
@@ -137,7 +139,7 @@ def main(out_dir):
         text = f.read()
     text = text.replace("  READASARRAYS\n", "  READASARRAYS\n  AUXILIARY  TEMPERATURE\n")
     text = text.replace("    CONSTANT  1.0e-8\n", "    CONSTANT  1.0e-8\n  TEMPERATURE\n    OPEN/CLOSE  rchtemp1.txt\n")
-    top = np.loadtxt(os.path.join(out_dir, "top1.txt"))
+    top = np.loadtxt(os.path.join(out_dir, "top1.txt")) + soil_depth()  # land surface; DIS/TOP is the soil base
     active = np.loadtxt(os.path.join(out_dir, "idomain1.txt")) > 0
     trch = np.where(active, T_REF + GW_OFFSET - LAPSE * (top - Z_REF), 0.0)
     write_array(os.path.join(out_dir, "rchtemp1.txt"), trch)

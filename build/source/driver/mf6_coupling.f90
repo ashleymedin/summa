@@ -45,7 +45,11 @@ module mf6_coupling
   !     map_file           = ''        ! HRU->cell weights; blank builds a nearest-cell map
   !     mf6_epsg           = 0         ! WGS84 UTM code for reprojecting HRU lon/lat; 0 = none
   !     feedback           = .true.    ! .false. => one-way (SUMMA drainage -> MODFLOW only)
+  !     mf6_top            = 'land_surface' ! what DIS/TOP is: land_surface, or soil_base (GSFLOW)
   !   /
+  !
+  ! With mf6_top = 'soil_base' the model's top is the base of SUMMA's soil column, so the two models
+  ! share no pore space: SUMMA owns the saturated zone within the column and MODFLOW everything below.
   !
   ! Roles are summed when several packages share one, and are how SUMMA consumes a returned flux:
   ! baseflow reaches routing, surface_discharge is added to surface runoff, gw_et is groundwater
@@ -68,6 +72,7 @@ module mf6_coupling
   ! initialized again for the next.  libmf6 is process-global, so only one coupler can be live.
 
   use, intrinsic :: iso_c_binding
+  use soilLiqFlux_module, only: compressionLimiter  ! SUMMA's closure of the infiltrating area
   implicit none
   private
 
@@ -183,6 +188,7 @@ module mf6_coupling
     character(len=1024) :: head_restart_read  = ''    ! read the initial head field from here, overriding IC/STRT
     character(len=1024) :: head_restart_write = ''    ! write the final head field here, for a later restart
     integer             :: mf6_epsg           = 0
+    logical             :: top_is_soil_base   = .false.  ! DIS/TOP is the soil-column base, not land surface
     character(len=1024) :: run_dir            = '.'      ! directory holding mfsim.nam ('.' = process cwd)
     character(len=1024) :: saved_dir          = ''       ! cwd to return to, while inside run_dir
 
@@ -208,6 +214,7 @@ module mf6_coupling
     double precision, allocatable :: hru_area(:)                   ! per-HRU plan area from attributes.nc (m2)
     double precision, allocatable :: soil_thk(:)                   ! per-HRU SUMMA soil-column thickness (m)
     double precision, allocatable :: root_reach(:)                 ! per-HRU depth roots reach below the soil column (m)
+    double precision, allocatable :: root_zone(:)                  ! per-HRU depth of SUMMA's infiltration-closure zone (m)
     real,             allocatable :: sy_hru(:)                     ! per-HRU MODFLOW specific yield (-), map-weighted
 
     integer :: nss_steps = 0                ! leading steady-state MODFLOW steps run before the coupled period
@@ -230,7 +237,7 @@ module mf6_coupling
     integer(c_int), pointer :: mf6_nodered(:) => null()   ! DIS full->reduced node map <MODEL>/DIS/NODEREDUCED (present only when the grid is reduced)
     real(c_double), pointer :: mf6_sy(:) => null()        ! STO specific yield      <MODEL>/STO/SY  (REDUCED nodes)
     real(c_double), pointer :: mf6_evt(:) => null()       ! EVT max rate array      <MODEL>/<EVT>/RATE (user cells, READASARRAYS)
-    real(c_double), pointer :: mf6_top(:) => null()       ! DIS land surface        <MODEL>/DIS/TOP (REDUCED nodes)
+    real(c_double), pointer :: mf6_top(:) => null()       ! DIS top, per mf6_top    <MODEL>/DIS/TOP (REDUCED nodes)
     real(c_double), pointer :: mf6_temp(:) => null()      ! GWE temperature         <GWE>/X (degC, REDUCED nodes, then SFE reaches)
     real(c_double), pointer :: mf6_rch_temp(:) => null()  ! RCH recharge temperature __INPUT__/<MODEL>/<RCH>/AUXVAR (degC, user cells)
     real(c_double), pointer :: mf6_esl_rate(:) => null()  ! ESL energy loading      __INPUT__/<GWE>/<ESL>/SENERRATE (W, per list row)
@@ -284,10 +291,12 @@ module mf6_coupling
     procedure, private :: gather_boundary_to_hru=> mf6_gather_boundary_to_hru
     procedure, private :: gather_role_to_hru    => mf6_gather_role_to_hru
     procedure, private :: gather_gwet_limit    => mf6_gather_gwet_limit
+    procedure, private :: gather_infil_limit    => mf6_gather_infil_limit
     procedure, private :: gather_temp_to_hru    => mf6_gather_temp_to_hru
     procedure, private :: scatter_nrg_to_esl    => mf6_scatter_nrg_to_esl
     procedure, private :: nearest_hru           => mf6_nearest_hru
     procedure, private :: top_active_node       => mf6_top_active_node
+    procedure, private :: soil_base             => mf6_soil_base
     procedure, private :: to_reduced            => mf6_to_reduced
   end type mf6_coupler_type
 
@@ -301,7 +310,7 @@ contains
   ! ==================================================================================
   subroutine mf6_init(this, config_file, run_dir, nHRU, hru_x, hru_y, hru_z, soil_thk, &
                       nSummaSteps, summa_data_step, err, message, hru_area, &
-                      restart_read, restart_write, root_reach)
+                      restart_read, restart_write, root_reach, root_zone)
     class(mf6_coupler_type), intent(inout) :: this
     character(len=*),        intent(in)    :: config_file       ! &coupler namelist file
     character(len=*),        intent(in)    :: run_dir           ! directory holding mfsim.nam ('.' = process cwd)
@@ -314,6 +323,7 @@ contains
     character(len=*),        intent(out)   :: message
     double precision, optional, intent(in) :: hru_area(:)       ! HRU plan area (m2); enables the area and budget checks
     double precision, optional, intent(in) :: root_reach(:)     ! how far roots reach below the soil column (m); tightens the elevation check when groundwater ET is on
+    double precision, optional, intent(in) :: root_zone(:)      ! depth of SUMMA's infiltration-closure zone (m); enables gather_infil_limit
     ! head-restart paths set by the caller; a non-blank one overrides the &coupler namelist, so a
     ! driver can run the same config as a spin-up (write) and then as an evaluation run (read)
     character(len=*), optional, intent(in) :: restart_read, restart_write
@@ -347,6 +357,9 @@ contains
     end if
     if (present(root_reach)) then
       allocate(this%root_reach(nHRU)); this%root_reach = root_reach(1:nHRU)
+    end if
+    if (present(root_zone)) then
+      allocate(this%root_zone(nHRU)); this%root_zone = root_zone(1:nHRU)
     end if
 
     call this%enter_run_dir(err, message)
@@ -522,7 +535,7 @@ contains
   ! back here for the next step, and are left untouched when feedback is off.
   ! ==================================================================================
   subroutine mf6_step(this, istep, summa_data_step, drain_hru, head_hru, stor_hru, bflow_hru, err, message, &
-                      surfdis_hru, gwet_demand_hru, gwet_hru, gwet_lim_hru, rtemp_hru, atemp_hru, bnrg_hru)
+                      surfdis_hru, gwet_demand_hru, gwet_hru, gwet_lim_hru, rtemp_hru, atemp_hru, bnrg_hru, infil_lim_hru)
     class(mf6_coupler_type), intent(inout) :: this
     integer,                 intent(in)    :: istep             ! 1-based coupling step index
     double precision,        intent(in)    :: summa_data_step   ! length of a SUMMA data step (s)
@@ -540,6 +553,7 @@ contains
     real, optional,          intent(in)    :: rtemp_hru(:)        ! per-HRU drainage temperature from SUMMA (K)
     real, optional,          intent(inout) :: atemp_hru(:)        ! per-HRU aquifer temperature at the water table (K)
     real, optional,          intent(in)    :: bnrg_hru(:)         ! per-HRU conduction out the soil base (W m-2, + = into the aquifer)
+    real, optional,          intent(inout) :: infil_lim_hru(:)    ! per-HRU aquifer control on the infiltrating area (-), cell-wise mean
     integer        :: istat
     real(c_double) :: dt_mf6
 
@@ -608,6 +622,7 @@ contains
         call this%gather_role_to_hru(ROLE_GW_ET, gwet_hru)
       ! the limiting factor SUMMA will apply next step, evaluated cell by cell here
       if (present(gwet_lim_hru)) call this%gather_gwet_limit(gwet_lim_hru)
+      if (present(infil_lim_hru)) call this%gather_infil_limit(infil_lim_hru)
       if (this%have_gwe .and. present(atemp_hru)) call this%gather_temp_to_hru(atemp_hru)
     end if
 
@@ -648,6 +663,7 @@ contains
     if (allocated(this%hru_area))  deallocate(this%hru_area)
     if (allocated(this%soil_thk))  deallocate(this%soil_thk)
     if (allocated(this%root_reach)) deallocate(this%root_reach)
+    if (allocated(this%root_zone))  deallocate(this%root_zone)
     if (allocated(this%sy_hru))    deallocate(this%sy_hru)
     if (allocated(this%map_ptr))   deallocate(this%map_ptr)
     if (allocated(this%map_cell))  deallocate(this%map_cell)
@@ -753,11 +769,12 @@ contains
     character(len=1024):: head_restart_read, head_restart_write
     character(len=256) :: bnd_package_names(MAXBND)
     character(len=32)  :: bnd_package_roles(MAXBND)
+    character(len=32)  :: mf6_top
     integer            :: mf6_epsg
     logical            :: feedback
     namelist /coupler/ mf6_model_name, rch_package_name, bflow_package_name, evt_package_name, &
                        bnd_package_names, bnd_package_roles, map_file, mf6_epsg, feedback, &
-                       head_restart_read, head_restart_write, gwe_model_name, esl_package_name
+                       head_restart_read, head_restart_write, gwe_model_name, esl_package_name, mf6_top
 
     err = 0; message = ''
 
@@ -775,6 +792,7 @@ contains
     map_file           = ''
     mf6_epsg           = 0
     feedback           = .true.
+    mf6_top            = 'land_surface'
 
     open(action='read', file=trim(config_file), iostat=rc, newunit=fu)
     if (rc /= 0) then
@@ -800,6 +818,16 @@ contains
     this%map_file           = map_file
     this%mf6_epsg           = mf6_epsg
     this%feedback           = feedback
+
+    call to_lower(mf6_top)
+    select case (trim(mf6_top))
+      case ('land_surface'); this%top_is_soil_base = .false.
+      case ('soil_base');    this%top_is_soil_base = .true.
+      case default
+        message = 'unknown mf6_top "'//trim(mf6_top)//'" in '//trim(config_file)// &
+                  ' - expected land_surface or soil_base'
+        err = 20; return
+    end select
 
     call to_upper(this%mf6_model_name)
     call to_upper(this%rch_package_name)
@@ -968,12 +996,13 @@ contains
   ! aquifer temperature (K).  No boundary flow is known until MODFLOW has solved a step, so
   ! baseflow is not returned.
   ! ==================================================================================
-  subroutine mf6_restart_state(this, head_hru, stor_hru, lim_hru, atemp_hru)
+  subroutine mf6_restart_state(this, head_hru, stor_hru, lim_hru, atemp_hru, infil_lim_hru)
     class(mf6_coupler_type), intent(inout) :: this
     real,                    intent(inout) :: head_hru(:)
     real,                    intent(inout) :: stor_hru(:)
     real, optional,          intent(inout) :: lim_hru(:)
     real, optional,          intent(inout) :: atemp_hru(:)
+    real, optional,          intent(inout) :: infil_lim_hru(:)
     integer :: i
 
     if (.not. (this%restarted .and. this%feedback)) return
@@ -984,6 +1013,7 @@ contains
       end do
     end if
     if (present(lim_hru)) call this%gather_gwet_limit(lim_hru)
+    if (present(infil_lim_hru)) call this%gather_infil_limit(infil_lim_hru)
     if (present(atemp_hru) .and. allocated(this%temp_rst)) call this%gather_temp_to_hru(atemp_hru)
   end subroutine mf6_restart_state
 
@@ -1032,8 +1062,8 @@ contains
         node = this%top_active_node(c)
         if (node < 1 .or. node > size(this%mf6_head)) cycle
         if (node > size(this%mf6_top)) cycle
-        ! psi at the base of SUMMA's soil column, using THIS cell's land surface
-        psi = this%mf6_head(node) - (this%mf6_top(node) - real(this%soil_thk(i), c_double))
+        ! psi at the base of SUMMA's soil column, using THIS cell's top
+        psi = this%mf6_head(node) - this%soil_base(node, i)
         fac = 1.0_c_double + psi/reach
         if (fac < 0.0_c_double) fac = 0.0_c_double
         if (fac > 1.0_c_double) fac = 1.0_c_double
@@ -1043,6 +1073,45 @@ contains
       if (wsum > 0.0_c_double) lim_hru(i) = real(fsum / wsum)
     end do
   end subroutine mf6_gather_gwet_limit
+
+  ! ==================================================================================
+  ! Aquifer control on SUMMA's infiltrating area per HRU: SUMMA's compression closure evaluated at
+  ! each mapped cell on the hydrostatic pressure its water table puts over the closure zone, and
+  ! returned as the map-weighted mean.  With pressure a at the surface (m, head less land surface)
+  ! the zone's mean positive head is a + z/2, (a + z)^2/(2z) once the water table is inside it, or 0.
+  ! ==================================================================================
+  subroutine mf6_gather_infil_limit(this, lim_hru)
+    class(mf6_coupler_type), intent(inout) :: this
+    real,                    intent(inout) :: lim_hru(:)
+    integer :: i, k, c, node
+    real(c_double) :: fsum, wsum, zone, a, hmean, fac, dfac
+
+    if (.not. allocated(this%root_zone)) return
+
+    do i = 1, this%nHRU
+      zone = real(this%root_zone(i), c_double)
+      if (zone <= 0.0_c_double) cycle
+      fsum = 0.0_c_double; wsum = 0.0_c_double
+      do k = this%map_ptr(i), this%map_ptr(i+1) - 1
+        c = this%map_cell(k)
+        node = this%top_active_node(c)
+        if (node < 1 .or. node > size(this%mf6_head)) cycle
+        if (node > size(this%mf6_top)) cycle
+        a = this%mf6_head(node) - (this%soil_base(node, i) + real(this%soil_thk(i), c_double))
+        if (a >= 0.0_c_double) then
+          hmean = a + 0.5_c_double*zone
+        else if (a > -zone) then
+          hmean = (a + zone)**2/(2.0_c_double*zone)
+        else
+          hmean = 0.0_c_double
+        end if
+        call compressionLimiter(hmean, zone, fac, dfac)
+        fsum = fsum + real(this%map_wgt(k), c_double) * fac
+        wsum = wsum + real(this%map_wgt(k), c_double)
+      end do
+      if (wsum > 0.0_c_double) lim_hru(i) = real(fsum / wsum)
+    end do
+  end subroutine mf6_gather_infil_limit
 
   ! ==================================================================================
   ! GWE temperature (degC, per node)  ->  SUMMA aquifer temperature (K, per HRU): the map-weighted
@@ -1204,6 +1273,15 @@ contains
     end do
   end function mf6_top_active_node
 
+  ! Elevation of HRU i's soil-column base over reduced node (m): DIS/TOP itself under mf6_top = 'soil_base',
+  ! else DIS/TOP less the column depth.
+  real(c_double) function mf6_soil_base(this, node, i) result(zbase)
+    class(mf6_coupler_type), intent(in) :: this
+    integer,                 intent(in) :: node, i
+    zbase = this%mf6_top(node)
+    if (.not. this%top_is_soil_base) zbase = zbase - real(this%soil_thk(i), c_double)
+  end function mf6_soil_base
+
   ! full (user) node number -> reduced (solution) node number; <= 0 if the cell is
   ! inactive.  Identity when IDOMAIN removes no cells (grid not reduced).
   integer function mf6_to_reduced(this, nfull) result(nred)
@@ -1337,10 +1415,11 @@ contains
     end if
   end subroutine mf6_check_model
 
-  ! Each HRU's SUMMA elevation must be the land surface of the MODFLOW cells it maps to, because
+  ! Each HRU's soil-column base must be that of the MODFLOW cells it maps to, because
   ! gather_head_to_hru forms  lowerBoundHead = h_mf6 - (z_surface_HRU - soil_thickness).  If the two
   ! disagree the soil column is handed a water table that is metres above or below it, and SUMMA
   ! fails to converge with no indication of why, so check it up front rather than leave it to chance.
+  ! The comparison is made at land surface, a cell's being its soil base plus the column depth.
   subroutine mf6_check_hru_elevation(this, err, message)
     class(mf6_coupler_type), intent(inout) :: this
     integer,                 intent(out)   :: err
@@ -1363,7 +1442,7 @@ contains
         c = this%map_cell(k)
         node = this%top_active_node(c)       ! DIS/TOP is in reduced node numbering, as DIS/X is
         if (node < 1 .or. node > size(this%mf6_top)) cycle
-        zsum = zsum + real(this%map_wgt(k), c_double) * this%mf6_top(node)
+        zsum = zsum + real(this%map_wgt(k), c_double) * (this%soil_base(node, i) + real(this%soil_thk(i), c_double))
         wsum = wsum + real(this%map_wgt(k), c_double)
       end do
       if (wsum <= 0.0_c_double) cycle
@@ -1387,7 +1466,7 @@ contains
     ! Report the offset even when it passes, because it is a SYSTEMATIC bias in psi rather than
     ! noise: every HRU's water table is shifted by it, in the same direction, for the whole run.
     if (i_worst > 0 .and. abs(dz_worst) > 0.25d0) &
-      write(*,'(a,f0.2,a,i0,a)') 'summa_modflow6: NOTE - largest HRU elevation offset from mean DIS TOP is ', &
+      write(*,'(a,f0.2,a,i0,a)') 'summa_modflow6: NOTE - largest HRU elevation offset from mean cell land surface is ', &
         dz_worst, ' m (HRU ', i_worst, '); this shifts the water table SUMMA sees by that amount'
   end subroutine mf6_check_hru_elevation
 

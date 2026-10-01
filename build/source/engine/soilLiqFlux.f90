@@ -94,10 +94,33 @@ USE mDecisions_module,only:   &
 implicit none
 private
 public::soilLiqFlux
+public::compressionLimiter
 
 ! flag to denote if updating infiltration during iterations for testing purposes
 logical(lgt),parameter :: updateInfil=.true.
+! compression closure of the infiltrating area under a blocked lower boundary
+real(rkind),parameter :: compHeadCutoff=1._rkind   ! positive head where compression closure begins (m)
+real(rkind),parameter :: compHeadWidth =0.02_rkind ! smoothing width for compression closure (m)
 contains
+
+! ***************************************************************************************************************
+! public subroutine compressionLimiter: the fraction of the infiltrating area left open under a mean positive
+! head (m) over a zone of the given depth (m), and its derivative w.r.t. that head (m-1)
+! ***************************************************************************************************************
+pure subroutine compressionLimiter(headMean,zoneDepth,limiter,dLimiter_dHead)
+  real(rkind),intent(in)  :: headMean        ! mean positive pressure head over the zone (m)
+  real(rkind),intent(in)  :: zoneDepth       ! depth of the zone (m)
+  real(rkind),intent(out) :: limiter         ! fraction of the infiltrating area left open (-)
+  real(rkind),intent(out) :: dLimiter_dHead  ! derivative w.r.t. the mean positive head (m-1)
+  real(rkind)             :: cutoff,width    ! cutoff and smoothing width in use (m)
+  real(rkind)             :: arg             ! argument of the logistic (-)
+  ! the closure cannot ask for more head than the zone is deep, nor a width that outruns its cutoff
+  cutoff = min(compHeadCutoff, zoneDepth)
+  width  = min(compHeadWidth, 0.25_rkind*cutoff)
+  arg = (headMean - cutoff)/width
+  limiter = 1._rkind/(1._rkind + exp(2._rkind*arg))
+  dLimiter_dHead = -(2._rkind/width)*limiter*(1._rkind - limiter)
+end subroutine compressionLimiter
 
 ! ***************************************************************************************************************
 ! public subroutine soilLiqFlux: compute liquid water fluxes and their derivatives
@@ -1632,12 +1655,7 @@ subroutine update_volFracLiq_derivatives
   real(rkind) :: compHeadRootZone         ! mean positive pressure head over active layers (m)
   real(rkind) :: compLimiter              ! smooth limiter that closes infiltration area under strong compression (-)
   real(rkind) :: compLimiter_prev         ! pre-limiter infiltration area used for chain rule (-)
-  real(rkind) :: compArg                  ! argument of logistic compression limiter (-)
   real(rkind) :: dCompLimiter_dHead       ! derivative of compression limiter w.r.t. mean positive head (m-1)
-  real(rkind),parameter :: compHeadCutoff=1._rkind   ! positive head where compression closure begins (m)
-  real(rkind),parameter :: compHeadWidth =0.02_rkind ! smoothing width for compression closure (m)
-  real(rkind)           :: compHeadCutoff_use        ! the cutoff actually used, never deeper than the zone itself (m)
-  real(rkind)           :: compHeadWidth_use         ! the smoothing width that goes with it (m)
   real(rkind),parameter :: headSmooth =1.e-4_rkind   ! smoothing for max(psi,0) approximation (m)
   real(rkind) :: posHead(1:in_surfaceFlux % nSoil)   ! smooth positive part of matric head (m)
   real(rkind) :: dPosHead_dPsi(1:in_surfaceFlux % nSoil) ! derivative of smooth positive head w.r.t. matric head (-)
@@ -1657,6 +1675,7 @@ subroutine update_volFracLiq_derivatives
    mLayerMatricHead  => in_surfaceFlux % mLayerMatricHead,      & ! matric head in each soil layer (m)
    mLayerVolFracLiq  => in_surfaceFlux % mLayerVolFracLiq,      & ! volumetric liquid water content in each soil layer (-)
    mLayerDepth       => in_surfaceFlux % mLayerDepth,           & ! depth of each soil layer (m)
+   scalarInfilLimAqfr => in_surfaceFlux % scalarInfilLimAqfr,   & ! aquifer control on the infiltrating area, realMissing if none (-)
    ! input: soil parameters
    theta_sat         => in_surfaceFlux % theta_sat,             & ! soil porosity (-)
    ! input: flux at the upper boundary
@@ -1691,23 +1710,23 @@ subroutine update_volFracLiq_derivatives
   ! Close infiltration under saturation for blocked lower boundaries
   rootZoneDepth = sum(mLayerDepth(ixTop:ixBot))
   if (ixTop <= ixBot .and. (bc_lower/=freeDrainage .or. nGlce>0)) then ! glacier always has lower blocked boundary
-    ! drives infiltration area to zero once positive pressure becomes large
-    posHead(:) = 0._rkind
-    dPosHead_dPsi(:) = 0._rkind
-    posHead(ixTop:ixBot) = 0.5_rkind*(mLayerMatricHead(ixTop:ixBot) + sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b)) ! smooth positive part of matric head (m)
-    dPosHead_dPsi(ixTop:ixBot) = 0.5_rkind*(1._rkind + mLayerMatricHead(ixTop:ixBot)/sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b))
-
-    ! the closure cannot ask for more head than the zone is deep, nor a width that outruns its cutoff
-    compHeadCutoff_use = min(compHeadCutoff, rootZoneDepth)
-    compHeadWidth_use  = min(compHeadWidth, 0.25_rkind*compHeadCutoff_use)
-
-    ! compute derivatives of mean positive head w.r.t. water state variables
     dCompHead_dWat(:) = 0._rkind
-    compHeadRootZone = sum(posHead(ixTop:ixBot)*mLayerDepth(ixTop:ixBot))/rootZoneDepth
-    compArg = (compHeadRootZone - compHeadCutoff_use)/compHeadWidth_use
-    compLimiter = 1._rkind/(1._rkind + exp(2._rkind*compArg))
-    dCompLimiter_dHead = -(2._rkind/compHeadWidth_use)*compLimiter*(1._rkind - compLimiter)
-    dCompHead_dWat(ixTop:ixBot) = (mLayerDepth(ixTop:ixBot)/rootZoneDepth) * dPosHead_dPsi(ixTop:ixBot)
+    if ((ix_groundwatr==modflowCpl .or. ix_groundwatr==modLatflow) .and. nGlce==0 .and. scalarInfilLimAqfr >= 0._rkind) then
+      ! a coupled aquifer's closure, evaluated cell by cell by the coupler, replaces the column's own
+      compLimiter = scalarInfilLimAqfr
+      dCompLimiter_dHead = 0._rkind
+    else
+      ! drives infiltration area to zero once positive pressure becomes large
+      posHead(:) = 0._rkind
+      dPosHead_dPsi(:) = 0._rkind
+      posHead(ixTop:ixBot) = 0.5_rkind*(mLayerMatricHead(ixTop:ixBot) + sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b)) ! smooth positive part of matric head (m)
+      dPosHead_dPsi(ixTop:ixBot) = 0.5_rkind*(1._rkind + mLayerMatricHead(ixTop:ixBot)/sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b))
+
+      ! compute derivatives of mean positive head w.r.t. water state variables
+      compHeadRootZone = sum(posHead(ixTop:ixBot)*mLayerDepth(ixTop:ixBot))/rootZoneDepth
+      call compressionLimiter(compHeadRootZone,rootZoneDepth,compLimiter,dCompLimiter_dHead)
+      dCompHead_dWat(ixTop:ixBot) = (mLayerDepth(ixTop:ixBot)/rootZoneDepth) * dPosHead_dPsi(ixTop:ixBot)
+    end if
 
     ! apply compression limiter to infiltration area and compute derivatives
     compLimiter_prev = scalarInfilArea
@@ -1937,6 +1956,15 @@ subroutine qDrainFlux(in_qDrainFlux,io_qDrainFlux,out_qDrainFlux)
   real(rkind)                      :: dPsi                    ! spatial difference in matric head (m)
   real(rkind)                      :: dz                      ! spatial difference in layer mid-points (m)
   real(rkind)                      :: cflux                   ! capillary flux (m s-1)
+  real(rkind)                      :: baseHydCond             ! hydraulic conductivity at the lower boundary head (m s-1)
+  real(rkind)                      :: pathLength              ! distance from the lowest node to the water table (m)
+  real(rkind)                      :: headDrop                ! total head drop from the lowest node to the water table (m)
+  real(rkind)                      :: posDrop                 ! smooth positive part of headDrop (m)
+  real(rkind)                      :: dPosDrop                ! derivative of posDrop w.r.t. headDrop (-)
+  real(rkind),parameter            :: dropSmooth=1.e-4_rkind  ! smoothing for max(headDrop,0) (m)
+  real(rkind)                      :: upHydCond               ! conductivity for rise across the base (m s-1)
+  real(rkind)                      :: dUp_dMatric             ! derivative of upHydCond w.r.t. node matric head (s-1)
+  real(rkind)                      :: dUp_dTemp               ! derivative of upHydCond w.r.t. node temperature (m s-1 K-1)
   integer(i4b)                     :: bc_lower_use            ! mutable copy of lower boundary-condition index
   ! error control
   logical(lgt)                     :: return_flag             ! flag for return statements
@@ -2001,14 +2029,18 @@ contains
   associate(&
    ! input: state and diagnostic variables
    nodeMatricHeadLiq => in_qDrainFlux % nodeMatricHeadLiq, &  ! liquid matric head in the lowest unsaturated node (m)
+   ix_groundwatr     => in_qDrainFlux % ix_groundwatr    , &  ! index defining the groundwater parameterization
+   node_dPsiLiq_dTemp => in_qDrainFlux % node_dPsiLiq_dTemp, & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! input: model coordinate variables
    nodeDepth  => in_qDrainFlux % nodeDepth , &                ! depth of the lowest unsaturated soil layer (m)
    ! input: diriclet boundary conditions
    lowerBoundHead  => in_qDrainFlux % lowerBoundHead , &      ! lower boundary condition for matric head (m)
    ! input: transmittance
    bottomSatHydCond  => in_qDrainFlux % bottomSatHydCond , &  ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
+   nodeHydCond       => in_qDrainFlux % nodeHydCond      , &  ! hydraulic conductivity at the node itself (m s-1)
    iceImpedeFac      => in_qDrainFlux % iceImpedeFac     , &  ! ice impedence factor in the upper-most soil layer (-)
    ! input: transmittance derivatives
+   dHydCond_dMatric => in_qDrainFlux % dHydCond_dMatric, &    ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
    dHydCond_dTemp   => in_qDrainFlux % dHydCond_dTemp  , &    ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
    ! input: soil parameters
    vGn_alpha       => in_qDrainFlux % vGn_alpha      , &      ! van Genuchten "alpha" parameter (m-1)
@@ -2026,16 +2058,54 @@ contains
    message => out_qDrainFlux % message  &                     ! error message
   &)
 
-   ! compute flux
-   bottomHydCond = hydCond_psi(lowerBoundHead,bottomSatHydCond,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac
-   cflux = -bottomHydCond*(lowerBoundHead  - nodeMatricHeadLiq) / (nodeDepth*0.5_rkind)
-   scalarDrainage = cflux + bottomHydCond
+   baseHydCond = hydCond_psi(lowerBoundHead,bottomSatHydCond,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac
 
-   ! hydrology derivatives
-   dq_dHydStateUnsat = bottomHydCond/(nodeDepth/2._rkind)
-   ! energy derivatives
-   dq_dNrgStateUnsat = -(dHydCond_dTemp/2._rkind)*(lowerBoundHead  - nodeMatricHeadLiq)/(nodeDepth*0.5_rkind)&
-                     & + dHydCond_dTemp/2._rkind
+   ! a coupled water table below the column base: Darcy flux from the node to the water table across a quasi-steady
+   ! unsaturated gap, at the wetter of the boundary and node conductivities, so a deep water table gives free drainage;
+   ! drainage only, as in GSFLOW, since water below the base is the aquifer's and returns only as head above it
+   if((ix_groundwatr==modflowCpl .or. ix_groundwatr==modLatflow) .and. lowerBoundHead < 0._rkind)then
+     pathLength = nodeDepth*0.5_rkind - lowerBoundHead
+     headDrop   = nodeMatricHeadLiq + pathLength
+     posDrop    = 0.5_rkind*(headDrop + sqrt(headDrop**2_i4b + dropSmooth**2_i4b)) ! smooth positive part (m)
+     dPosDrop   = 0.5_rkind*(1._rkind + headDrop/sqrt(headDrop**2_i4b + dropSmooth**2_i4b))
+     if(nodeHydCond > baseHydCond)then
+       bottomHydCond     = nodeHydCond
+       scalarDrainage    = bottomHydCond*posDrop/pathLength
+       dq_dHydStateUnsat = (dHydCond_dMatric*posDrop + bottomHydCond*dPosDrop)/pathLength
+       dq_dNrgStateUnsat = (dHydCond_dTemp*posDrop + bottomHydCond*dPosDrop*node_dPsiLiq_dTemp)/pathLength
+     else
+       bottomHydCond     = baseHydCond
+       scalarDrainage    = bottomHydCond*posDrop/pathLength
+       dq_dHydStateUnsat = bottomHydCond*dPosDrop/pathLength
+       dq_dNrgStateUnsat = bottomHydCond*dPosDrop*node_dPsiLiq_dTemp/pathLength
+     end if
+   ! a coupled water table at or above the base: drainage at the boundary conductivity, but rise into the column at the
+   ! geometric mean of that and the bottom layer's own, which limits flow into dry soil
+   elseif(ix_groundwatr==modflowCpl .or. ix_groundwatr==modLatflow)then
+     pathLength = nodeDepth*0.5_rkind
+     headDrop   = nodeMatricHeadLiq - lowerBoundHead + pathLength
+     posDrop    = 0.5_rkind*(headDrop + sqrt(headDrop**2_i4b + dropSmooth**2_i4b)) ! smooth positive part (m)
+     dPosDrop   = 0.5_rkind*(1._rkind + headDrop/sqrt(headDrop**2_i4b + dropSmooth**2_i4b))
+     upHydCond  = sqrt(baseHydCond*max(nodeHydCond, tiny(1._rkind)))
+     dUp_dMatric = 0.5_rkind*upHydCond*dHydCond_dMatric/max(nodeHydCond, tiny(1._rkind))
+     dUp_dTemp   = 0.5_rkind*upHydCond*dHydCond_dTemp/max(nodeHydCond, tiny(1._rkind))
+     bottomHydCond     = baseHydCond
+     scalarDrainage    = (baseHydCond*posDrop + upHydCond*(headDrop - posDrop))/pathLength
+     dq_dHydStateUnsat = (baseHydCond*dPosDrop + upHydCond*(1._rkind - dPosDrop) + dUp_dMatric*(headDrop - posDrop))/pathLength
+     dq_dNrgStateUnsat = ((baseHydCond*dPosDrop + upHydCond*(1._rkind - dPosDrop))*node_dPsiLiq_dTemp &
+                       &  + dUp_dTemp*(headDrop - posDrop))/pathLength
+   else
+     ! compute flux
+     bottomHydCond = baseHydCond
+     cflux = -bottomHydCond*(lowerBoundHead  - nodeMatricHeadLiq) / (nodeDepth*0.5_rkind)
+     scalarDrainage = cflux + bottomHydCond
+
+     ! hydrology derivatives
+     dq_dHydStateUnsat = bottomHydCond/(nodeDepth/2._rkind)
+     ! energy derivatives
+     dq_dNrgStateUnsat = -(dHydCond_dTemp/2._rkind)*(lowerBoundHead  - nodeMatricHeadLiq)/(nodeDepth*0.5_rkind)&
+                       & + dHydCond_dTemp/2._rkind
+   end if
 
   end associate
  end subroutine update_qDrainFlux_prescribedHead

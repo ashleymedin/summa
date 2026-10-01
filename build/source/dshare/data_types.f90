@@ -969,6 +969,7 @@ MODULE data_types
    real(rkind)             :: scalarTotalSoilLiq   ! total liquid water in the soil column (kg m-2)
    real(rkind),allocatable :: mLayerVolFracLiq(:)  ! volumetric liquid water content in each soil layer (-)
    real(rkind),allocatable :: mLayerVolFracIce(:)  ! volumetric ice content in each soil layer (-)
+   real(rkind)             :: scalarInfilLimAqfr   ! aquifer control on the infiltrating area from a coupled model, realMissing if none (-)
    ! input: pre-computed derivatives (all of these would need to be recomputed if wanted a numerical derivative)
    real(rkind),allocatable :: dTheta_dTk(:)        ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
    real(rkind),allocatable :: dTheta_dPsi(:)       ! derivative in liquid water content w.r.t. matric potential (m-1)
@@ -1082,6 +1083,7 @@ MODULE data_types
    ! input: model control
    integer(i4b) :: bc_lower                  ! index defining the type of boundary conditions
    integer(i4b) :: nGlce                     ! number of glacier ice layers
+   integer(i4b) :: ix_groundwatr             ! index defining the groundwater parameterization
    ! input: state and diagnostic variables
    real(rkind)  :: nodeMatricHeadLiq         ! liquid matric head in the lowest unsaturated node (m)
    ! input: model coordinate variables
@@ -2102,7 +2104,8 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
    mLayerMatricHeadTrial    => in_soilLiqFlux % mLayerMatricHeadTrial,    & ! intent(in): matric head in each layer at the current iteration (m)
    mLayerVolFracLiqTrial    => in_soilLiqFlux % mLayerVolFracLiqTrial,    & ! volumetric fraction of liquid water at the current iteration (-)
    mLayerVolFracIceTrial    => in_soilLiqFlux % mLayerVolFracIceTrial,    & ! volumetric fraction of ice at the current iteration (-)
-   scalarTotalSoilLiq       => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1) & ! total liquid water in the soil column (kg m-2)
+   scalarTotalSoilLiq       => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1), & ! total liquid water in the soil column (kg m-2)
+   scalarInfilLimAqfr       => diag_data%var(iLookDIAG%scalarInfilLimAqfr)%dat(1)  & ! aquifer control on the infiltrating area (-)
   &)
    ! intent(in): state variables
    in_surfaceFlux % mLayerTemp          = mLayerTempTrial             ! temperature (K)
@@ -2112,6 +2115,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
    in_surfaceFlux % scalarTotalSoilLiq  = scalarTotalSoilLiq          ! total liquid water in the soil column (kg m-2)
    in_surfaceFlux % mLayerVolFracLiq    = mLayerVolFracLiqTrial       ! volumetric liquid water content in each soil layer (-)
    in_surfaceFlux % mLayerVolFracIce    = mLayerVolFracIceTrial       ! volumetric ice content in each soil layer (-)
+   in_surfaceFlux % scalarInfilLimAqfr  = scalarInfilLimAqfr          ! aquifer control on the infiltrating area (-)
   end associate
 
   associate(&
@@ -2386,6 +2390,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
   associate(&
    ! intent(in): model control
    ixBcLowerSoilHydrology => model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision,& ! index of the lower boundary conditions for soil hydrology
+   ix_groundwatr          => model_decisions(iLookDECISIONS%groundwatr)%iDecision,& ! index defining the groundwater parameterization
    ! intent(in): state variables
    mLayerMatricHeadLiqTrial => in_soilLiqFlux % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
    mLayerVolFracLiqTrial    => in_soilLiqFlux % mLayerVolFracLiqTrial,    & ! volumetric fraction of liquid water at the current iteration (-)
@@ -2414,6 +2419,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
    ! intent(in): model control
    in_qDrainFlux % bc_lower   = ixBcLowerSoilHydrology ! index defining the type of boundary conditions
    in_qDrainFlux % nGlce      = nGlce                  ! number of glacier ice layers
+   in_qDrainFlux % ix_groundwatr = ix_groundwatr       ! index defining the groundwater parameterization
    ! intent(in): state variables
    in_qDrainFlux % nodeMatricHeadLiq = mLayerMatricHeadLiqTrial(nSoil) ! liquid matric head in the lowest unsaturated node (m)
    ! intent(in): model coordinate variables
