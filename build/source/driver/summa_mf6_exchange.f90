@@ -42,6 +42,10 @@ module summa_mf6_exchange
 
   USE nr_type,    only: i4b, rkind
   USE globalData, only: realMissing  ! a domain that never solved a soil column
+  USE globalData, only: verySmall    ! a small number
+  USE globalData, only: model_decisions  ! model decision structure
+  USE var_lookup, only: iLookDECISIONS   ! named variables for elements of the decision structure
+  USE mDecisions_module, only: homegrown_SE ! homegrown saturation excess surface runoff
   USE multiconst, only: iden_water     ! intrinsic density of liquid water (kg m-3)
   USE multiconst, only: Tfreeze        ! freezing point of pure water (K)
   USE summa_type, only: summa1_type_dec
@@ -77,6 +81,8 @@ module summa_mf6_exchange
   public :: mf6x_get_aquifer_transpire
   public :: mf6x_put_aquifer_transpire
   public :: mf6x_put_transpire_lim_aqfr
+  public :: mf6x_put_infil_lim_aqfr
+  public :: mf6x_root_zone_depth
   public :: mf6x_get_drainage_temp
   public :: mf6x_get_base_nrg_flux
   public :: mf6x_put_aquifer_temp
@@ -188,6 +194,43 @@ contains
       end do
     end associate
   end subroutine mf6x_root_reach
+
+  ! **************************************************************************************************
+  ! Depth below the surface of the zone whose positive pressure closes the infiltrating area (m), as
+  ! soilLiqFlux takes it: the base of the deepest root layer under homegrown_SE, else the soil depth.
+  ! **************************************************************************************************
+  subroutine mf6x_root_zone_depth(summa_struct, depth)
+    type(summa1_type_dec), intent(in)  :: summa_struct
+    double precision,      intent(out) :: depth(:)
+    integer(i4b) :: iGRU, jHRU, iDOM, i, ixDOM, nSnow, nLake, nSoil, nRoots
+    real(rkind)  :: rootingDepth
+    associate(progStruct => summa_struct%progStruct, &
+              indxStruct => summa_struct%indxStruct, &
+              mparStruct => summa_struct%mparStruct)
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
+          ixDOM = 1
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            if (indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) then
+              ixDOM = iDOM; exit
+            end if
+          end do
+          nSnow = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nSnow)%dat(1)
+          nLake = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nLake)%dat(1)
+          nSoil = indxStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookINDEX%nSoil)%dat(1)
+          associate(h => progStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookPROG%iLayerHeight)%dat)
+            nRoots = nSoil
+            if (model_decisions(iLookDECISIONS%surfRun_SE)%iDecision == homegrown_SE) then
+              rootingDepth = mparStruct%gru(iGRU)%hru(jHRU)%dom(ixDOM)%var(iLookPARAM%rootingDepth)%dat(1)
+              nRoots = max(1, count(h(nSnow+nLake:nSnow+nLake+nSoil-1) - h(nSnow+nLake) < rootingDepth-verySmall))
+            end if
+            depth(i) = h(nSnow+nLake+nRoots) - h(nSnow+nLake)
+          end associate
+        end do
+      end do
+    end associate
+  end subroutine mf6x_root_zone_depth
 
   ! **************************************************************************************************
   ! Thickness of the SUMMA soil column for each HRU (m), measured from the ground surface
@@ -377,6 +420,28 @@ contains
       end do
     end associate
   end subroutine mf6x_put_transpire_lim_aqfr
+
+  ! **************************************************************************************************
+  ! Aquifer control on the infiltrating area (-) from the coupler, evaluated per MODFLOW cell.
+  ! Written into diag, where soilLiqFlux uses it in place of the column's own compression closure.
+  ! **************************************************************************************************
+  subroutine mf6x_put_infil_lim_aqfr(summa_struct, limit)
+    type(summa1_type_dec), intent(inout) :: summa_struct
+    real,                  intent(in)    :: limit(:)
+    integer(i4b) :: iGRU, jHRU, iDOM, i
+    associate(diagStruct => summa_struct%diagStruct, &
+              indxStruct => summa_struct%indxStruct)
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            if (indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) &
+              diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarInfilLimAqfr)%dat(1) = limit(i)
+          end do
+        end do
+      end do
+    end associate
+  end subroutine mf6x_put_infil_lim_aqfr
 
   ! **************************************************************************************************
   ! SUMMA's aquifer transpiration demand, per HRU (m s-1, + = out of aquifer): the aquifer's share of
