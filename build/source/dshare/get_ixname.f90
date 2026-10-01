@@ -820,8 +820,9 @@ contains
   case('scalarStreamLatInflowTemp'      ); get_ixFlux = iLookFLUX%scalarStreamLatInflowTemp        ! temperature of the lateral inflow (K)
   case('scalarStreamOutflow'            ); get_ixFlux = iLookFLUX%scalarStreamOutflow              ! discharge leaving the reach (m3 s-1)
   case('scalarStreamSfcInflow'          ); get_ixFlux = iLookFLUX%scalarStreamSfcInflow            ! rain plus melt entering the open water column (m s-1)
-  case('mLayerLakeAdvNrgFlux'           ); get_ixFlux = iLookFLUX%mLayerLakeAdvNrgFlux             ! advective energy source in each lake layer (J m-3 s-1)
+  case('mLayerLakeAdvNrgFlux'           ); get_ixFlux = iLookFLUX%mLayerLakeAdvNrgFlux             ! energy source in each lake layer from the reach flow (J m-3 s-1)
   case('scalarStreamRunoff'             ); get_ixFlux = iLookFLUX%scalarStreamRunoff               ! net water the stream domain adds to the reach (m s-1)
+  case('scalarStreamFrictionHeat'       ); get_ixFlux = iLookFLUX%scalarStreamFrictionHeat         ! heat the reach flow dissipates falling through the reach (W m-2)
   ! return missing if variable not found
   case default
    get_ixFlux = integerMissing
@@ -940,6 +941,8 @@ contains
   case('dTemp_dTheta'                   ); get_ixDeriv = iLookDERIV%dTemp_dTheta                   ! derivative of temperature w.r.t. volumetric water content         
   case('dTemp_dPsi0'                    ); get_ixDeriv = iLookDERIV%dTemp_dPsi0                    ! derivative of temperature w.r.t. total water matric potential         
   case('dLakeAdvNrgFlux_dTemp'          ); get_ixDeriv = iLookDERIV%dLakeAdvNrgFlux_dTemp          ! derivative of the lake advective energy source w.r.t. layer temperature
+  case('dLakeAdvNrgFlux_dLiq'           ); get_ixDeriv = iLookDERIV%dLakeAdvNrgFlux_dLiq           ! derivative of the lake energy source w.r.t. liquid water at fixed liquid depth
+  case('dLakeAdvNrgFlux_dDepth'         ); get_ixDeriv = iLookDERIV%dLakeAdvNrgFlux_dDepth         ! derivative of the lake energy source w.r.t. the column liquid depth
 
   case default
    get_ixDeriv = integerMissing

@@ -12,10 +12,9 @@ records both discharge and water temperature, so a routed calibration can score 
 | Water temperature | USGS 15236900, daily mean, degC, open-water season only: 144–209 days a year |
 | Mass balance | USGS Benchmark Glacier glacier-wide seasonal (winter and summer) balance, mm w.e. |
 
-The land HRUs, their parameters and forcing are the SYMFLUENCE `domain_Wolverine` glacier setup
-(`attributes_glac.nc`, `coldstate_glac.nc`). The text settings are the bundled Gulkana ones, with
-Wolverine's own `basinParamInfo.txt`. `utils/pre-processing/add_stream_hru.py` appends the stream HRU
-and writes the one-reach topology:
+The land HRUs, their parameters and forcing are the Wolverine glacier setup. The text settings are
+the bundled Gulkana ones, with Wolverine's own `basinParamInfo.txt`. 
+`utils/pre-processing/add_stream_hru.py` appends the stream HRU and writes the one-reach topology:
 
 ```bash
 cd utils/pre-processing
@@ -33,8 +32,14 @@ S=~/Research/Symfluence/SYMFLUENCE_data/domain_Wolverine
 ```
 
 The reach geometry is an estimate, since the domain has no river network: 2 km from the terminus to
-the gauge (357 m), falling 60 m, and 5 m wide, the width mizuRoute's `wscale` gives this basin area.
-The stream HRU takes the forcing and soil of HRU 1, the lowest land HRU.
+the gauge (357 m), falling 60 m, and 5 m wide, the width mizuRoute's `wscale` gives this basin area
+and within the 15–30 ft single-thread channel at the gauge. The stream HRU takes the forcing and soil
+of HRU 1, the lowest land HRU.
+
+`modelDecisions.txt` differs from Gulkana's in one decision, `deepTherml = airTempGW`: the
+groundwater reaching the channel follows the air temperature. With the default, it leaves at the
+temperature of the base of the soil column, near freezing, and the water entering the reach in July
+is 0.07 °C against 1.37 °C at the gauge.
 
 ## Running it
 

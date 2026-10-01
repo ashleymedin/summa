@@ -291,6 +291,7 @@ MODULE data_types
    integer(i4b), allocatable             :: ixHRU(:)                      ! that HRU, within its GRU
    integer(i4b), allocatable             :: ixDOM(:)                      ! the stream domain, within that HRU (0 = none)
    real(rkind), allocatable              :: length(:)                     ! reach length (m)
+   real(rkind), allocatable              :: slope(:)                      ! reach slope, from the routing parameters (-)
    real(rkind), allocatable              :: qUp(:)                        ! discharge entering from upstream reaches (m3 s-1)
    real(rkind), allocatable              :: qLat(:)                       ! lateral inflow from the local catchment (m3 s-1)
    real(rkind), allocatable              :: qOut(:)                       ! discharge leaving the reach (m3 s-1)
@@ -701,6 +702,8 @@ MODULE data_types
    real(rkind), allocatable :: dNrgFlux_dWatBelow(:)             ! intent(out): derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
    real(rkind), allocatable :: mLayerLakeAdvNrgFlux(:)           ! intent(out): advective energy source in each lake layer from reach inflow and outflow (J m-3 s-1)
    real(rkind), allocatable :: dLakeAdvNrgFlux_dTemp(:)          ! intent(out): derivative of the lake advective energy source w.r.t. the layer temperature (J m-3 s-1 K-1)
+   real(rkind), allocatable :: dLakeAdvNrgFlux_dLiq(:)           ! intent(out): derivative of the lake energy source w.r.t. the layer's liquid water at fixed liquid depth (J m-3 s-1)
+   real(rkind), allocatable :: dLakeAdvNrgFlux_dDepth(:)         ! intent(out): derivative of the lake energy source w.r.t. the column liquid depth (J m-4 s-1)
    integer(i4b)             :: err                               ! intent(out): error code
    character(len=len_msg)   :: cmessage                          ! intent(out): error message
   contains
@@ -1481,12 +1484,16 @@ contains
    dNrgFlux_dWatAbove           => deriv_data%var(iLookDERIV%dNrgFlux_dWatAbove)%dat,  & ! intent(out):  [dp(:)] derivatives in the flux w.r.t. water state in the layer above
    dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow)%dat,  & ! intent(out): [dp(:)] derivatives in the flux w.r.t. water state in the layer below
    mLayerLakeAdvNrgFlux         => flux_data%var(iLookFLUX%mLayerLakeAdvNrgFlux)%dat,  & ! intent(out): [dp(:)] advective energy source in each lake layer (J m-3 s-1)
-   dLakeAdvNrgFlux_dTemp        => deriv_data%var(iLookDERIV%dLakeAdvNrgFlux_dTemp)%dat ) ! intent(out): [dp(:)] derivative of the lake advective energy source w.r.t. temperature
+   dLakeAdvNrgFlux_dTemp        => deriv_data%var(iLookDERIV%dLakeAdvNrgFlux_dTemp)%dat,  & ! intent(out): [dp(:)] derivative of the lake advective energy source w.r.t. temperature
+   dLakeAdvNrgFlux_dLiq         => deriv_data%var(iLookDERIV%dLakeAdvNrgFlux_dLiq)%dat,   & ! intent(out): [dp(:)] derivative of the lake energy source w.r.t. liquid water at fixed liquid depth
+   dLakeAdvNrgFlux_dDepth       => deriv_data%var(iLookDERIV%dLakeAdvNrgFlux_dDepth)%dat ) ! intent(out): [dp(:)] derivative of the lake energy source w.r.t. the column liquid depth
    ! intent(out) arguments
    iLayerNrgFlux      =out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux          ! intent(out): energy flux at the layer interfaces (W m-2)
    if(size(mLayerLakeAdvNrgFlux)>0)then
     mLayerLakeAdvNrgFlux =out_snowLakeSoilGlceNrgFlux % mLayerLakeAdvNrgFlux   ! intent(out): advective energy source in each lake layer (J m-3 s-1)
     dLakeAdvNrgFlux_dTemp=out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dTemp  ! intent(out): derivative of the lake advective energy source w.r.t. temperature
+    dLakeAdvNrgFlux_dLiq  =out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dLiq   ! intent(out): derivative of the lake energy source w.r.t. liquid water at fixed liquid depth
+    dLakeAdvNrgFlux_dDepth=out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dDepth ! intent(out): derivative of the lake energy source w.r.t. the column liquid depth
    endif
    dNrgFlux_dTempAbove=out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempAbove    ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
    dNrgFlux_dTempBelow=out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempBelow    ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)

@@ -356,8 +356,29 @@ with a soil water balance error.
 ## `test_calibration_sagehen.sh`
 
 A coupled SUMMA / MODFLOW 6 / mizuRoute calibration on Sagehen Creek, scoring discharge (KGE) and
-stream temperature (`T_reach` RMSE, degC) at USGS 10343500, the outlet of reach 9. NSGA-II scores water
-year 2018 after a water-year-2017 spin-up.
+stream temperature (`T_reach` RMSE, degC) at USGS 10343500, the outlet of reach 9, and the water level
+in a synthetic well (`lowerBoundHead` RMSE, m). NSGA-II scores water year 2018 after a water-year-2017
+spin-up.
+
+Sagehen has no observation well, so the test makes one up. It sits on the lower valley side two cells
+from the channel above the gauge (row 41, column 75, in GRU 7), where the water table is about 10 m
+down and moves 3 m over water year 2018; the valley floor is held at land surface by the drains. Its record is the head there in a
+reference coupled run at the default parameters, written by
+`utils/test/test_mflow/tools/make_sagehen_synthetic_well.py` as a saved USGS daily-values response
+(`sagehen/observations/SYNTHETIC-SAGEHEN-1_daily_values.json`). `acquire_groundwater_level.py --features`
+turns that into the observation file exactly as it would a real well's. The target scores departures
+from the water-year mean, since a well's datum is not the model's; on the `lumped` layout it is GRU 7's
+land HRU, averaged over 103 cells, that is compared against one cell's head.
+
+To remake the record, run the lumped domain once for water years 2017-2018 with the coupler and the
+MODFLOW OC saving `HEAD FREQUENCY 6`, then
+
+```bash
+make_sagehen_synthetic_well.py <run>/sagehen.hds "2016-10-01 00:00" sagehen/observations/SYNTHETIC-SAGEHEN-1_daily_values.json
+../../pre-processing/acquire_groundwater_level.py SYNTHETIC-SAGEHEN-1 2016-10-01 2018-09-30 \
+    sagehen/observations/SYNTHETIC-SAGEHEN-1_daily_level.nc --model-utc-offset 0 --gauge-utc-offset -8 \
+    --features sagehen/observations/SYNTHETIC-SAGEHEN-1_daily_values.json
+```
 
 ```bash
 ./test_calibration_sagehen.sh [lumped|grid] [population] [generations] [n_ranks]   # defaults: lumped, 6, 3, 7
@@ -381,18 +402,19 @@ at USGS 15236900, and the glacier-wide seasonal mass balance (RMSE), on the bund
 domain: three glacier land HRUs and a stream HRU for the one reach. It spins up over 2016 and scores
 2017–2019, over `frozenPrecipMultip`, `tempCritRain`, `albedoMax`, `glacierWindFactor`,
 `glacierTempReduction`, the three glacier storage constants `glacStor_kIce`, `glacStor_kSnow` and
-`glacStor_kFirn`, and `streamWidthMultip`, searched on a log scale.
+`glacStor_kFirn`, and `C_ATGW`, which sets the temperature of the groundwater reaching the channel
+under `deepTherml = airTempGW`.
 
 ```bash
 ./test_calibration_wolverine.sh [population] [generations] [n_ranks]   # defaults: 8, 4, 5
 ```
 
 It needs `bin/summa_sundials_mizuroute_opt.exe`. At the defaults it takes about 9 minutes, and every
-trial runs. The front runs from KGE 0.87 at 1.21 degC and 549 mm, through KGE 0.80 at 1.07 degC and
-403 mm, to KGE 0.57 at 1.01 degC. Glacier runoff enters the reach at freezing, so the water warms only
-in the reach, as much as its surface area allows: `streamWidthMultip` is what moves the temperature,
-and the best temperature fits widen the 5 m reach about elevenfold. `wolverine/README.md` says how the
-domain and observations were built.
+trial runs. The front runs from KGE 0.87 at 1.03 degC and 553 mm, through KGE 0.83 at 0.71 degC and
+501 mm, to KGE 0.71 at 0.62 degC. Glacier runoff enters the reach at freezing; the water warms from
+the groundwater of the unglaciated third of the basin, which `C_ATGW` scales, and from the heat
+friction dissipates down the reach. The reach keeps the 5 m width the gauge's channel has.
+`wolverine/README.md` says how the domain and observations were built.
 
 ## `multi_case_example/` -- multi-case calibration
 

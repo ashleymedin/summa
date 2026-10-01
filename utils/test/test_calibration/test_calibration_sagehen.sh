@@ -1,12 +1,14 @@
 #!/bin/bash
 # ---------------------------------------------------------------------------------------
 # Coupled SUMMA / MODFLOW 6 / mizuRoute calibration on Sagehen Creek, scoring discharge and
-# stream temperature at USGS 10343500.
+# stream temperature at USGS 10343500 and the water level in a synthetic well.
 #
 # The domain is the 9 D8 subcatchments of ex-gwf-sagehen, each with a stream HRU for its reach,
 # built by utils/test/test_mflow/tools/build_sagehen9_calibration.py from the bundled basin-mean
 # forcing (Oct 2016 - Sep 2018) in sagehen/forcing. NSGA-II scores water year 2018 after a
-# water-year-2017 spin-up: discharge KGE and T_reach RMSE (degC) at reach 9, the outlet.
+# water-year-2017 spin-up: discharge KGE and T_reach RMSE (degC) at reach 9, the outlet, and
+# lowerBoundHead RMSE (m) as a departure from its mean at the HRU of the synthetic well, whose
+# record is a reference run's head (make_sagehen_synthetic_well.py).
 #
 #   lumped  one land HRU per GRU (18 HRUs), mapped onto its GRU's cells; the default
 #   grid    one land HRU per MODFLOW cell (3396 HRUs), hours per trial
@@ -29,6 +31,8 @@ N_RANKS=${4:-7}
 N_SAMPLES=$((POPULATION * GENERATIONS))
 WORK="${TEST_DIR}/sagehen_${LAYOUT}_run"
 PYTHON=${PYTHON:-python3}
+# the land HRU holding the synthetic well's cell, row 41 column 75: GRU 7's, or the cell's own
+if [ "${LAYOUT}" = "grid" ]; then WELL_HRU=4175; else WELL_HRU=7; fi
 
 SUMMA_EXE="${SUMMA_ROOT}/bin/summa_modflow6_opt_sundials_mizuroute.exe"
 if [ ! -x "${SUMMA_EXE}" ]; then
@@ -38,7 +42,7 @@ if [ ! -x "${SUMMA_EXE}" ]; then
 fi
 
 echo "======================================================================"
-echo "SUMMA coupled calibration test (Sagehen, discharge + stream temperature)"
+echo "SUMMA coupled calibration test (Sagehen, discharge + stream temperature + well level)"
 echo "======================================================================"
 echo "  executable:  ${SUMMA_EXE}"
 echo "  layout:      ${LAYOUT}"
@@ -53,6 +57,10 @@ echo "Building the ${LAYOUT} domain..."
 "${PYTHON}" "${SUMMA_ROOT}/utils/test/test_mflow/tools/build_sagehen9_calibration.py" \
             "${LAYOUT}" "${DATA}/forcing" "${WORK}/domain" 2>&1 | grep -v -i deprecat
 cp "${WORK}/domain/settings/SUMMA/coldState.nc" "${WORK}/state/"
+# start MODFLOW from heads spun up to a year that ends where it starts (spinup_sagehen9_heads.py)
+if [ "${LAYOUT}" = "lumped" ]; then
+  cp "${DATA}/strt_spunup_lumped.txt" "${WORK}/domain/mf6/strt1.txt"
+fi
 echo
 
 cat > "${WORK}/config.toml" <<EOF
@@ -185,6 +193,20 @@ obs_path  = "${DATA}/observations/"
 obs_file  = "USGS_10343500_daily_temperature.nc"
 vname_obs = "t_obs"
 metric    = "rmse"
+
+
+# water level in the synthetic well, as departures from the water-year means, since its datum is not the model's
+[[calibration.target]]
+
+name           = "well_level"
+variable       = "lowerBoundHead"
+hru            = ${WELL_HRU}
+obs_path       = "${DATA}/observations/"
+obs_file       = "SYNTHETIC-SAGEHEN-1_daily_level.nc"
+vname_obs      = "h_obs"
+metric         = "rmse"
+baseline_start = "2017-10-01"
+baseline_end   = "2018-09-30"
 EOF
 
 echo "Running nsga2..."
@@ -220,20 +242,23 @@ def check(ok, what):
     print(f"  {'ok  ' if ok else 'FAIL'} {what}")
     fail |= not ok
 
-check(obj.shape == (2, pop * ngen), f"objective is 2 targets x {pop * ngen} trials")
-check(sense == ["maximize", "minimize"], "discharge KGE is maximized, temperature RMSE minimized")
+check(obj.shape == (3, pop * ngen), f"objective is 3 targets x {pop * ngen} trials")
+check(sense == ["maximize", "minimize", "minimize"], "discharge KGE is maximized, temperature and well RMSE minimized")
 check(not bool(failed.all()), f"{int((~failed).sum())} of {failed.size} trials ran")
 ran = obj[:, ~failed]
 check(bool(np.all(np.isfinite(ran))), "every objective of a trial that ran is finite")
 # a daily stream temperature within a few degC of a mountain creek's, and the RMSE of a run that moves
 check(bool(np.all((ran[1] > 0.0) & (ran[1] < 10.0))), "temperature RMSE is between 0 and 10 degC")
 check(ran.shape[1] > 1 and bool(np.ptp(ran[1]) > 0.0), "temperature RMSE changes with the parameters")
+# the well's record is the model's own head, so a trial misses it by no more than the water table moves
+check(bool(np.all((ran[2] >= 0.0) & (ran[2] < 5.0))), "well level RMSE is between 0 and 5 m")
 
 front = np.asarray(d["pareto_front"][:]) == 1
 print()
 print(f"  NSGA-II front ({int(front.sum())} trials):")
 for i in np.where(front)[0][np.argsort(-obj[0, front])]:
-    print(f"    sample {i + 1:3d}: KGE {obj[0, i]:7.4f}   T_reach RMSE {obj[1, i]:6.3f} degC")
+    print(f"    sample {i + 1:3d}: KGE {obj[0, i]:7.4f}   T_reach RMSE {obj[1, i]:6.3f} degC"
+          f"   well RMSE {obj[2, i]:6.3f} m")
 print(f"  failed trials (saved in output/failed_trials): {int(failed.sum())}")
 
 sys.exit(1 if fail else 0)

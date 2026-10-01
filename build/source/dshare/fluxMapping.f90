@@ -189,6 +189,7 @@ contains
  flux2state_orig(iLookFLUX%scalarStreamLatInflow)           = flux2state(state1=integerMissing,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarStreamLatInflowTemp)       = flux2state(state1=integerMissing,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarStreamOutflow)             = flux2state(state1=integerMissing,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarStreamFrictionHeat)        = flux2state(state1=integerMissing,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarStreamSfcInflow)           = flux2state(state1=iname_watLake,   state2=iname_watLayer)
  flux2state_orig(iLookFLUX%mLayerLakeAdvNrgFlux)            = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarStreamRunoff)              = flux2state(state1=iname_watLake,   state2=iname_watLayer)

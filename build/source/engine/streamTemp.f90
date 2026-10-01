@@ -47,6 +47,8 @@ USE data_types,only:gru_doubleVec         ! x%gru(:)%var(:)%dat (rkind)
 
 ! physical constants
 USE multiconst,only:Tfreeze               ! freezing point of pure water (K)
+USE multiconst,only:iden_water            ! intrinsic density of liquid water (kg m-3)
+USE multiconst,only:gravity               ! acceleration of gravity (m s-2)
 
 ! named variables
 USE var_lookup,only:iLookTYPE             ! look-up values for classification of veg, soils etc.
@@ -182,6 +184,9 @@ subroutine run_streamNetwork(&
         fluxDOM%var(iLookFLUX%scalarStreamOutflow)%dat(1)       = net%qOut(iSeg)
         diagDOM%var(iLookDIAG%scalarStreamDepth)%dat(1)         = net%depth(iSeg)
         diagDOM%var(iLookDIAG%scalarStreamVelocity)%dat(1)      = net%velocity(iSeg)
+        ! the flow leaving the reach has fallen its length, and friction turns that drop into heat
+        fluxDOM%var(iLookFLUX%scalarStreamFrictionHeat)%dat(1)  = iden_water*gravity*net%qOut(iSeg)*net%slope(iSeg)*net%length(iSeg) &
+                                                                  /progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
       end associate
       computeVegFluxFlag = (computeVegFlux%gru(iGRU)%hru(iHRU) == yes)
       call run_oneHRU(&
