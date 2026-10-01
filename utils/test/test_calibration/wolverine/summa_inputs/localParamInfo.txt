@@ -235,3 +235,4 @@ z0Water                   |       0.0005 |       0.0010 |      10.0000
 z0Ice                     |       0.0010 |       0.0010 |      10.0000
 glacierWindFactor         |       1.0000 |       1.0000 |       3.0000
 glacierTempReduction      |       0.0000 |       0.0000 |       6.5000
+gwTempWindow              |       7.0000 |       2.0000 |      14.0000

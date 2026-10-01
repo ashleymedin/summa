@@ -540,6 +540,7 @@ subroutine eval8summa(&
                     scalarSolution,            & ! intent(in):    flag to indicate the scalar solution
                     checkLWBalance,            & ! intent(in):    flag to check longwave balance
                     scalarSfcMeltPond/dt,      & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
+                    dt,                        & ! intent(in):    length of the whole step the melt pond and glacier excess water drain over (s)
                     ! input: state variables
                     scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
                     scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
@@ -815,6 +816,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   real(rkind)                              :: vGn_m(nSoil)               ! van Genutchen "m" parameter (-)
   real(rkind)                              :: effSat                     ! effective saturation (-)
   real(rkind)                              :: avPore                     ! available pore space (-)
+  real(rkind)                              :: hydExcess                  ! hydrology state above its start-of-step value (-)
   ! indices of model state variables
   integer(i4b)                             :: iState                     ! index of state within a specific variable type
   integer(i4b)                             :: ixNrg,ixLiq                ! index of energy and mass state variables in full state vector
@@ -870,6 +872,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
     vGn_alpha          => mpar_data%var(iLookPARAM%vGn_alpha)%dat              ,& ! intent(in):  [dp(:)]  van Genutchen "alpha" parameter (m-1)
     ! state variables at the start of the time step
     mLayerMatricHead   => prog_data%var(iLookPROG%mLayerMatricHead)%dat        ,& ! intent(in): [dp(:)] matric head (m)
+    mLayerVolFracWat   => prog_data%var(iLookPROG%mLayerVolFracWat)%dat        ,& ! intent(in): [dp(:)] volumetric fraction of total water (-)
+    mLayerVolFracLiq   => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat        ,& ! intent(in): [dp(:)] volumetric fraction of liquid water (-)
     mLayerVolFracIce   => prog_data%var(iLookPROG%mLayerVolFracIce)%dat         & ! intent(in): [dp(:)] volumetric fraction of ice (-)
     ) ! associating variables with indices of model state variables
     ! -----------------------------------------------------------------------------------------------------
@@ -1058,8 +1062,10 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           scalarIce = merge(stateVecPrev(ixSnLaSoGlHyd(iLayer)) - scalarLiq,mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
           ! checking if drain more than what is available or add more than possible, constrained iteration increment -- simplified bi-section
           ! NOTE: the upper bound is the air space 1 - ice - liq, which a lake layer does not have, so it has no upper bound
-          if(-xInc(ixSnLaSoGlHyd(iLayer)) > scalarLiq) then
-            xInc(ixSnLaSoGlHyd(iLayer)) = -0.5_rkind*scalarLiq
+          ! an iterate above its start-of-step water may always fall back to it; only the drain beyond is limited by the liquid
+          hydExcess = max(0._rkind, stateVecPrev(ixSnLaSoGlHyd(iLayer)) - merge(mLayerVolFracWat(iLayer), mLayerVolFracLiq(iLayer), ixHydType(iLayer)==iname_watLayer))
+          if(-xInc(ixSnLaSoGlHyd(iLayer)) > scalarLiq + hydExcess) then
+            xInc(ixSnLaSoGlHyd(iLayer)) = -(hydExcess + 0.5_rkind*scalarLiq)
           elseif(xInc(ixSnLaSoGlHyd(iLayer)) > 1._rkind - scalarIce - scalarLiq .and. .not.(jLayer>nSnow .and. jLayer<=nSnow+nLake))then
             xInc(ixSnLaSoGlHyd(iLayer)) = 0.5_rkind*(1._rkind - scalarIce - scalarLiq)
           endif
