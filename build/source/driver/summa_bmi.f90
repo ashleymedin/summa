@@ -53,6 +53,8 @@ module summabmi
   USE summa_mf6_exchange, only: mf6x_get_aquifer_transpire
   USE summa_mf6_exchange, only: mf6x_put_aquifer_transpire
   USE summa_mf6_exchange, only: mf6x_put_transpire_lim_aqfr
+  USE summa_mf6_exchange, only: mf6x_put_infil_lim_aqfr
+  USE summa_mf6_exchange, only: mf6x_root_zone_depth
   USE summa_mf6_exchange, only: mf6x_get_drainage
   USE summa_mf6_exchange, only: mf6x_put_lower_bound_head
   USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
@@ -197,6 +199,7 @@ module summabmi
      procedure :: get_soil_thickness => summa_soil_thickness  ! non-BMI: per-HRU soil-column depth (m), for the MODFLOW 6 coupler
      procedure :: get_hru_area => summa_hru_area              ! non-BMI: per-HRU plan area (m2), for the MODFLOW 6 coupler
      procedure :: get_root_reach => summa_root_reach          ! non-BMI: per-HRU root reach below the soil column (m)
+     procedure :: get_root_zone_depth => summa_root_zone_depth ! non-BMI: per-HRU depth of the infiltration-closure zone (m)
      procedure :: write_restart_at_end => summa_write_restart_at_end  ! non-BMI: write a restart file on the last step
      procedure :: get_grid_node_count => summa_grid_node_count
      procedure :: get_grid_edge_count => summa_grid_edge_count
@@ -251,9 +254,9 @@ module summabmi
   ! NOTE: the final input item ('soil_water_sat-zone_top__head') is only used by the coupled
   !       MODFLOW 6 driver (summa_modflow6); it is harmless for other drivers, which never set it.
 #ifdef NGEN_ACTIVE
-  integer, parameter :: input_item_count = 14
+  integer, parameter :: input_item_count = 15
 #else
-  integer, parameter :: input_item_count = 13
+  integer, parameter :: input_item_count = 14
 #endif
   integer, parameter :: output_item_count = 20
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
@@ -651,15 +654,17 @@ module summabmi
      ! MODFLOW 6 solution (groundwatr="modflow" or "modLatflow"): aquifer baseflow flux (m s-1) and
      ! relative aquifer storage (m).  (Recharge is not exchanged - it equals the
      ! SUMMA soil drainage, which SUMMA already has.)
-     input_items(input_item_count-4) = 'land_surface_water__baseflow_volume_flux'
-     input_items(input_item_count-3) = 'aquifer_water__storage_thickness'
+     input_items(input_item_count-5) = 'land_surface_water__baseflow_volume_flux'
+     input_items(input_item_count-4) = 'aquifer_water__storage_thickness'
      ! aquifer temperature (K) at the water table, from a MODFLOW 6 GWE model
-     input_items(input_item_count-2) = 'aquifer_water__temperature'
+     input_items(input_item_count-3) = 'aquifer_water__temperature'
      ! groundwater discharge at land surface (m s-1), from a MODFLOW boundary package with
      ! role = surface_discharge (a DRN at DIS/TOP).  Added to SUMMA's surface runoff.
-     input_items(input_item_count-1) = 'land_surface_water__domain_outflow_volume_flux'
+     input_items(input_item_count-2) = 'land_surface_water__domain_outflow_volume_flux'
      ! aquifer transpiration limiting factor (-), evaluated per MODFLOW cell by the coupler
-     input_items(input_item_count)   = 'land_vegetation_water__aquifer_transpiration_limit'
+     input_items(input_item_count-1) = 'land_vegetation_water__aquifer_transpiration_limit'
+     ! aquifer control on the infiltrating area (-), evaluated per MODFLOW cell by the coupler
+     input_items(input_item_count)   = 'soil_surface_water__aquifer_infiltration_limit'
 
      names => input_items
      bmi_status = BMI_SUCCESS
@@ -937,6 +942,17 @@ module summabmi
      bmi_status = BMI_SUCCESS
    end function summa_root_reach
 
+   ! Depth of the zone whose positive pressure closes the infiltrating area (m).  Non-BMI helper: the
+   ! MODFLOW 6 coupler evaluates that closure per cell.
+   function summa_root_zone_depth(this, depth) result (bmi_status)
+     class (summa_bmi), intent(in) :: this
+     double precision, dimension(:), intent(out) :: depth
+     integer :: bmi_status
+
+     call mf6x_root_zone_depth(this%model%summa1_struc(n), depth)
+     bmi_status = BMI_SUCCESS
+   end function summa_root_zone_depth
+
    ! non-BMI: write a restart file on the last step, so a coupled spin-up leaves a SUMMA state to match its aquifer's
    function summa_write_restart_at_end(this) result (bmi_status)
      class (summa_bmi), intent(inout) :: this
@@ -1107,6 +1123,7 @@ module summabmi
      case('soil_bottom_surface__conductive_energy_flux')   ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_vegetation_water__aquifer_transpiration_volume_flux') ; units = 'm s-1' ; bmi_status = BMI_SUCCESS
      case('land_vegetation_water__aquifer_transpiration_limit') ; units = '-'   ; bmi_status = BMI_SUCCESS
+     case('soil_surface_water__aquifer_infiltration_limit')     ; units = '-'   ; bmi_status = BMI_SUCCESS
      case default; units = "-"; bmi_status = BMI_FAILURE
      end select
    end function summa_var_units
@@ -1482,6 +1499,8 @@ module summabmi
        call mf6x_put_aquifer_transpire(this%model%summa1_struc(n), src_arr); return
      case('land_vegetation_water__aquifer_transpiration_limit')  ! cell-wise aquifer transpiration limiting factor
        call mf6x_put_transpire_lim_aqfr(this%model%summa1_struc(n), src_arr); return
+     case('soil_surface_water__aquifer_infiltration_limit')  ! cell-wise aquifer control on the infiltrating area
+       call mf6x_put_infil_lim_aqfr(this%model%summa1_struc(n), src_arr); return
      case('aquifer_water__temperature')             ! water-table temperature from the coupled GWE model
        call mf6x_put_aquifer_temp(this%model%summa1_struc(n), src_arr); return
      end select
