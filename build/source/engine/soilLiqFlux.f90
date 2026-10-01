@@ -1962,6 +1962,9 @@ subroutine qDrainFlux(in_qDrainFlux,io_qDrainFlux,out_qDrainFlux)
   real(rkind)                      :: posDrop                 ! smooth positive part of headDrop (m)
   real(rkind)                      :: dPosDrop                ! derivative of posDrop w.r.t. headDrop (-)
   real(rkind),parameter            :: dropSmooth=1.e-4_rkind  ! smoothing for max(headDrop,0) (m)
+  real(rkind)                      :: upHydCond               ! conductivity for rise across the base (m s-1)
+  real(rkind)                      :: dUp_dMatric             ! derivative of upHydCond w.r.t. node matric head (s-1)
+  real(rkind)                      :: dUp_dTemp               ! derivative of upHydCond w.r.t. node temperature (m s-1 K-1)
   integer(i4b)                     :: bc_lower_use            ! mutable copy of lower boundary-condition index
   ! error control
   logical(lgt)                     :: return_flag             ! flag for return statements
@@ -2076,6 +2079,21 @@ contains
        dq_dHydStateUnsat = bottomHydCond*dPosDrop/pathLength
        dq_dNrgStateUnsat = bottomHydCond*dPosDrop*node_dPsiLiq_dTemp/pathLength
      end if
+   ! a coupled water table at or above the base: drainage at the boundary conductivity, but rise into the column at the
+   ! geometric mean of that and the bottom layer's own, which limits flow into dry soil
+   elseif(ix_groundwatr==modflowCpl .or. ix_groundwatr==modLatflow)then
+     pathLength = nodeDepth*0.5_rkind
+     headDrop   = nodeMatricHeadLiq - lowerBoundHead + pathLength
+     posDrop    = 0.5_rkind*(headDrop + sqrt(headDrop**2_i4b + dropSmooth**2_i4b)) ! smooth positive part (m)
+     dPosDrop   = 0.5_rkind*(1._rkind + headDrop/sqrt(headDrop**2_i4b + dropSmooth**2_i4b))
+     upHydCond  = sqrt(baseHydCond*max(nodeHydCond, tiny(1._rkind)))
+     dUp_dMatric = 0.5_rkind*upHydCond*dHydCond_dMatric/max(nodeHydCond, tiny(1._rkind))
+     dUp_dTemp   = 0.5_rkind*upHydCond*dHydCond_dTemp/max(nodeHydCond, tiny(1._rkind))
+     bottomHydCond     = baseHydCond
+     scalarDrainage    = (baseHydCond*posDrop + upHydCond*(headDrop - posDrop))/pathLength
+     dq_dHydStateUnsat = (baseHydCond*dPosDrop + upHydCond*(1._rkind - dPosDrop) + dUp_dMatric*(headDrop - posDrop))/pathLength
+     dq_dNrgStateUnsat = ((baseHydCond*dPosDrop + upHydCond*(1._rkind - dPosDrop))*node_dPsiLiq_dTemp &
+                       &  + dUp_dTemp*(headDrop - posDrop))/pathLength
    else
      ! compute flux
      bottomHydCond = baseHydCond
