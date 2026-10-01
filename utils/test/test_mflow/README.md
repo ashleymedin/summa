@@ -30,6 +30,10 @@ in `ex-gwf-sagehen`. Both carry a DRN at land surface, returned to SUMMA as surf
 the water table cannot rise above the ground over a spin-up. All of them run the same 72 hourly steps. Each case carries its own
 `summa_modflow6.config`, so they can differ in package names, roles, HRU→cell map and feedback.
 
+Every MODFLOW model starts from the same `strt1.txt`: the heads `tools/spinup_sagehen9_heads.py`
+settles on the lumped calibration domain, a steady state then 20 coupled water years 2017. The
+native `ex-gwf-sagehen` heads sit near land surface, and the uplands drain from them for decades.
+
 The February 2017 cases — `run_sagehen1_wet*.sh` and every `run_sagehen9*.sh` — start the event
 from a spin-up, 2017-01-15 to 2017-02-06, 552 hourly steps with the same decisions, parameters and
 MODFLOW model. The first run of a case makes its spin-up, which takes about twenty minutes for
@@ -65,23 +69,21 @@ its aquifer and there is about 440 mm of snow on the ground.
 
 | mm over 72 h | lumped | distributed | + latflow | lumped, deeproot | distributed, deeproot |
 |---|---:|---:|---:|---:|---:|
-| rain + melt | 141.78 | 141.65 | 141.69 | 142.50 | 141.72 |
-| infiltration | 85.29 | 126.18 | 117.53 | 141.67 | 132.66 |
-| surface runoff | 56.48 | 15.47 | 24.17 | 0.83 | 9.07 |
-| soil drainage (negative: up from the aquifer) | 3.16 | 0.35 | 15.87 | 1.18 | −0.97 |
-| aquifer seepage (DRN) | 1.42 | 1.34 | 18.71 | 1.59 | 0.14 |
-| lateral export to the reaches | – | – | 1.20 | – | – |
-| `basin__TotalRunoff` | 57.95 | 16.84 | 44.08 | 2.45 | 9.23 |
-| `averageRoutedRunoff` | 33.71 | 11.52 | 36.67 | 1.96 | 6.36 |
-| `scalarTranspireLimAqfr` (mean) | – | – | – | 0.537 | 0.547 |
+| rain + melt | 142.62 | 141.91 | 141.92 | 142.62 | 141.91 |
+| infiltration | 117.31 | 132.40 | 127.30 | 116.00 | 136.44 |
+| surface runoff | 25.31 | 9.51 | 14.62 | 26.62 | 5.47 |
+| soil drainage (negative: up from the aquifer) | 0.30 | −1.57 | 2.07 | 0.00 | −2.00 |
+| aquifer seepage (DRN) | 1.39 | 0.55 | 2.14 | 1.65 | 0.68 |
+| lateral export to the reaches | – | – | 1.80 | – | – |
+| `basin__TotalRunoff` | 26.73 | 10.07 | 18.56 | 28.29 | 6.17 |
+| `averageRoutedRunoff` | 21.05 | 6.68 | 13.94 | 23.47 | 4.97 |
+| `scalarTranspireLimAqfr` (mean) | – | – | – | 0.541 | 0.525 |
 
-Drainage is now small, so the runoff differences are structure. On `ex-gwf-sagehen` the lumped
-HRU turns 40% of the rain and melt into surface runoff against 11% distributed:
-`surfRun_SE = homegrown_SE` takes the infiltrating area from how full the root zone is, and one
-HRU with the water table inside its 3 m root zone is saturated everywhere at once, where the
-distributed cells span a range of water-table depths. On `ex-gwf-sagehen-ss` the water table sits
-below the lumped column, which infiltrates almost everything. ET is 1.87 mm in every run, and
-aquifer transpiration is below 10⁻⁴ mm, since February is energy-limited.
+Drainage is small, so the runoff differences are structure. The lumped HRU turns 18% of the rain
+and melt into surface runoff against 7% distributed, on either MODFLOW model. The infiltration
+closure is already evaluated per cell, so what remains is `surfRun_SE = homegrown_SE` taking the
+infiltrating area from how full the root zone is, which the lumped column holds as one state. ET is
+1.87 mm in every run, and aquifer transpiration is below 10⁻⁴ mm, since February is energy-limited.
 
 ## How the coupling works
 

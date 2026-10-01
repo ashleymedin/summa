@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Spin the MODFLOW heads of a calibration Sagehen domain up to a year that ends where it starts.
 
-The bundled strt1.txt puts the water table near land surface, and one spin-up year does not drain it,
-so a calibration scoring the next year sees the aquifer still falling.  Cycling a year does not get
+The native ex-gwf-sagehen heads put the water table near land surface, and one spin-up year does not
+drain them, so a calibration scoring the next year sees the aquifer still falling.  Cycling a year does not get
 there either: the low-conductivity ridges drain over centuries.  So this solves for the heads the mean
 recharge holds up, then settles them with coupled years:
 
@@ -13,7 +13,8 @@ recharge holds up, then settles them with coupled years:
      from the current heads, each year's final heads the next year's start, until a year changes the
      heads little
 
-The result replaces strt1.txt in a domain built by build_sagehen9_calibration.py.
+The result replaces strt1.txt in a domain built by build_sagehen9_calibration.py, and is the strt1.txt
+every ../ex-gwf-sagehen* model carries.
 
 Usage:
     spinup_sagehen9_heads.py <domain dir> <coupler exe> <mf6 exe> <output strt file> [max years]
