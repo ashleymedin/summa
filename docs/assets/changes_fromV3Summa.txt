@@ -342,3 +342,4 @@ AFTER tag of v4.0.0-exp-Sundials
  79) MODFLOW coupling: mf6_top = 'soil_base' puts DIS/TOP at the soil-column base, as in GSFLOW, commit 2ac6318d Oct 1, 2026
 -80) soilLiqFlux.f90 presHead gap below a coupled column base carries drainage only, no capillary rise, commit 05ad3717 Oct 1, 2026
 -81) soilLiqFlux.f90 MODFLOW coupling: infiltration compression closure evaluated per MODFLOW cell, scalarInfilLimAqfr, commit a741b32c Oct 1, 2026
+-82) soilLiqFlux.f90 presHead MODFLOW coupling: rise into the column at the geometric mean of boundary and bottom-layer conductivity, commit c3b02a29 Oct 1, 2026
