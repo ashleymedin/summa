@@ -127,6 +127,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
   real(rkind)                         :: hypFlow                    ! hyporheic return flow (m3 s-1)
   real(rkind)                         :: lakeLiqDepth               ! total liquid depth of the lake layers (m)
   real(rkind)                         :: advScale                   ! rho*Cp/(area*liquid depth): converts m3 s-1 K to J m-3 s-1 of water (J m-6 K-1)
+  real(rkind)                         :: srcPerLiq                  ! energy source per unit volumetric liquid water of a layer (J m-3 s-1)
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! allocate intent(out) data structure components
   nLayers=indx_data%var(iLookINDEX%nLayers)%dat(1)
@@ -137,7 +138,9 @@ subroutine snowLakeSoilGlceNrgFlux(&
     out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatAbove(0:nLayers),                     & ! derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
     out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatBelow(0:nLayers),                     & ! derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
     out_snowLakeSoilGlceNrgFlux % mLayerLakeAdvNrgFlux(indx_data%var(iLookINDEX%nLake)%dat(1)),  & ! advective energy source in each lake layer (J m-3 s-1)
-    out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dTemp(indx_data%var(iLookINDEX%nLake)%dat(1)))   ! derivative of the lake advective energy source w.r.t. temperature (J m-3 s-1 K-1)
+    out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dTemp(indx_data%var(iLookINDEX%nLake)%dat(1)),  & ! derivative of the lake advective energy source w.r.t. temperature (J m-3 s-1 K-1)
+    out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dLiq(indx_data%var(iLookINDEX%nLake)%dat(1)),   & ! derivative of the lake energy source w.r.t. the layer's liquid water at fixed liquid depth (J m-3 s-1)
+    out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dDepth(indx_data%var(iLookINDEX%nLake)%dat(1))) ! derivative of the lake energy source w.r.t. the column liquid depth (J m-4 s-1)
   ! make association of local variables with information in the data structures
   associate(&
     ! input: model control
@@ -163,6 +166,7 @@ subroutine snowLakeSoilGlceNrgFlux(&
     scalarStreamSfcInflow      => flux_data%var(iLookFLUX%scalarStreamSfcInflow)%dat(1),   & ! intent(in):    rain plus melt entering the open water column (m s-1)
     scalarStreamSfcInflowTemp  => diag_data%var(iLookDIAG%scalarStreamSfcInflowTemp)%dat(1),&! intent(in):    temperature of the rain plus melt (K)
     scalarHypTemp              => diag_data%var(iLookDIAG%scalarHypTemp)%dat(1),           & ! intent(in):    temperature of the hyporheic return flow (K)
+    scalarStreamFrictionHeat   => flux_data%var(iLookFLUX%scalarStreamFrictionHeat)%dat(1),& ! intent(in):    heat the reach flow dissipates falling through the reach (W m-2)
     hypFrac                    => mpar_data%var(iLookPARAM%hypFrac)%dat(1),                & ! intent(in):    fraction of the reach flow returned as hyporheic flow (-)
     ! input: derivatives
     dThermalC_dWatAbove        => in_snowLakeSoilGlceNrgFlux % dThermalC_dWatAbove,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -206,6 +210,8 @@ subroutine snowLakeSoilGlceNrgFlux(&
     dFlux_dWatBelow      => out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatBelow,     & ! intent(out): derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
     mLayerLakeAdvNrgFlux => out_snowLakeSoilGlceNrgFlux % mLayerLakeAdvNrgFlux,   & ! intent(out): advective energy source in each lake layer (J m-3 s-1)
     dLakeAdvNrgFlux_dTemp=> out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dTemp,  & ! intent(out): derivative of the lake advective energy source w.r.t. temperature (J m-3 s-1 K-1)
+    dLakeAdvNrgFlux_dLiq => out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dLiq,   & ! intent(out): derivative of the lake energy source w.r.t. the layer's liquid water at fixed liquid depth
+    dLakeAdvNrgFlux_dDepth=> out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dDepth, & ! intent(out): derivative of the lake energy source w.r.t. the column liquid depth
     ! output: error control
     err                  => out_snowLakeSoilGlceNrgFlux % err,                    & ! intent(out): error code
     message              => out_snowLakeSoilGlceNrgFlux % cmessage                & ! intent(out): error message
@@ -306,10 +312,13 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! ***** compute the advective energy source in the lake layers of a stream *****
     ! -------------------------------------------------------------------------------------------------------------------------
     ! a well-mixed column (Wanders et al. 2019, after van Beek et al. 2012), each inflow as theta_i*rho_w*c_p*Q*(T_in - T_i)/(A*h_liq) per unit layer volume
+    ! plus the heat friction dissipates as the flow falls through the reach, spread the same way
     ! the ice cover, the top nLakeFrz lake layers, takes no part
     if(nLake>0)then
-      mLayerLakeAdvNrgFlux(:)  = 0._rkind
-      dLakeAdvNrgFlux_dTemp(:) = 0._rkind
+      mLayerLakeAdvNrgFlux(:)   = 0._rkind
+      dLakeAdvNrgFlux_dTemp(:)  = 0._rkind
+      dLakeAdvNrgFlux_dLiq(:)   = 0._rkind
+      dLakeAdvNrgFlux_dDepth(:) = 0._rkind
       if(domType==stream)then
         ! a fraction of the reach flow returns at the temperature it had hypLag ago (Wade et al. 2024, EMS, eqs. 11-12)
         hypFlow = 0._rkind
@@ -319,13 +328,17 @@ subroutine snowLakeSoilGlceNrgFlux(&
           advScale = Cp_water*iden_water/(DOMarea*lakeLiqDepth)
           do iLayer=nSnow+nLakeFrz+1,nSnow+nLake
             if(iLayer<ixTop .or. iLayer>ixBot) cycle ! scalar solution: only the layer being solved
-            mLayerLakeAdvNrgFlux(iLayer-nSnow) = mLayerVolFracLiqTrial(iLayer)*advScale*( &
-                                                    scalarStreamInflow   *(scalarStreamInflowTemp    - mLayerTempTrial(iLayer)) &
-                                                  + scalarStreamLatInflow*(scalarStreamLatInflowTemp - mLayerTempTrial(iLayer)) &
-                                                  + scalarStreamSfcInflow*DOMarea*(scalarStreamSfcInflowTemp - mLayerTempTrial(iLayer)) &
-                                                  + hypFlow*(scalarHypTemp - mLayerTempTrial(iLayer)) )
-            dLakeAdvNrgFlux_dTemp(iLayer-nSnow) = -mLayerVolFracLiqTrial(iLayer)*advScale*(scalarStreamInflow + scalarStreamLatInflow + scalarStreamSfcInflow*DOMarea &
-                                                                       + hypFlow)
+            srcPerLiq = advScale*( scalarStreamInflow   *(scalarStreamInflowTemp    - mLayerTempTrial(iLayer)) &
+                                 + scalarStreamLatInflow*(scalarStreamLatInflowTemp - mLayerTempTrial(iLayer)) &
+                                 + scalarStreamSfcInflow*DOMarea*(scalarStreamSfcInflowTemp - mLayerTempTrial(iLayer)) &
+                                 + hypFlow*(scalarHypTemp - mLayerTempTrial(iLayer)) ) &
+                      + scalarStreamFrictionHeat/lakeLiqDepth
+            mLayerLakeAdvNrgFlux(iLayer-nSnow)   = mLayerVolFracLiqTrial(iLayer)*srcPerLiq
+            dLakeAdvNrgFlux_dTemp(iLayer-nSnow)  = -mLayerVolFracLiqTrial(iLayer)*advScale*(scalarStreamInflow + scalarStreamLatInflow + scalarStreamSfcInflow*DOMarea &
+                                                   + hypFlow)
+            ! the source also depends on the liquid water, directly and through the liquid depth it is spread over
+            dLakeAdvNrgFlux_dLiq(iLayer-nSnow)   = srcPerLiq
+            dLakeAdvNrgFlux_dDepth(iLayer-nSnow) = -mLayerLakeAdvNrgFlux(iLayer-nSnow)/lakeLiqDepth
           end do
         end if
       end if
