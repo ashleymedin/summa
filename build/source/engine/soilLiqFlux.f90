@@ -1940,6 +1940,9 @@ subroutine qDrainFlux(in_qDrainFlux,io_qDrainFlux,out_qDrainFlux)
   real(rkind)                      :: baseHydCond             ! hydraulic conductivity at the lower boundary head (m s-1)
   real(rkind)                      :: pathLength              ! distance from the lowest node to the water table (m)
   real(rkind)                      :: headDrop                ! total head drop from the lowest node to the water table (m)
+  real(rkind)                      :: posDrop                 ! smooth positive part of headDrop (m)
+  real(rkind)                      :: dPosDrop                ! derivative of posDrop w.r.t. headDrop (-)
+  real(rkind),parameter            :: dropSmooth=1.e-4_rkind  ! smoothing for max(headDrop,0) (m)
   integer(i4b)                     :: bc_lower_use            ! mutable copy of lower boundary-condition index
   ! error control
   logical(lgt)                     :: return_flag             ! flag for return statements
@@ -2036,20 +2039,23 @@ contains
    baseHydCond = hydCond_psi(lowerBoundHead,bottomSatHydCond,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac
 
    ! a coupled water table below the column base: Darcy flux from the node to the water table across a quasi-steady
-   ! unsaturated gap, at the wetter of the boundary and node conductivities, so a deep water table gives free drainage
+   ! unsaturated gap, at the wetter of the boundary and node conductivities, so a deep water table gives free drainage;
+   ! drainage only, as in GSFLOW, since water below the base is the aquifer's and returns only as head above it
    if((ix_groundwatr==modflowCpl .or. ix_groundwatr==modLatflow) .and. lowerBoundHead < 0._rkind)then
      pathLength = nodeDepth*0.5_rkind - lowerBoundHead
      headDrop   = nodeMatricHeadLiq + pathLength
+     posDrop    = 0.5_rkind*(headDrop + sqrt(headDrop**2_i4b + dropSmooth**2_i4b)) ! smooth positive part (m)
+     dPosDrop   = 0.5_rkind*(1._rkind + headDrop/sqrt(headDrop**2_i4b + dropSmooth**2_i4b))
      if(nodeHydCond > baseHydCond)then
        bottomHydCond     = nodeHydCond
-       scalarDrainage    = bottomHydCond*headDrop/pathLength
-       dq_dHydStateUnsat = (dHydCond_dMatric*headDrop + bottomHydCond)/pathLength
-       dq_dNrgStateUnsat = (dHydCond_dTemp*headDrop + bottomHydCond*node_dPsiLiq_dTemp)/pathLength
+       scalarDrainage    = bottomHydCond*posDrop/pathLength
+       dq_dHydStateUnsat = (dHydCond_dMatric*posDrop + bottomHydCond*dPosDrop)/pathLength
+       dq_dNrgStateUnsat = (dHydCond_dTemp*posDrop + bottomHydCond*dPosDrop*node_dPsiLiq_dTemp)/pathLength
      else
        bottomHydCond     = baseHydCond
-       scalarDrainage    = bottomHydCond*headDrop/pathLength
-       dq_dHydStateUnsat = bottomHydCond/pathLength
-       dq_dNrgStateUnsat = bottomHydCond*node_dPsiLiq_dTemp/pathLength
+       scalarDrainage    = bottomHydCond*posDrop/pathLength
+       dq_dHydStateUnsat = bottomHydCond*dPosDrop/pathLength
+       dq_dNrgStateUnsat = bottomHydCond*dPosDrop*node_dPsiLiq_dTemp/pathLength
      end if
    else
      ! compute flux
