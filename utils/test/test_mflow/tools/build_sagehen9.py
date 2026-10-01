@@ -62,7 +62,7 @@ def read_grid():
     def arr(name, dtype=float):
         with open(os.path.join(MF6, name)) as f:
             return np.array(f.read().split(), dtype=dtype).reshape(NROW, NCOL)
-    top = arr("top1.txt")
+    top = arr("land1.txt")  # land surface; DIS/TOP is the soil-column base
     active = arr("idomain1.txt", int) == 1
     return top, active
 

@@ -6,9 +6,7 @@ stream boundary follows the nine mizuRoute reaches cell by cell. The coupler
 returns SFR's aquifer exchange with role = baseflow, as it did CHD's, and SUMMA
 keeps the delivery; SFR's own channel flow is never read back.
 
-DIS/TOP is the base of domain_sagehen9's soil column, land surface less its depth, so
-the coupler runs with mf6_top = 'soil_base' and SUMMA alone holds the soil column, as
-GSFLOW's soil zone sits above its MODFLOW top. The drain stays at land surface.
+DIS/TOP is ex-gwf-sagehen's, the soil-column base; the drain stays at land surface.
 
 Streambed top is RBED_DEPTH below land surface, under the drain, and the bed
 conductivity is the cell's vertical conductivity. Width is mizuRoute's.
@@ -22,7 +20,6 @@ import shutil
 import sys
 
 import numpy as np
-from netCDF4 import Dataset
 
 from build_sagehen9 import (MF6, NCOL, NROW, CELL_AREA, WSCALE, DXY, read_grid, flow_directions,
                             accumulate, build_network)
@@ -31,21 +28,6 @@ RBED_DEPTH = 1.0      # m, streambed top below land surface
 RBED_THK = 0.5        # m
 MANNING = 0.04
 MIN_SLOPE = 1e-4
-COLD_STATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "domain_sagehen9",
-                          "settings", "SUMMA", "coldState.nc")
-
-
-def soil_depth():
-    """The land HRUs' soil-column depth (m), which must be one value for a flat offset."""
-    with Dataset(COLD_STATE) as c:
-        n = np.array(c.variables["nSoil"][:])[:, 0]
-        h = np.array(c.variables["iLayerHeight"][:])[:, :, 0]
-    depth = np.unique(np.round(h[n, np.arange(h.shape[1])], 6))
-    if depth.size != 1:
-        sys.exit(f"soil depth varies over the land HRUs ({depth}); DIS/TOP would need it per cell")
-    return float(depth[0])
-
-
 def main(out_dir):
     top, active = read_grid()
     fill, rec = flow_directions(top, active)
@@ -74,9 +56,6 @@ def main(out_dir):
         shutil.rmtree(out_dir)
     shutil.copytree(MF6, out_dir, ignore=shutil.ignore_patterns(
         "*.chd", "chd1.txt", "*.lst", "*.hds", "*.cbc", ".DS_Store", "mfsim.*.*"))
-
-    zsoil = soil_depth()
-    np.savetxt(os.path.join(out_dir, "top1.txt"), np.where(active, top - zsoil, 0.0), fmt="%9.3f")
 
     with open(os.path.join(out_dir, "sagehen.sfr"), "w") as f:
         f.write("# Streamflow routing in place of CHD, written by tools/build_sagehen_sfr.py.\n")
@@ -108,7 +87,6 @@ def main(out_dir):
         f.write(text)
 
     nout = sum(1 for c in cells if not dn[c])
-    print(f"DIS/TOP lowered {zsoil} m to the soil-column base")
     print(f"{len(cells)} SFR reaches over {len(links)} links, {nout} outlet reach(es) at "
           f"{[(c[0] + 1, c[1] + 1) for c in cells if not dn[c]]}")
 

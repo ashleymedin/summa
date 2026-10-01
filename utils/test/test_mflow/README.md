@@ -273,9 +273,9 @@ of the cells it maps to, because the coupler forms
     lowerBoundHead = h_mf6 - (z_surface_HRU - soil_thickness)
 
 so a mismatch hands the soil column a water table metres above or below it. The coupler
-checks this against `DIS/TOP` at start-up and stops with the offending HRU named, rather
+checks this against `DIS/TOP` plus the column depth at start-up and stops with the offending HRU named, rather
 than letting SUMMA fail to converge for no visible reason.
 
-`DIS/TOP` is land surface by default. With `mf6_top = 'soil_base'` in the config it is the
-base of SUMMA's soil column instead, and the check adds the column depth back; the two
-models then share no pore space (`ex-gwf-sagehen-sfr` and `ex-gwf-sagehen-gwe`).
+`DIS/TOP` must be the base of SUMMA's soil column, as GSFLOW puts its MODFLOW top at the
+soil-zone base, so the two models share no pore space. Every bundled grid has it 4 m below
+the native land surface, which is kept as `land1.txt` for the build tools.
