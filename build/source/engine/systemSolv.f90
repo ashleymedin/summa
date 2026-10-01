@@ -335,7 +335,6 @@ contains
    call allocate_memory; if (return_flag) return 
 
    ! identify the matrix solution method, using the full matrix can be slow in many-layered systems
-   ! a lake takes the full matrix: its reach-flow source couples every liquid lake layer, and the column is short
    ! (the type of matrix used to solve the linear system A.X=B)
    if (local_ixGroundwater==qbaseTopmodel .or. local_ixGroundwater==modLatflow .or. (nGlce>0 .and. nSoil>0) .or. nLake>0 .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
      nLeadDim=nState         ! length of the leading dimension

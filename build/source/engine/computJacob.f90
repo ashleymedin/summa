@@ -759,11 +759,7 @@ subroutine fluxJacAdd(&
       end do ! (looping through snow, lake, glce layers)
     endif ! (if there are state variables for both water and energy in the snow, lake, glce domains)
 
-    ! -----
-    ! * the reach flow's energy source in the liquid lake layers of a stream, through their liquid water...
-    ! ------------------------------------------------------------------------------------------------------
-    ! the source of each layer changes with every liquid layer's water, which changes with its temperature where it freezes
-    ! NOTE: a lake takes the full matrix (systemSolv), since this couples every liquid layer; the band check is a fallback
+    ! - the reach flow's energy source in the liquid lake layers of a stream, through their liquid water...
     if(nLakeOnlyNrg>0)then
       do iLayer=nSnow+nLakeFrz+1,nSnow+nLake
         nrgState = ixSnLaSoGlNrg(iLayer)
