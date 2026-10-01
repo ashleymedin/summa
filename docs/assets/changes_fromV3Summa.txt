@@ -266,8 +266,16 @@ AFTER tag of v4.0.0-exp-Sundials
       ! modflow    ! couple with MODFLOW6 (no aquifer modelled in SUMMA)
       ! modLatflow ! couple with MODFLOW6 but allow lateral flow in soil column (no aquifer modelled in SUMMA)
      modLatflow requires hc_profile = exp_prof and modLatflow and modflow require bcLowrSoiH = presHead. mizuroute can be coupled also.
-     Coupled restart: head_restart_read/head_restart_write save and reload the MODFLOW head field, wired so every calibration sample
-     starts from the aquifer the shared spin-up produced. Start-up checks HRU area against effective mapped cell area, and a coupled water budget is reported per run.
+     Notes on MODFLOW build:
+      1) Coupled restart: head_restart_read/head_restart_write save and reload the MODFLOW head field, wired so every calibration sample
+      starts from the aquifer the shared spin-up produced. Start-up checks HRU area against effective mapped cell area, and a coupled water budget is reported per run.
+      2) &coupler packages: recharge -> rch_package_name (RCHA), transpiration demand -> evt_package_name (EVT),
+      aquifer head/storage/discharge <- bnd_package_names by role (baseflow|surface_discharge|gw_et, CHD by default);
+      with gwe_model_name set, RCH's aux variable carries recharge temperature and esl_package_name (ESL) takes basal
+      conduction (entry 69.6-69.7).
+      3) presHead drains across the gap to a MODFLOW water table below the column, free drainage when deep, commit 1690d05d Sep 30, 2026
+      4) MODFLOW DIS/TOP must be the soil-column base, as in GSFLOW, so the two models share no pore space;
+      modLatflow plays GSFLOW's interflow/cascade role on top of it, commits 2ac6318d, 535ead00 Oct 1, 2026
  64) Domain-parallel MPI: GRUs distributed across ranks, PR #631 -DUSE_MPI=ON 
      Builds a second executable (summa[_sundials]_mpi.exe); each rank reads/writes only its own GRUs.
      Also, later, added summa_modflow6_mpi coupler executable (-DUSE_MODFLOW6=ON -DUSE_MPI=ON), Sep 16, 2026
@@ -278,23 +286,13 @@ AFTER tag of v4.0.0-exp-Sundials
      New build/source/objfunc/ computes streamflow metrics (kge, kgep, nse, mae, rmse) against observations. Parameters can be overridden via --param <name> <value>. 
      Simulation lifecycle refactored into summa_simulation (reusable in-process); executable names now record build options so variant builds can share bin/.
  67) Automatic parameter calibration, PR #639
-     New build/source/calibration/ (DDS sampling, parameter search, NetCDF output) and driver summa_driver_opt.f90. Two-level MPI: domain parallelism plus instance parallelism across calibration trials, scheduled dynamically. 
+     New build/source/calibration/ (DDS sampling, parameter search, NetCDF output) and driver summa_driver_opt.f90. 
+     Two-level MPI: domain parallelism plus instance parallelism across calibration trials, scheduled dynamically. 
      Multi-case runs via a --manifest file. Config moves to TOML (legacy -m/--control still accepted). parallel-utils submodule vendored into build/source/parallel/.
      Targets read NetCDF observation and may name the gru, hru or reach they score, commit 69e29caa Sep 28, 2026
      DDS (single target) or NSGA-II (multiple target) calibration, share one worker pool, commit cc30ba75 Sep 28, 2026
      Calibration ordered chains can be searched by their gaps (sample_gaps = true), always in order and in bounds, commit aee97bff Sep 29, 2026
      Calibration keeps going past a failed physics trial, ranks it last and saves it to failed_trials/ with a serial rerun.sh, commit 66fdb1ef Sep 28, 2026
-     Glacier balance targets (balance = seasonal|annual) score change between simulated extremes; new basin__GlacierMassChange, commits 45a6637f, 769464dc Sep 30, 2026
-     Streamflow out of a GRU is averageRoutedRunoff times its area when mizuRoute is off; bundled gulkana demo, commit 45a6637f Sep 29, 2026
-     Targets may score routed stream temperature (variable = "T_reach", degC) at a named reach with stream HRUs, commit 926b7d26 Sep 30, 2026
-     Bundled Sagehen coupled MODFLOW calibration test, discharge and stream temperature at USGS 10343500, commit d514a11e Sep 30, 2026
-     Bundled Wolverine routed glacier calibration test, discharge, stream temperature and seasonal balance at USGS 15236900, commit 650d9b91 Sep 30, 2026
-     Wolverine trial glacier storage constants given in seconds, were hours, commits af52263e, 822a2453 Sep 30, 2026
-     Wolverine calibration test searches eight glacier parameters, commit fbf7a397 Sep 30, 2026
-     Wolverine calibration test also searches streamWidthMultip, commit 06e071c3 Sep 30, 2026
-     Wolverine groundwater follows the air temperature (airTempGW), test calibrates C_ATGW in place of streamWidthMultip, commit fa30bced Oct 1, 2026
-     A trial that leaves a target's observations nothing to pair with fails rather than stopping the calibration, commit 37291b53 Sep 30, 2026
-     acquire_groundwater_level.py writes a USGS well's water level (m, positive up) as an observation file, commit e9644deb Sep 30, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits d632b36a to de2ae997 Sep 21, 2026
      A GRU may hold one stream HRU: its reach's water column (lake layers over soil/aquifer, linked via streamSegId). mizuRoute returns reach discharge, 
       volume and lateral inflow; new streamTemp.f90 solves the column energy balance upstream to downstream each step, advecting heat from upstream 
@@ -305,7 +303,7 @@ AFTER tag of v4.0.0-exp-Sundials
       cover is debited like evaporation. The routing sees the ice through the Manning n of the reach, set before each routing step as the composite 
       of bed and ice underside weighted by wetted perimeter (Wanders eqs 12-13, Nezhikovskiy ice roughness), floodplain term of eq 11 stubbed in, inert.
      New outputs T_reach, v_reach, n_reach, ice_reach, scalarStreamTemp, scalarLakeIceThick, averageRoutedRunoffTemp, scalarStream* fluxes;
-      new parameters streamMinDepth, lakeMixingThermalC, lakeIceMinThick; new restart variables routingNrgFuture, nLakeFrz.
+      new parameters streamMinDepth, lakeMixingThermalC, lakeIceMinThick, streamWidthMultip; new restart variables routingNrgFuture, nLakeFrz.
      New basin parameter streamWidthMultip scales a stream domain's reach width and area together, 0.5-3, commits dfbf9300, 2dd50ad8 Oct 1, 2026
      Stream column gains the heat friction dissipates down the reach, new flux scalarStreamFrictionHeat, commit d1cbc263 Oct 1, 2026
  69) Allow baseflow to have a temperature, various commits Sept 24-26 2026
@@ -339,9 +337,3 @@ AFTER tag of v4.0.0-exp-Sundials
 -76) Fix scalarFrozenArea-- the commented out Gamma frozen fraction of the root zone, not zero, and fixed derivatives commit 6bda206f Sep 26, 2026
 -77) computFlux.f90 calls groundwatr for modLatflow, not qTopmodl alone, commit 0e8947fd Sep 26, 2026
      Lateral flow was gated out of the flux call, so mLayerColumnOutflow was identically zero in every coupled run.
--78) soilLiqFlux.f90 presHead drains across the gap to a MODFLOW water table below the column, free drainage when deep, commit 1690d05d Sep 30, 2026
-     
- 79) MODFLOW coupling: mf6_top = 'soil_base' puts DIS/TOP at the soil-column base, as in GSFLOW, commit 2ac6318d Oct 1, 2026
--80) soilLiqFlux.f90 presHead gap below a coupled column base carries drainage only, no capillary rise, commit 05ad3717 Oct 1, 2026
--81) soilLiqFlux.f90 MODFLOW coupling: infiltration compression closure evaluated per MODFLOW cell, scalarInfilLimAqfr, commit a741b32c Oct 1, 2026
--82) soilLiqFlux.f90 presHead MODFLOW coupling: rise into the column at the geometric mean of boundary and bottom-layer conductivity, commit c3b02a29 Oct 1, 2026
