@@ -120,12 +120,12 @@ What to check, over the 72 steps:
 
 - `upArea` of reach 9 is 27434700 m2, the grid's active area, and each junction reach
   is the sum of its tributaries.
-- the network conserves water. 1003604.1 m3 enters as lateral inflow,
-  1001554.9 m3 leaves reach 9, and the 2049.2 m3 difference (0.20%) is still in the
+- the network conserves water. 383372.7 m3 enters as lateral inflow,
+  382174.7 m3 leaves reach 9, and the 1198.0 m3 difference (0.31%) is still in the
   reaches at the end.
 - `Q_reach` tracks `averageRoutedRunoff`, not `basin__TotalRunoff`: the latter is
   ahead of SUMMA's own time-delay histogram (`subRouting = timeDlay`), which holds
-  back about a sixth of the storm over a run this short.
+  back about a quarter of the storm over a run this short.
 - the coupled budget is the unrouted run's. MODFLOW receives
   56786.77 m3, as `run1_latflow` does, since nothing the routing
   does reaches the soil column.
