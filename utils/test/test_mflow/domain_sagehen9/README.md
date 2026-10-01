@@ -144,6 +144,12 @@ aquifer is not represented, so that water is simply dropped.
 `tools/build_sagehen_sfr.py`, has one reach per D8 channel cell of the nine links. SFR's
 aquifer exchange comes back as `baseflow`, exactly as CHD's did.
 
+Its `DIS/TOP` is the base of the 4 m soil column, not land surface, and its configs set
+`mf6_top = 'soil_base'`, as GSFLOW puts its MODFLOW top at the soil-zone base. SUMMA alone
+then holds the soil column: head above the top reaches it as groundwater discharge across
+the column base, and the column's saturated water moves sideways by `modLatflow` only. The
+drain and the streambeds stay at their land-surface elevations, above the top.
+
 `run_sagehen9_gwe.sh` adds a GWE model on the same grid: `ex-gwf-sagehen-gwe`, written by
 `tools/build_sagehen_gwe.py`, with advection, conduction, energy storage, SFE along the
 reaches, and recharge carrying SUMMA's drainage temperature through RCH's `TEMPERATURE`

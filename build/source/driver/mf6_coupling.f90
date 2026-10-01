@@ -45,7 +45,11 @@ module mf6_coupling
   !     map_file           = ''        ! HRU->cell weights; blank builds a nearest-cell map
   !     mf6_epsg           = 0         ! WGS84 UTM code for reprojecting HRU lon/lat; 0 = none
   !     feedback           = .true.    ! .false. => one-way (SUMMA drainage -> MODFLOW only)
+  !     mf6_top            = 'land_surface' ! what DIS/TOP is: land_surface, or soil_base (GSFLOW)
   !   /
+  !
+  ! With mf6_top = 'soil_base' the model's top is the base of SUMMA's soil column, so the two models
+  ! share no pore space: SUMMA owns the saturated zone within the column and MODFLOW everything below.
   !
   ! Roles are summed when several packages share one, and are how SUMMA consumes a returned flux:
   ! baseflow reaches routing, surface_discharge is added to surface runoff, gw_et is groundwater
@@ -183,6 +187,7 @@ module mf6_coupling
     character(len=1024) :: head_restart_read  = ''    ! read the initial head field from here, overriding IC/STRT
     character(len=1024) :: head_restart_write = ''    ! write the final head field here, for a later restart
     integer             :: mf6_epsg           = 0
+    logical             :: top_is_soil_base   = .false.  ! DIS/TOP is the soil-column base, not land surface
     character(len=1024) :: run_dir            = '.'      ! directory holding mfsim.nam ('.' = process cwd)
     character(len=1024) :: saved_dir          = ''       ! cwd to return to, while inside run_dir
 
@@ -230,7 +235,7 @@ module mf6_coupling
     integer(c_int), pointer :: mf6_nodered(:) => null()   ! DIS full->reduced node map <MODEL>/DIS/NODEREDUCED (present only when the grid is reduced)
     real(c_double), pointer :: mf6_sy(:) => null()        ! STO specific yield      <MODEL>/STO/SY  (REDUCED nodes)
     real(c_double), pointer :: mf6_evt(:) => null()       ! EVT max rate array      <MODEL>/<EVT>/RATE (user cells, READASARRAYS)
-    real(c_double), pointer :: mf6_top(:) => null()       ! DIS land surface        <MODEL>/DIS/TOP (REDUCED nodes)
+    real(c_double), pointer :: mf6_top(:) => null()       ! DIS top, per mf6_top    <MODEL>/DIS/TOP (REDUCED nodes)
     real(c_double), pointer :: mf6_temp(:) => null()      ! GWE temperature         <GWE>/X (degC, REDUCED nodes, then SFE reaches)
     real(c_double), pointer :: mf6_rch_temp(:) => null()  ! RCH recharge temperature __INPUT__/<MODEL>/<RCH>/AUXVAR (degC, user cells)
     real(c_double), pointer :: mf6_esl_rate(:) => null()  ! ESL energy loading      __INPUT__/<GWE>/<ESL>/SENERRATE (W, per list row)
@@ -288,6 +293,7 @@ module mf6_coupling
     procedure, private :: scatter_nrg_to_esl    => mf6_scatter_nrg_to_esl
     procedure, private :: nearest_hru           => mf6_nearest_hru
     procedure, private :: top_active_node       => mf6_top_active_node
+    procedure, private :: soil_base             => mf6_soil_base
     procedure, private :: to_reduced            => mf6_to_reduced
   end type mf6_coupler_type
 
@@ -753,11 +759,12 @@ contains
     character(len=1024):: head_restart_read, head_restart_write
     character(len=256) :: bnd_package_names(MAXBND)
     character(len=32)  :: bnd_package_roles(MAXBND)
+    character(len=32)  :: mf6_top
     integer            :: mf6_epsg
     logical            :: feedback
     namelist /coupler/ mf6_model_name, rch_package_name, bflow_package_name, evt_package_name, &
                        bnd_package_names, bnd_package_roles, map_file, mf6_epsg, feedback, &
-                       head_restart_read, head_restart_write, gwe_model_name, esl_package_name
+                       head_restart_read, head_restart_write, gwe_model_name, esl_package_name, mf6_top
 
     err = 0; message = ''
 
@@ -775,6 +782,7 @@ contains
     map_file           = ''
     mf6_epsg           = 0
     feedback           = .true.
+    mf6_top            = 'land_surface'
 
     open(action='read', file=trim(config_file), iostat=rc, newunit=fu)
     if (rc /= 0) then
@@ -800,6 +808,16 @@ contains
     this%map_file           = map_file
     this%mf6_epsg           = mf6_epsg
     this%feedback           = feedback
+
+    call to_lower(mf6_top)
+    select case (trim(mf6_top))
+      case ('land_surface'); this%top_is_soil_base = .false.
+      case ('soil_base');    this%top_is_soil_base = .true.
+      case default
+        message = 'unknown mf6_top "'//trim(mf6_top)//'" in '//trim(config_file)// &
+                  ' - expected land_surface or soil_base'
+        err = 20; return
+    end select
 
     call to_upper(this%mf6_model_name)
     call to_upper(this%rch_package_name)
@@ -1032,8 +1050,8 @@ contains
         node = this%top_active_node(c)
         if (node < 1 .or. node > size(this%mf6_head)) cycle
         if (node > size(this%mf6_top)) cycle
-        ! psi at the base of SUMMA's soil column, using THIS cell's land surface
-        psi = this%mf6_head(node) - (this%mf6_top(node) - real(this%soil_thk(i), c_double))
+        ! psi at the base of SUMMA's soil column, using THIS cell's top
+        psi = this%mf6_head(node) - this%soil_base(node, i)
         fac = 1.0_c_double + psi/reach
         if (fac < 0.0_c_double) fac = 0.0_c_double
         if (fac > 1.0_c_double) fac = 1.0_c_double
@@ -1204,6 +1222,15 @@ contains
     end do
   end function mf6_top_active_node
 
+  ! Elevation of HRU i's soil-column base over reduced node (m): DIS/TOP itself under mf6_top = 'soil_base',
+  ! else DIS/TOP less the column depth.
+  real(c_double) function mf6_soil_base(this, node, i) result(zbase)
+    class(mf6_coupler_type), intent(in) :: this
+    integer,                 intent(in) :: node, i
+    zbase = this%mf6_top(node)
+    if (.not. this%top_is_soil_base) zbase = zbase - real(this%soil_thk(i), c_double)
+  end function mf6_soil_base
+
   ! full (user) node number -> reduced (solution) node number; <= 0 if the cell is
   ! inactive.  Identity when IDOMAIN removes no cells (grid not reduced).
   integer function mf6_to_reduced(this, nfull) result(nred)
@@ -1337,10 +1364,11 @@ contains
     end if
   end subroutine mf6_check_model
 
-  ! Each HRU's SUMMA elevation must be the land surface of the MODFLOW cells it maps to, because
+  ! Each HRU's soil-column base must be that of the MODFLOW cells it maps to, because
   ! gather_head_to_hru forms  lowerBoundHead = h_mf6 - (z_surface_HRU - soil_thickness).  If the two
   ! disagree the soil column is handed a water table that is metres above or below it, and SUMMA
   ! fails to converge with no indication of why, so check it up front rather than leave it to chance.
+  ! The comparison is made at land surface, a cell's being its soil base plus the column depth.
   subroutine mf6_check_hru_elevation(this, err, message)
     class(mf6_coupler_type), intent(inout) :: this
     integer,                 intent(out)   :: err
@@ -1363,7 +1391,7 @@ contains
         c = this%map_cell(k)
         node = this%top_active_node(c)       ! DIS/TOP is in reduced node numbering, as DIS/X is
         if (node < 1 .or. node > size(this%mf6_top)) cycle
-        zsum = zsum + real(this%map_wgt(k), c_double) * this%mf6_top(node)
+        zsum = zsum + real(this%map_wgt(k), c_double) * (this%soil_base(node, i) + real(this%soil_thk(i), c_double))
         wsum = wsum + real(this%map_wgt(k), c_double)
       end do
       if (wsum <= 0.0_c_double) cycle
@@ -1387,7 +1415,7 @@ contains
     ! Report the offset even when it passes, because it is a SYSTEMATIC bias in psi rather than
     ! noise: every HRU's water table is shifted by it, in the same direction, for the whole run.
     if (i_worst > 0 .and. abs(dz_worst) > 0.25d0) &
-      write(*,'(a,f0.2,a,i0,a)') 'summa_modflow6: NOTE - largest HRU elevation offset from mean DIS TOP is ', &
+      write(*,'(a,f0.2,a,i0,a)') 'summa_modflow6: NOTE - largest HRU elevation offset from mean cell land surface is ', &
         dz_worst, ' m (HRU ', i_worst, '); this shifts the water table SUMMA sees by that amount'
   end subroutine mf6_check_hru_elevation
 
