@@ -684,6 +684,7 @@ contains
   case('scalarActiveLayerDepth'         ); get_ixDiag = iLookDIAG%scalarActiveLayerDepth           ! thickness of the soil above the perennially frozen ground below it (m)
   ! hyporheic exchange
   case('scalarHypTemp'                  ); get_ixDiag = iLookDIAG%scalarHypTemp                    ! temperature of the hyporheic return flow (K)
+  case('scalarInfilLimAqfr'             ); get_ixDiag = iLookDIAG%scalarInfilLimAqfr               ! aquifer control on the infiltrating area (-)
   case('scalarLakeLiqDepth'             ); get_ixDiag = iLookDIAG%scalarLakeLiqDepth               ! total liquid depth of the lake layers (m)
   case('scalarLakeIceThick'             ); get_ixDiag = iLookDIAG%scalarLakeIceThick               ! thickness of the ice cover of the lake layers (m)
   case('scalarStreamSfcInflowTemp'      ); get_ixDiag = iLookDIAG%scalarStreamSfcInflowTemp        ! temperature of the rain plus melt entering the open water column (K)

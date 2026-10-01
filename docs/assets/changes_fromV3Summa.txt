@@ -340,4 +340,9 @@ AFTER tag of v4.0.0-exp-Sundials
 -76) Fix scalarFrozenArea-- the commented out Gamma frozen fraction of the root zone, not zero, and fixed derivatives commit 6bda206f Sep 26, 2026
 -77) computFlux.f90 calls groundwatr for modLatflow, not qTopmodl alone, commit 0e8947fd Sep 26, 2026
      Lateral flow was gated out of the flux call, so mLayerColumnOutflow was identically zero in every coupled run.
+-78) soilLiqFlux.f90 presHead drains across the gap to a MODFLOW water table below the column, free drainage when deep, commit 1690d05d Sep 30, 2026
      
+ 79) MODFLOW coupling: mf6_top = 'soil_base' puts DIS/TOP at the soil-column base, as in GSFLOW, commit 2ac6318d Oct 1, 2026
+-80) soilLiqFlux.f90 presHead gap below a coupled column base carries drainage only, no capillary rise, commit 05ad3717 Oct 1, 2026
+-81) soilLiqFlux.f90 MODFLOW coupling: infiltration compression closure evaluated per MODFLOW cell, scalarInfilLimAqfr, commit a741b32c Oct 1, 2026
+-82) soilLiqFlux.f90 presHead MODFLOW coupling: rise into the column at the geometric mean of boundary and bottom-layer conductivity, commit c3b02a29 Oct 1, 2026

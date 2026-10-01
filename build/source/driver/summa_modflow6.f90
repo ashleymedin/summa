@@ -53,6 +53,7 @@ program summa_modflow6
   !     mfSurfaceDischarge      role=surface_discharge outflow, added to SUMMA's surface runoff
   !     scalarAquiferTranspire  role=gw_et extraction, against the demand SUMMA sent
   !     scalarTranspireLimAqfr  aquifer transpiration limiting factor, evaluated per MODFLOW cell
+  !     scalarInfilLimAqfr      aquifer control on the infiltrating area, evaluated per MODFLOW cell
   !     scalarAquiferTemp       GWE temperature at the water table, with deepTherml = aquiferTemp
   ! (scalarAquiferRecharge is not exchanged - SUMMA sets it to its own soil drainage.)
   !
@@ -128,6 +129,7 @@ program summa_modflow6
   real, allocatable      :: gwet_dem_hru(:)  ! per-HRU aquifer transpiration DEMAND from SUMMA (m s-1) -> MODFLOW EVT
   real, allocatable      :: gwet_hru(:)      ! per-HRU groundwater ET actually taken by MODFLOW (m s-1)
   real, allocatable      :: gwet_lim_hru(:)  ! per-HRU aquifer transpiration limiting factor (-), cell-wise mean
+  real, allocatable      :: infil_lim_hru(:) ! per-HRU aquifer control on the infiltrating area (-), cell-wise mean
   real, allocatable      :: stor_hru(:)      ! per-HRU relative aquifer storage (m of water)              -> scalarAquiferStorage
   real, allocatable      :: rtemp_hru(:)     ! per-HRU drainage temperature (K)                           -> GWE recharge temperature
   real, allocatable      :: atemp_hru(:)     ! per-HRU aquifer temperature at the water table (K, <= 0 unknown) -> scalarAquiferTemp
@@ -138,6 +140,7 @@ program summa_modflow6
   double precision, allocatable :: soil_thk(:)   ! per-HRU SUMMA soil-column thickness (m), read from SUMMA
   double precision, allocatable :: hru_area(:)   ! per-HRU plan area (m2), for the area check and coupled budget
   double precision, allocatable :: root_reach(:) ! per-HRU root reach below the soil column (m)
+  double precision, allocatable :: root_zone(:)  ! per-HRU depth of SUMMA's infiltration-closure zone (m)
   integer :: nlay, nrow, ncol
 
   call initialize_coupler
@@ -198,22 +201,25 @@ contains
     ! the coupler either way, and it simply leaves them alone when there is no feedback
     allocate(drain_hru(nHRU), head_hru(nHRU), bflow_hru(nHRU), stor_hru(nHRU), surfdis_hru(nHRU), &
              gwet_dem_hru(nHRU), gwet_hru(nHRU), gwet_lim_hru(nHRU), rtemp_hru(nHRU), atemp_hru(nHRU), &
-             bnrg_hru(nHRU))
+             bnrg_hru(nHRU), infil_lim_hru(nHRU))
     bflow_hru = 0.0; stor_hru = 0.0; surfdis_hru = 0.0; gwet_dem_hru = 0.0; gwet_hru = 0.0; gwet_lim_hru = 0.0
+    infil_lim_hru = 1.0
     rtemp_hru = 0.0; atemp_hru = 0.0; bnrg_hru = 0.0
-    allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU), root_reach(nHRU))
+    allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU), root_reach(nHRU), root_zone(nHRU))
     istat = summa%get_grid_x(0, hru_x)   ! HRU longitude  (deg or projected x, must match MODFLOW grid CRS)
     istat = summa%get_grid_y(0, hru_y)   ! HRU latitude   (deg or projected y)
     istat = summa%get_grid_z(0, hru_z)   ! HRU surface elevation (m)
     istat = summa%get_soil_thickness(soil_thk)  ! SUMMA soil-column depth per HRU (m)
     istat = summa%get_hru_area(hru_area)        ! HRU plan area (m2)
     istat = summa%get_root_reach(root_reach)   ! how far roots reach below the soil column (m)
+    istat = summa%get_root_zone_depth(root_zone) ! depth of the zone whose pressure closes infiltration (m)
     head_hru = 0.0
 
     ! -- start MODFLOW 6 and build the HRU -> cell map (run_dir '.': MODFLOW reads mfsim.nam
     !    from the working directory, as this program has always done) --
     call coupler%init(trim(config_file), '.', nHRU, hru_x, hru_y, hru_z, soil_thk, &
                       numtim, dble(data_step), err, message, hru_area=hru_area, root_reach=root_reach, &
+                      root_zone=root_zone, &
                       restart_read=trim(head_read), restart_write=trim(head_write))
     if (err /= 0) then; write(*,'(a)') 'summa_modflow6: '//trim(message); error stop 1; end if
 
@@ -230,7 +236,7 @@ contains
     ! -- a coupled restart is both halves: the aquifer heads and SUMMA's own state --
     if (coupler%writes_restart) istat = summa%write_restart_at_end()
     atemp_hru = -1.0
-    call coupler%restart_state(head_hru, stor_hru, gwet_lim_hru, atemp_hru)
+    call coupler%restart_state(head_hru, stor_hru, gwet_lim_hru, atemp_hru, infil_lim_hru)
     atemp_known = any(atemp_hru > 0.0)
 
     call coupler%grid_shape(nlay, nrow, ncol)
@@ -251,6 +257,8 @@ contains
         if (coupler%have_gwet)    istat = summa%set_value('land_vegetation_water__aquifer_transpiration_volume_flux', gwet_hru)
         ! the limiting factor the coupler evaluated per cell; soilResist uses it as given
         if (coupler%have_evt)     istat = summa%set_value('land_vegetation_water__aquifer_transpiration_limit', gwet_lim_hru)
+        ! the infiltration closure the coupler evaluated per cell; soilLiqFlux uses it in place of the column's
+        istat = summa%set_value('soil_surface_water__aquifer_infiltration_limit', infil_lim_hru)
       end if
       if (gwe_feedback .and. atemp_known) istat = summa%set_value('aquifer_water__temperature', atemp_hru)
 
@@ -269,7 +277,7 @@ contains
                         drain_hru, head_hru, stor_hru, bflow_hru, err, message, &
                         surfdis_hru=surfdis_hru, gwet_demand_hru=gwet_dem_hru, gwet_hru=gwet_hru, &
                         gwet_lim_hru=gwet_lim_hru, rtemp_hru=rtemp_hru, atemp_hru=atemp_hru, &
-                        bnrg_hru=bnrg_hru)
+                        bnrg_hru=bnrg_hru, infil_lim_hru=infil_lim_hru)
       if (err /= 0) then; write(*,'(a)') 'summa_modflow6: '//trim(message); error stop 1; end if
       atemp_known = coupler%have_gwe .and. coupler%feedback
     end do
