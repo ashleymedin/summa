@@ -37,7 +37,7 @@ RANKS_PER_NODE=192
 RANKS_PER_CASE=$((RANKS_PER_NODE / CASES_PER_NODE))
 WORKERS_PER_CASE=$((RANKS_PER_CASE - 1))
 
-MANIFEST="utils/test/test_calibration/experiments/model_instance_scaling/configs/manifest_c${CASES_PER_NODE}.toml"
+MANIFEST="$HOME/data/century/MM/exp01/settings/manifest_c${CASES_PER_NODE}.toml"
 
 # ----------------------------------------------------------------------
 # Runtime environment
@@ -66,7 +66,7 @@ echo "--------------------------------------------------"
 srun -N "$SLURM_JOB_NUM_NODES" \
      -n "$SLURM_JOB_NUM_NODES" \
      --ntasks-per-node=1 \
-     bash -lc 'source $HOME/models/summa/build/cmake/setup_summa.fir.bash'
+     bash -lc 'source $HOME/models/summa/utils/hpc/fir/setup_summa.century.fir.bash'
 
 # ----------------------------------------------------------------------
 # Run calibration
