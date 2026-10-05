@@ -70,14 +70,14 @@ its aquifer and there is about 440 mm of snow on the ground.
 | mm over 72 h | lumped | distributed | + latflow | lumped, deeproot | distributed, deeproot |
 |---|---:|---:|---:|---:|---:|
 | rain + melt | 142.62 | 141.91 | 141.92 | 142.62 | 141.91 |
-| infiltration | 117.31 | 132.40 | 127.30 | 116.00 | 136.44 |
-| surface runoff | 25.31 | 9.51 | 14.62 | 26.62 | 5.47 |
-| soil drainage (negative: up from the aquifer) | 0.30 | −1.57 | 2.07 | 0.00 | −2.00 |
-| aquifer seepage (DRN) | 1.39 | 0.55 | 2.14 | 1.65 | 0.68 |
-| lateral export to the reaches | – | – | 1.80 | – | – |
-| `basin__TotalRunoff` | 26.73 | 10.07 | 18.56 | 28.29 | 6.17 |
-| `averageRoutedRunoff` | 21.05 | 6.68 | 13.94 | 23.47 | 4.97 |
-| `scalarTranspireLimAqfr` (mean) | – | – | – | 0.541 | 0.525 |
+| infiltration | 117.31 | 132.37 | 127.29 | 116.33 | 136.43 |
+| surface runoff | 25.31 | 9.54 | 14.63 | 26.29 | 5.48 |
+| soil drainage (negative: up from the aquifer) | 0.30 | −1.57 | 2.05 | −0.03 | −2.02 |
+| aquifer seepage (DRN) | 1.39 | 0.55 | 2.13 | 1.64 | 0.67 |
+| lateral export to the reaches | – | – | 1.74 | – | – |
+| `basin__TotalRunoff` | 26.73 | 10.11 | 18.50 | 27.96 | 6.16 |
+| `averageRoutedRunoff` | 21.05 | 6.71 | 13.86 | 23.17 | 4.93 |
+| `scalarTranspireLimAqfr` (mean) | – | – | – | 0.539 | 0.522 |
 
 Drainage is small, so the runoff differences are structure. The lumped HRU turns 18% of the rain
 and melt into surface runoff against 7% distributed, on either MODFLOW model. The infiltration
