@@ -344,4 +344,3 @@ AFTER tag of v4.0.0-exp-Sundials
 -77) computFlux.f90 calls groundwatr for modLatflow, not qTopmodl alone, commit 0e8947fd Sep 26, 2026
      Lateral flow was gated out of the flux call, so mLayerColumnOutflow was identically zero in every coupled run.
 -78) eval8summa.f90 imposeConstraints lets a snow/lake/glacier water iterate fall back to its start-of-step value before the liquid drain limit, commit 0deb361e Oct 1, 2026
--79) computJacob.f90 backward-Euler snow/lake/glacier and canopy energy Jacobian drops the IDA-only dFracLiq/dT latent terms, commit f4c79804 Oct 5, 2026
