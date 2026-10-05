@@ -279,6 +279,7 @@ AFTER tag of v4.0.0-exp-Sundials
       4) MODFLOW DIS/TOP must be the soil-column base, as in GSFLOW, so the two models share no pore space;
       modLatflow plays GSFLOW's interflow/cascade role on top of it, commits 2ac6318d, 535ead00 Oct 1, 2026
       5) The infiltration compression closure is evaluated per MODFLOW cell (scalarInfilLimAqfr), commit a741b32c Oct 1, 2026
+      6) A stream domain's soil base is zero-flux; its bed exchanges through the reach package, commit 23c86cb2 Oct 5, 2026
  64) Domain-parallel MPI: GRUs distributed across ranks, PR #631 -DUSE_MPI=ON 
      Builds a second executable (summa[_sundials]_mpi.exe); each rank reads/writes only its own GRUs.
      Also, later, added summa_modflow6_mpi coupler executable (-DUSE_MODFLOW6=ON -DUSE_MPI=ON), Sep 16, 2026
