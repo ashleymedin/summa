@@ -69,6 +69,7 @@ USE var_lookup,only:iLookBPAR          ! look-up values for basin-average model 
 USE var_lookup,only:iLookBVAR          ! look-up values for basin-average model variables
 USE var_lookup,only:iLookTIME          ! look-up values for model time data
 USE var_lookup,only:iLookPROG          ! look-up values for model prognostic (state) variables
+USE var_lookup,only:iLookINDEX         ! look-up values for model index variables
 USE var_lookup,only:iLookPARAM         ! look-up values for model parameters
 
 ! provide access to model decisions
@@ -154,6 +155,8 @@ subroutine run_oneGRU(&
   USE glacAreaChange_module,only:time_updateGlacArea          ! check if glacier area needs to be updated
   USE glacAreaChange_module,only:glacAreaChange               ! change glacier area with ice flow model
   USE glacAreaChange_module,only:updateGlacDomain             ! change glacier domain area, elevation, layering
+  USE glacAreaChange_module,only:startGlacDomain              ! start a glacier domain that has just gained area
+  USE mDecisions_module,only:enthalpyForm                     ! enthalpy with soil temperature-enthalpy lookup tables
   USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
   ! ----- define dummy variables ------------------------------------------------------------------------------------------
   implicit none
@@ -237,6 +240,10 @@ subroutine run_oneGRU(&
   real(rkind), allocatable            :: iden_soil_mean(:)              ! depth-weighted mean debris density of each glacier domain (kg m-3)
   real(rkind), allocatable            :: theta_sat_mean(:)              ! depth-weighted mean debris porosity of each glacier domain (-)
   real(rkind)                         :: soil_thick                     ! debris (soil) thickness of a debris domain (m)
+  logical(lgt), allocatable           :: newDOM(:,:)                    ! glacier domain that has just gained area, per HRU and domain
+  integer(i4b)                        :: jDOM                           ! domain index
+  integer(i4b)                        :: dnrHRU,dnrDOM                  ! HRU and domain of the donor to a new glacier domain
+  real(rkind)                         :: elevDiff                       ! elevation difference to the closest donor (m)
   real(rkind)                         :: remaining_area                 ! HRU area not taken by glacier or wetland domains (m2)
   real(rkind)                         :: remaining_elev                 ! area-weighted elevation of the remaining area (m m2)
   real(rkind)                         :: remaining_tan_slope            ! area-weighted tan slope of the remaining area (m2)
@@ -751,12 +758,15 @@ subroutine run_oneGRU(&
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
     ! update the glacier domains and their layers in each HRU
+    allocate(newDOM(gruInfo%hruCount, maxval(gruInfo%hruInfo(:)%domCount)))
+    newDOM = .false.
     iglacDOM = 0
     do iHRU=1,gruInfo%hruCount
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
         associate(domInfo => gruInfo%hruInfo(iHRU)%domInfo(iDOM))
           if(domInfo%dom_type/=glacCln1 .and. domInfo%dom_type/=glacCln2 .and. domInfo%dom_type/=glacDbr) cycle
           iglacDOM = iglacDOM + 1
+          newDOM(iHRU,iDOM) = (progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) <= 0._rkind)
           call updateGlacDomain(&
                       ! input
                       iglacDOM,                                  & ! intent(inout): glacier domain index
@@ -781,9 +791,52 @@ subroutine run_oneGRU(&
                       ! error handling
                       err, cmessage)                               ! intent(out):   error control
           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+          newDOM(iHRU,iDOM) = newDOM(iHRU,iDOM) .and. progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) > 0._rkind
         end associate
       enddo ! (looping through domains)
     enddo ! (looping through HRUs)
+
+    ! start each new glacier domain from the closest same-type domain in another HRU, else another glacier domain in its HRU
+    do iHRU=1,gruInfo%hruCount
+      do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
+        if(.not.newDOM(iHRU,iDOM)) cycle
+        dnrHRU = 0; dnrDOM = 0; elevDiff = huge(elevDiff)
+        do jHRU=1,gruInfo%hruCount
+          if(jHRU==iHRU) cycle
+          do jDOM = 1, gruInfo%hruInfo(jHRU)%domCount
+            if(gruInfo%hruInfo(jHRU)%domInfo(jDOM)%dom_type/=gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type) cycle
+            if(newDOM(jHRU,jDOM) .or. progHRU%hru(jHRU)%dom(jDOM)%var(iLookPROG%DOMarea)%dat(1) <= 0._rkind) cycle
+            if(abs(progHRU%hru(jHRU)%dom(jDOM)%var(iLookPROG%DOMelev)%dat(1) - progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)) < elevDiff)then
+              elevDiff = abs(progHRU%hru(jHRU)%dom(jDOM)%var(iLookPROG%DOMelev)%dat(1) - progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1))
+              dnrHRU = jHRU; dnrDOM = jDOM
+            endif
+          enddo
+        enddo
+        if(dnrHRU==0)then
+          do jDOM = 1, gruInfo%hruInfo(iHRU)%domCount
+            if(gruInfo%hruInfo(iHRU)%domInfo(jDOM)%dom_type/=glacCln1 .and. gruInfo%hruInfo(iHRU)%domInfo(jDOM)%dom_type/=glacCln2 &
+               .and. gruInfo%hruInfo(iHRU)%domInfo(jDOM)%dom_type/=glacDbr) cycle
+            if(newDOM(iHRU,jDOM) .or. progHRU%hru(iHRU)%dom(jDOM)%var(iLookPROG%DOMarea)%dat(1) <= 0._rkind) cycle
+            dnrHRU = iHRU; dnrDOM = jDOM; exit
+          enddo
+        endif
+        if(dnrHRU==0) cycle ! no donor, keep the stored state
+        call startGlacDomain(&
+                    model_decisions(iLookDECISIONS%nrgConserv)%iDecision==enthalpyForm, & ! intent(in):    flag to use the lookup table for soil enthalpy
+                    indxHRU%hru(dnrHRU)%dom(dnrDOM),          & ! intent(in):    donor model indices
+                    progHRU%hru(dnrHRU)%dom(dnrDOM),          & ! intent(in):    donor prognostic variables
+                    mparHRU%hru(iHRU)%dom(iDOM),              & ! intent(in):    model parameters
+                    lookupHRU%hru(iHRU)%dom(iDOM),            & ! intent(in):    lookup tables
+                    indxHRU%hru(iHRU)%dom(iDOM),              & ! intent(inout): model indices
+                    progHRU%hru(iHRU)%dom(iDOM),              & ! intent(inout): model prognostic variables
+                    diagHRU%hru(iHRU)%dom(iDOM),              & ! intent(inout): model diagnostic variables
+                    fluxHRU%hru(iHRU)%dom(iDOM),              & ! intent(inout): model fluxes
+                    err, cmessage)                              ! intent(out):   error control
+        if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+        gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSnow = indxHRU%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat(1)
+      enddo
+    enddo
+    deallocate(newDOM)
     deallocate(glac_hru,glac_area,glac_elev,glac_tan_slope,glac_aspect,glac_contourLength,glac_debris_thick, &
                glac_ablFrac,massChange,iden_soil_mean,theta_sat_mean,nclean,ndebris)
   endif ! (if updateGlacArea)
