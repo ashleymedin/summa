@@ -1913,7 +1913,7 @@ subroutine coupled_em(&
         ! save the glacier ice water equivalent change
         scalarGlceWE = scalarGlceWE + balanceGlceWE - balanceGlceWE0
 
-        ! the top glacier layers keep their prescribed depth; restoreGlceLayers restores the count after the step
+        ! the top glacier layers keep their prescribed depth, refilled from below at their own ice and liquid fractions
         if(size(depthGlceTopLayer) == nGlce-noThetaChange)then
           mLayerDepth(nSnow+nLake+nSoil+1:nLayers-noThetaChange) = depthGlceTopLayer
           do jLayer=nSnow+nLake+nSoil+1,nLayers

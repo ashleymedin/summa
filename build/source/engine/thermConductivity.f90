@@ -291,7 +291,7 @@ subroutine thermConductivity(&
                     mLayerTemp,              & ! intent(in):    temperature at the current iteration (K)
                     mLayerMatricHead,        & ! intent(in):    matric head at the current iteration(m)                 
                     mLayerdTheta_dTk,        & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
-                    mLayerdTheta_dPsi,       & ! intent(in):    derivative in volumetric liquid water content w.r.t. liquid matric potential (m-1)
+                    mLayerdTheta_dPsi,       & ! intent(in):    derivative in water content w.r.t. the soil water state (m-1)
                     mLayerFracLiq,           & ! intent(in):    fraction of liquid water (-)
                     ! input/output: derivatives
                     dThermalC_dWatAbove,     & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -321,7 +321,7 @@ subroutine thermConductivity(&
   real(rkind),intent(in)               :: mLayerTemp(:)            ! temperature in each layer at the current iteration (m)
   real(rkind),intent(in)               :: mLayerMatricHead(:)      ! matric head in each layer at the current iteration (m)
   real(rkind),intent(in)               :: mLayerdTheta_dTk(:)      ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-  real(rkind),intent(in)               :: mLayerdTheta_dPsi(:)     ! derivative in volumetric liquid water content w.r.t. liquid matric potential (m-1)
+  real(rkind),intent(in)               :: mLayerdTheta_dPsi(:)     ! derivative in water content w.r.t. the soil water state (m-1)
   real(rkind),intent(in)               :: mLayerFracLiq(:)         ! fraction of liquid water (-)
   ! input/output: derivatives
   real(rkind),intent(inout)            :: dThermalC_dWatAbove(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -574,7 +574,7 @@ subroutine thermConductivity(&
                                    lambda_air   * mLayerVolFracAir(iLayer)         ! air component
           ! compute derivatives
           dThermalC_dWat(iLayer) = lambda_ice*dVolFracIce_dWat + lambda_liq*dVolFracLiq_dWat + lambda_air*(-dVolFracIce_dWat - dVolFracLiq_dWat)
-          dThermalC_dNrg(iLayer) = (lambda_ice - lambda_liq) * dVolFracIce_dTk
+          dThermalC_dNrg(iLayer) = lambda_ice*dVolFracIce_dTk + lambda_liq*dVolFracLiq_dTk + lambda_air*(-dVolFracIce_dTk - dVolFracLiq_dTk)
 
         ! * error check
         case default; err=20; message=trim(message)//'unable to identify type of layer to compute thermal conductivity'; return
