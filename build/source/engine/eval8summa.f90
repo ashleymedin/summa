@@ -408,6 +408,13 @@ subroutine eval8summa(&
                     ! output: error control
                     err,cmessage)                   ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+    ! the enthalpy residual has no product-rule terms in the step changes, which belong to the closed-form residual
+    if(ixNrgConserv/=closedForm)then
+      deriv_data%var(iLookDERIV%mLayerdTemp_dt)%dat       = 0._rkind
+      deriv_data%var(iLookDERIV%mLayerdWat_dt)%dat        = 0._rkind
+      deriv_data%var(iLookDERIV%scalarCanopydTemp_dt)%dat = 0._rkind
+      deriv_data%var(iLookDERIV%scalarCanopydWat_dt)%dat  = 0._rkind
+    endif
 
     if(updateStateCp)then
       ! update heat capacity Cp and its derivatives
@@ -604,13 +611,6 @@ subroutine eval8summa(&
                       dCompress_dPsi,                         & ! intent(inout): derivative in compressibility w.r.t. matric head (m-1)
                       err,cmessage)                             ! intent(out):   error code and error message
       if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-    ! the enthalpy residual has no product-rule terms in the step changes, which belong to the closed-form residual
-    if(ixNrgConserv/=closedForm)then
-      deriv_data%var(iLookDERIV%mLayerdTemp_dt)%dat       = 0._rkind
-      deriv_data%var(iLookDERIV%mLayerdWat_dt)%dat        = 0._rkind
-      deriv_data%var(iLookDERIV%scalarCanopydTemp_dt)%dat = 0._rkind
-      deriv_data%var(iLookDERIV%scalarCanopydWat_dt)%dat  = 0._rkind
-    endif
       ! bedrock at the base of the column holds its water, so it never compresses
       if(nSoilHyd<nSoil)then
         mLayerCompress(nSoilHyd+1:nSoil) = 0._rkind
