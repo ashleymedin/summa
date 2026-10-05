@@ -269,17 +269,18 @@ AFTER tag of v4.0.0-exp-Sundials
      Notes on MODFLOW build:
       1) Coupled restart: head_restart_read/head_restart_write save and reload the MODFLOW head field, wired so every calibration sample
       starts from the aquifer the shared spin-up produced. Start-up checks HRU area against effective mapped cell area, and a coupled water budget is reported per run.
-      2) &coupler packages: recharge -> rch_package_name (RCHA), transpiration demand -> evt_package_name (EVT),
+      2) &coupler packages: recharge -> uzf_package_name (UZF) below the base, rch_package_name (RCHA) at or above it,
+      transpiration demand -> evt_package_name (EVT),
       aquifer head/storage/discharge <- bnd_package_names by role (baseflow|surface_discharge|gw_et, CHD by default);
       with gwe_model_name set, RCH's aux variable carries recharge temperature and esl_package_name (ESL) takes basal
       conduction (entry 69.6-69.7).
-      3) presHead drains across the gap to a MODFLOW water table below the column, free drainage when deep; rise
-      above the base and across the gap at the geometric-mean conductivity, commits 1690d05d Sep 30,
-      05ad3717, c3b02a29 Oct 1, 91e7a0e9 Oct 5, 2026
+      3) presHead rises above the base at the geometric-mean conductivity, and free-drains into UZF with the water
+      table below it, commits 1690d05d Sep 30, c3b02a29 Oct 1, 235a7717 Oct 6, 2026
       4) MODFLOW DIS/TOP must be the soil-column base, as in GSFLOW, so the two models share no pore space;
       modLatflow plays GSFLOW's interflow/cascade role on top of it, commits 2ac6318d, 535ead00 Oct 1, 2026
       5) The infiltration compression closure is evaluated per MODFLOW cell (scalarInfilLimAqfr), commit a741b32c Oct 1, 2026
       6) A stream domain's soil base is zero-flux; its bed exchanges through the reach package, commit 23c86cb2 Oct 5, 2026
+      7) UZF takes the drainage a day at a time; its rejected recharge returns to the column base as scalarAquiferReject, commit 235a7717 Oct 6, 2026
  64) Domain-parallel MPI: GRUs distributed across ranks, PR #631 -DUSE_MPI=ON 
      Builds a second executable (summa[_sundials]_mpi.exe); each rank reads/writes only its own GRUs.
      Also, later, added summa_modflow6_mpi coupler executable (-DUSE_MODFLOW6=ON -DUSE_MPI=ON), Sep 16, 2026
