@@ -71,11 +71,11 @@ see `../README.md`.
 
 Lateral flow runs in every GRU: `mLayerColumnOutflow` is non-zero throughout
 `run1_latflow` and identically zero in `run1_noLatflow`, and the coupled budget
-separates the pair, 56786.765097233583 m3 sent against −43066.448441034074 m3.
+separates the pair, 56141.900204700250 m3 sent against −43028.643713199672 m3.
 The event takes about 3 minutes for the 72 steps once the spin-up exists.
 
 Without mizuRoute the nine stream domains are never solved, so they add nothing to
-`basin__TotalRunoff`: 10.07 mm over the run in `run1_noLatflow`, 18.56 mm in `run1_latflow`.
+`basin__TotalRunoff`: 10.11 mm over the run in `run1_noLatflow`, 18.50 mm in `run1_latflow`.
 
 `run_sagehen9_deeproot.sh` runs the 6 m roots of `run_sagehen1_deeproot.sh` over the
 `ex-gwf-sagehen-ss` EVT model, without lateral flow. With one HRU per cell each HRU's
@@ -120,20 +120,19 @@ What to check, over the 72 steps:
 
 - `upArea` of reach 9 is 27434700 m2, the grid's active area, and each junction reach
   is the sum of its tributaries.
-- the network conserves water. 383372.7 m3 enters as lateral inflow,
-  382174.7 m3 leaves reach 9, and the 1198.0 m3 difference (0.31%) is still in the
+- the network conserves water. 381331.7 m3 enters as lateral inflow,
+  380133.3 m3 leaves reach 9, and the 1198.4 m3 difference (0.31%) is still in the
   reaches at the end.
 - `Q_reach` tracks `averageRoutedRunoff`, not `basin__TotalRunoff`: the latter is
   ahead of SUMMA's own time-delay histogram (`subRouting = timeDlay`), which holds
   back about a quarter of the storm over a run this short.
 - the coupled budget is the unrouted run's. MODFLOW receives
-  56786.77 m3, as `run1_latflow` does, since nothing the routing
+  56141.90 m3, as `run1_latflow` does, since nothing the routing
   does reaches the soil column.
 
-The one difference is the mapping residual, -66.0 m3 (0.12%) against the unrouted
-run's round-off. Routing solves the nine stream columns, and their soil drainage has no
-cell in `hru2cell_map.txt`, which covers the land HRUs alone. Streambed leakage into the
-aquifer is not represented, so that water is simply dropped.
+Routing solves the nine stream columns, which have no cell in `hru2cell_map.txt`. Under
+MODFLOW coupling their soil base is zero-flux, since the bed exchanges with the aquifer
+through the reach boundary package, so the mapping residual stays at round-off.
 
 ## SFR and GWE
 
