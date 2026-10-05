@@ -1913,8 +1913,12 @@ subroutine coupled_em(&
         ! save the glacier ice water equivalent change
         scalarGlceWE = scalarGlceWE + balanceGlceWE - balanceGlceWE0
 
-        ! the top glacier layers keep their prescribed depth; restoreGlceLayers restores the count after the step
+        ! the top glacier layers keep their prescribed depth with ice from below; their liquid keeps its mass
         if(size(depthGlceTopLayer) == nGlce-noThetaChange)then
+          mLayerVolFracLiq(nSnow+nLake+nSoil+1:nLayers-noThetaChange) = mLayerVolFracLiq(nSnow+nLake+nSoil+1:nLayers-noThetaChange) &
+                                                                       * mLayerDepth(nSnow+nLake+nSoil+1:nLayers-noThetaChange)/depthGlceTopLayer
+          prog_data%var(iLookPROG%mLayerVolFracWat)%dat(nSnow+nLake+nSoil+1:nLayers-noThetaChange) = mLayerVolFracLiq(nSnow+nLake+nSoil+1:nLayers-noThetaChange) &
+                                                        + mLayerVolFracIce(nSnow+nLake+nSoil+1:nLayers-noThetaChange)*(iden_ice/iden_water)
           mLayerDepth(nSnow+nLake+nSoil+1:nLayers-noThetaChange) = depthGlceTopLayer
           do jLayer=nSnow+nLake+nSoil+1,nLayers
             iLayerHeight(jLayer) = iLayerHeight(jLayer-1) + mLayerDepth(jLayer)
