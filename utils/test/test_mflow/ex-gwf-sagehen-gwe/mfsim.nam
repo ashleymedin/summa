@@ -1,7 +1,7 @@
 # MODFLOW 6 simulation name file - Sagehen with SFR and GWE, configured for the SUMMA coupler
 #   * GWF model "SAGEHEN" and GWE model "SAGEHEN_GWE" on the same DIS grid
 #   * TDIS in SECONDS, MODFLOW time step = SUMMA forcing data_step (3600 s here)
-#   * RCH package "RCHA" with READASARRAYS and AUXILIARY TEMPERATURE
+#   * RCH package "RCHA" with READASARRAYS and AUXILIARY TEMPERATURE, UZF package "UZF" with UZE
 # Written by tools/build_sagehen_gwe.py.
 BEGIN OPTIONS
 END OPTIONS

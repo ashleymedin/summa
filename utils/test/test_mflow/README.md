@@ -30,6 +30,11 @@ in `ex-gwf-sagehen`. Both carry a DRN at land surface, returned to SUMMA as surf
 the water table cannot rise above the ground over a spin-up. All of them run the same 72 hourly steps. Each case carries its own
 `summa_modflow6.config`, so they can differ in package names, roles, HRU→cell map and feedback.
 
+Every model carries a UZF package below the soil column, one cell per active cell bar the CHD
+outlet, written by `tools/build_sagehen_uzf.py` with the upstream example's parameters and 3
+trailing waves. Its starting water content carries the long-term mean recharge, so the
+unsaturated zone starts in step with the settled heads rather than empty.
+
 Every MODFLOW model starts from the same `strt1.txt`: the heads `tools/spinup_sagehen9_heads.py`
 settles on the lumped calibration domain, a steady state then 20 coupled water years 2017. The
 native `ex-gwf-sagehen` heads sit near land surface, and the uplands drain from them for decades.
@@ -95,14 +100,22 @@ Each SUMMA data step:
 2. SUMMA advances one step.
 3. the drainage out the base of the SUMMA soil column
    (BMI output `soil_water__drainage_volume_flux`, flux `scalarSoilDrainage`)
-   is regridded onto the MODFLOW 6 grid and written into the RCH package `RECHARGE` array,
-   and the aquifer transpiration demand into the EVT package `RATE` array.
+   is regridded onto the MODFLOW 6 grid. Where a cell's water table is below its top, the soil-column
+   base, a positive flux enters the UZF package's infiltration, as GSFLOW's gravity drainage enters
+   UZF1, held a day and then taken at a constant rate over the next so hourly pulses do not each
+   start a UZF wave; elsewhere it enters the RCH package `RECHARGE` array. The aquifer transpiration demand goes
+   into the EVT package `RATE` array.
 4. MODFLOW 6 advances one step (prepare / do / finalize_time_step). Leading steady-state
    stress periods are solved out first, using the RCH package's own recharge rather than
    SUMMA's.
-5. the new head field and each named boundary package's flow are read back and aggregated per
-   HRU, ready for step 1 of the next iteration — so the exchange is **explicit, with a
-   one-step lag**.
+5. the new head field, each named boundary package's flow and UZF's rejected infiltration are read
+   back and aggregated per HRU, ready for step 1 of the next iteration — so the exchange is
+   **explicit, with a one-step lag**. Rejected infiltration returns to the base of the soil column
+   (BMI input `soil_water__rejected_recharge_volume_flux`, `scalarAquiferReject`); SUMMA reports its
+   drainage net of it, and the coupler adds it back before regridding.
+
+Below the soil-column base SUMMA's lower boundary is free drainage into UZF; at or above it, the
+head-dependent `presHead` flux carries water both ways through RCH.
 
 The scatter happens after `prepare_time_step`, not before: `prepare_time_step` reloads a
 package's `PERIOD` block at the start of each stress period, which would overwrite it.
@@ -140,8 +153,8 @@ overwritten by it. Boundary fluxes are not saved, so step 1 of a restarted run c
 baseflow, seepage or groundwater ET back to SUMMA.
 
 Start-up reports each HRU's area against its effective mapped cell area, and the run ends with
-a coupled water budget: what SUMMA sent, what MODFLOW's RCH array received, what came back by
-role, and the residual.
+a coupled water budget: what SUMMA sent, what MODFLOW's UZF and RCH received, what UZF rejected
+back to the soil column, what came back by role, and the residual.
 
 ## SUMMA model decisions
 
@@ -172,10 +185,13 @@ Read from `mfsim.nam` in the working directory, it must:
 * have exactly **one MODFLOW time step per SUMMA forcing data step** — MODFLOW `delt` must
   equal SUMMA's `data_step`, taken from the forcing file attribute and constant for the run;
 * contain an RCH package with `READASARRAYS`;
+* contain a UZF package with one landflag-1 cell per column it covers, and none of `SIMULATE_ET`,
+  `LINEAR_GWET`, `SQUARE_GWET`, `SIMULATE_GWSEEP` or `MOVER` (EVT, SUMMA and the coupler supply those);
+  with a GWE model, a UZE package for it;
 * be a single GWF model discretised with `DIS`.
 
 All of these are checked by the coupler and reported by name if violated — the units, grid and
-RCH checks at start-up, the time-step check on the first step — so you do not have to discover
+RCH and UZF checks at start-up, the time-step check on the first step — so you do not have to discover
 them from a run that merely looks wrong.  Units left undefined in `mfsim.nam` draw a warning
 rather than a stop, since a missing declaration is not proof of the wrong unit.
 
@@ -240,6 +256,8 @@ A Fortran namelist, conventionally `summa_modflow6.config` inside the case direc
     &coupler
       mf6_model_name     = 'MYMODEL' ! GWF model name, as in mfsim.nam (upper case)
       rch_package_name   = 'RCHA'    ! RCH package name, as in the GWF name file (upper case)
+      uzf_package_name   = 'UZF'     ! UZF package below the soil column (upper case)
+      uze_package_name   = ''        ! GWE UZE package, required with gwe_model_name
       bflow_package_name = 'CHD'     ! head-dependent boundary package (CHD/DRN/RIV/GHB) whose
                                      !   simulated flow feeds back per HRU as scalarAquiferBaseflow
                                      !   ('' => skip the baseflow feedback)
