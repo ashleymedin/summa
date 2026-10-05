@@ -234,8 +234,7 @@ subroutine computJacob(&
       if(ixVegNrg/=integerMissing)&
         dMat(ixVegNrg) = scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy &
                          + dVolHtCapBulk_dTkCanopy * scalarCanopydTemp_dt &
-                         + dCm_dTkCanopy * scalarCanopydWat_dt/canopyDepth &
-                         + LH_fus * dFracLiqVeg_dTkCanopy * scalarCanopydWat_dt/canopyDepth
+                         + dCm_dTkCanopy * scalarCanopydWat_dt/canopyDepth
     endif
 
     ! compute terms for the Jacobian for the layer domain (excluding fluxes)
@@ -243,8 +242,7 @@ subroutine computJacob(&
       if(ixSnLaSoGlNrg(iLayer)/=integerMissing)&
           dMat(ixSnLaSoGlNrg(iLayer)) = mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) &
                                         + dVolHtCapBulk_dTk(iLayer) * mLayerdTemp_dt(iLayer) &
-                                        + dCm_dTk(iLayer) * mLayerdWat_dt(iLayer) &
-                                        + LH_fus * iden_water * dFracLiqWat_dTk(iLayer) * mLayerdWat_dt(iLayer)
+                                        + dCm_dTk(iLayer) * mLayerdWat_dt(iLayer)
     end do
 
     ! compute terms for the Jacobian for the soil domain (excluding fluxes)
@@ -290,8 +288,7 @@ subroutine computJacob(&
           ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2
           aJac(ixInd(full,ixVegNrg,ixVegHyd),ixVegHyd) = (-1._rkind + scalarFracLiqVeg)*LH_fus/canopyDepth &
                                                      + dVolHtCapBulk_dCanWat * scalarCanopydTemp_dt + scalarCanopyCm/canopyDepth &
-                                                     - (dt/canopyDepth) * dCanopyNetFlux_dCanWat &
-                                                     + LH_fus * scalarCanopydTemp_dt * dFracLiqVeg_dTkCanopy/canopyDepth
+                                                     - (dt/canopyDepth) * dCanopyNetFlux_dCanWat
     endif  ! if there is a need to compute energy fluxes within vegetation
 
     ! -----
@@ -318,8 +315,7 @@ subroutine computJacob(&
           ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
           aJac(ixInd(full,nrgState,watState),watState) = (-1._rkind + mLayerFracLiq(jLayer))*LH_fus*iden_water  &
                                      + dVolHtCapBulk_dTheta(jLayer) * mLayerdTemp_dt(jLayer) + mLayerCm(jLayer) &
-                                     + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer)) &
-                                     + LH_fus*iden_water * mLayerdTemp_dt(jLayer) * dFracLiqWat_dTk(jLayer)    ! (dF/dLiq)
+                                     + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
         endif ! (if the water state for the current layer is within the state subset)
 
       end do ! (looping through snow, lake, glce layers)
