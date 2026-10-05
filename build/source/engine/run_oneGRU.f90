@@ -243,7 +243,9 @@ subroutine run_oneGRU(&
   logical(lgt), allocatable           :: newDOM(:,:)                    ! glacier domain that has just gained area, per HRU and domain
   integer(i4b)                        :: jDOM                           ! domain index
   integer(i4b)                        :: dnrHRU,dnrDOM                  ! HRU and domain of the donor to a new glacier domain
-  real(rkind)                         :: elevDiff                       ! elevation difference to the closest donor (m)
+  integer(i4b)                        :: dbrHRU,dbrDOM                  ! HRU and domain of the debris donor to a new debris domain
+  real(rkind)                         :: elevDiff,dbrDiff               ! elevation difference to the closest donor and debris donor (m)
+  real(rkind)                         :: dElev                          ! elevation difference to a candidate donor (m)
   real(rkind)                         :: remaining_area                 ! HRU area not taken by glacier or wetland domains (m2)
   real(rkind)                         :: remaining_elev                 ! area-weighted elevation of the remaining area (m m2)
   real(rkind)                         :: remaining_tan_slope            ! area-weighted tan slope of the remaining area (m2)
@@ -796,35 +798,43 @@ subroutine run_oneGRU(&
       enddo ! (looping through domains)
     enddo ! (looping through HRUs)
 
-    ! start each new glacier domain from the closest same-type domain in another HRU, else another glacier domain in its HRU
+    ! start each new glacier domain from the glacier domain closest in elevation, and its debris from the closest debris domain
     do iHRU=1,gruInfo%hruCount
       do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
         if(.not.newDOM(iHRU,iDOM)) cycle
         dnrHRU = 0; dnrDOM = 0; elevDiff = huge(elevDiff)
+        dbrHRU = 0; dbrDOM = 0; dbrDiff = huge(dbrDiff)
         do jHRU=1,gruInfo%hruCount
-          if(jHRU==iHRU) cycle
           do jDOM = 1, gruInfo%hruInfo(jHRU)%domCount
-            if(gruInfo%hruInfo(jHRU)%domInfo(jDOM)%dom_type/=gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type) cycle
-            if(newDOM(jHRU,jDOM) .or. progHRU%hru(jHRU)%dom(jDOM)%var(iLookPROG%DOMarea)%dat(1) <= 0._rkind) cycle
-            if(abs(progHRU%hru(jHRU)%dom(jDOM)%var(iLookPROG%DOMelev)%dat(1) - progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1)) < elevDiff)then
-              elevDiff = abs(progHRU%hru(jHRU)%dom(jDOM)%var(iLookPROG%DOMelev)%dat(1) - progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1))
-              dnrHRU = jHRU; dnrDOM = jDOM
-            endif
+            associate(jType => gruInfo%hruInfo(jHRU)%domInfo(jDOM)%dom_type)
+              if(jType/=glacCln1 .and. jType/=glacCln2 .and. jType/=glacDbr) cycle
+              if(newDOM(jHRU,jDOM) .or. progHRU%hru(jHRU)%dom(jDOM)%var(iLookPROG%DOMarea)%dat(1) <= 0._rkind) cycle
+              dElev = abs(progHRU%hru(jHRU)%dom(jDOM)%var(iLookPROG%DOMelev)%dat(1) - progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMelev)%dat(1))
+              if(dElev < elevDiff)then; elevDiff = dElev; dnrHRU = jHRU; dnrDOM = jDOM; endif
+              if(jType==glacDbr .and. dElev < dbrDiff)then; dbrDiff = dElev; dbrHRU = jHRU; dbrDOM = jDOM; endif
+            end associate
           enddo
         enddo
-        if(dnrHRU==0)then
-          do jDOM = 1, gruInfo%hruInfo(iHRU)%domCount
-            if(gruInfo%hruInfo(iHRU)%domInfo(jDOM)%dom_type/=glacCln1 .and. gruInfo%hruInfo(iHRU)%domInfo(jDOM)%dom_type/=glacCln2 &
-               .and. gruInfo%hruInfo(iHRU)%domInfo(jDOM)%dom_type/=glacDbr) cycle
-            if(newDOM(iHRU,jDOM) .or. progHRU%hru(iHRU)%dom(jDOM)%var(iLookPROG%DOMarea)%dat(1) <= 0._rkind) cycle
-            dnrHRU = iHRU; dnrDOM = jDOM; exit
-          enddo
-        endif
         if(dnrHRU==0) cycle ! no donor, keep the stored state
-        call startGlacDomain(&
+        if(gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type==glacDbr .and. dbrHRU>0)then
+          call startGlacDomain(&
                     model_decisions(iLookDECISIONS%nrgConserv)%iDecision==enthalpyForm, & ! intent(in):    flag to use the lookup table for soil enthalpy
-                    indxHRU%hru(dnrHRU)%dom(dnrDOM),          & ! intent(in):    donor model indices
-                    progHRU%hru(dnrHRU)%dom(dnrDOM),          & ! intent(in):    donor prognostic variables
+                    indxHRU%hru(dnrHRU)%dom(dnrDOM),          & ! intent(in):    snow and ice donor model indices
+                    progHRU%hru(dnrHRU)%dom(dnrDOM),          & ! intent(in):    snow and ice donor prognostic variables
+                    mparHRU%hru(iHRU)%dom(iDOM),              & ! intent(in):    model parameters
+                    lookupHRU%hru(iHRU)%dom(iDOM),            & ! intent(in):    lookup tables
+                    indxHRU%hru(iHRU)%dom(iDOM),              & ! intent(inout): model indices
+                    progHRU%hru(iHRU)%dom(iDOM),              & ! intent(inout): model prognostic variables
+                    diagHRU%hru(iHRU)%dom(iDOM),              & ! intent(inout): model diagnostic variables
+                    fluxHRU%hru(iHRU)%dom(iDOM),              & ! intent(inout): model fluxes
+                    err, cmessage,                            & ! intent(out):   error control
+                    indx_dbr=indxHRU%hru(dbrHRU)%dom(dbrDOM), & ! intent(in):    debris donor model indices
+                    prog_dbr=progHRU%hru(dbrHRU)%dom(dbrDOM))   ! intent(in):    debris donor prognostic variables
+        else
+          call startGlacDomain(&
+                    model_decisions(iLookDECISIONS%nrgConserv)%iDecision==enthalpyForm, & ! intent(in):    flag to use the lookup table for soil enthalpy
+                    indxHRU%hru(dnrHRU)%dom(dnrDOM),          & ! intent(in):    snow and ice donor model indices
+                    progHRU%hru(dnrHRU)%dom(dnrDOM),          & ! intent(in):    snow and ice donor prognostic variables
                     mparHRU%hru(iHRU)%dom(iDOM),              & ! intent(in):    model parameters
                     lookupHRU%hru(iHRU)%dom(iDOM),            & ! intent(in):    lookup tables
                     indxHRU%hru(iHRU)%dom(iDOM),              & ! intent(inout): model indices
@@ -832,6 +842,7 @@ subroutine run_oneGRU(&
                     diagHRU%hru(iHRU)%dom(iDOM),              & ! intent(inout): model diagnostic variables
                     fluxHRU%hru(iHRU)%dom(iDOM),              & ! intent(inout): model fluxes
                     err, cmessage)                              ! intent(out):   error control
+        endif
         if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
         gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nSnow = indxHRU%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat(1)
       enddo
