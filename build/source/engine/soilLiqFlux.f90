@@ -49,6 +49,7 @@ USE multiconst,only:iden_water             ! intrinsic density of water    (kg m
 USE globalData,only:veryBig                ! a very big number
 USE globalData,only:verySmall              ! a small number
 USE globalData,only:verySmaller            ! a smaller number than verySmall
+USE globalData,only:stream                 ! horizontal domain type for a stream reach
 
 ! named variables
 USE var_lookup,only:iLookPROG              ! named variables for structure elements
@@ -548,6 +549,9 @@ contains
   call in_qDrainFlux % initialize(nSoil,nGlce,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,model_decisions,&
                                  &prog_data,mpar_data,flux_data,diag_data,iceImpedeFac,&
                                  &dHydCond_dTemp)
+  ! a coupled stream bed exchanges with MODFLOW through its reach boundary package, not its soil base
+  if (indx_data%var(iLookINDEX%domType)%dat(1)==stream .and. &
+      (in_qDrainFlux % ix_groundwatr==modflowCpl .or. in_qDrainFlux % ix_groundwatr==modLatflow)) in_qDrainFlux % bc_lower = zeroFlux
   call io_qDrainFlux % initialize(io_soilLiqFlux)
  end subroutine initialize_compute_drainage_flux
 
