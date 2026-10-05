@@ -39,7 +39,8 @@ program summa_modflow6
   ! to 5 are mf6_coupling's mf6_step:
   !   1. (feedback) the previous step's MODFLOW state is written into SUMMA
   !   2. SUMMA advances one step
-  !   3. soil drainage is regridded onto the MODFLOW grid and written into the RCH RECHARGE array,
+  !   3. soil drainage is regridded onto the MODFLOW grid and written into UZF below the column, or
+  !      the RCH RECHARGE array where the water table is not below it,
   !      and the aquifer transpiration demand into the EVT RATE array
   !   4. MODFLOW advances one step (prepare/do/finalize_time_step), leading steady-state stress
   !      periods having been solved out first
@@ -54,6 +55,7 @@ program summa_modflow6
   !     scalarAquiferTranspire  role=gw_et extraction, against the demand SUMMA sent
   !     scalarTranspireLimAqfr  aquifer transpiration limiting factor, evaluated per MODFLOW cell
   !     scalarInfilLimAqfr      aquifer control on the infiltrating area, evaluated per MODFLOW cell
+  !     scalarAquiferReject     recharge UZF rejected, returned to the base of the soil column
   !     scalarAquiferTemp       GWE temperature at the water table, with deepTherml = aquiferTemp
   ! (scalarAquiferRecharge is not exchanged - SUMMA sets it to its own soil drainage.)
   !
@@ -130,6 +132,7 @@ program summa_modflow6
   real, allocatable      :: gwet_hru(:)      ! per-HRU groundwater ET actually taken by MODFLOW (m s-1)
   real, allocatable      :: gwet_lim_hru(:)  ! per-HRU aquifer transpiration limiting factor (-), cell-wise mean
   real, allocatable      :: infil_lim_hru(:) ! per-HRU aquifer control on the infiltrating area (-), cell-wise mean
+  real, allocatable      :: rej_hru(:)       ! per-HRU recharge UZF rejected (m s-1, + = into the column) -> scalarAquiferReject
   real, allocatable      :: stor_hru(:)      ! per-HRU relative aquifer storage (m of water)              -> scalarAquiferStorage
   real, allocatable      :: rtemp_hru(:)     ! per-HRU drainage temperature (K)                           -> GWE recharge temperature
   real, allocatable      :: atemp_hru(:)     ! per-HRU aquifer temperature at the water table (K, <= 0 unknown) -> scalarAquiferTemp
@@ -201,9 +204,9 @@ contains
     ! the coupler either way, and it simply leaves them alone when there is no feedback
     allocate(drain_hru(nHRU), head_hru(nHRU), bflow_hru(nHRU), stor_hru(nHRU), surfdis_hru(nHRU), &
              gwet_dem_hru(nHRU), gwet_hru(nHRU), gwet_lim_hru(nHRU), rtemp_hru(nHRU), atemp_hru(nHRU), &
-             bnrg_hru(nHRU), infil_lim_hru(nHRU))
+             bnrg_hru(nHRU), infil_lim_hru(nHRU), rej_hru(nHRU))
     bflow_hru = 0.0; stor_hru = 0.0; surfdis_hru = 0.0; gwet_dem_hru = 0.0; gwet_hru = 0.0; gwet_lim_hru = 0.0
-    infil_lim_hru = 1.0
+    infil_lim_hru = 1.0; rej_hru = 0.0
     rtemp_hru = 0.0; atemp_hru = 0.0; bnrg_hru = 0.0
     allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU), root_reach(nHRU), root_zone(nHRU))
     istat = summa%get_grid_x(0, hru_x)   ! HRU longitude  (deg or projected x, must match MODFLOW grid CRS)
@@ -259,6 +262,8 @@ contains
         if (coupler%have_evt)     istat = summa%set_value('land_vegetation_water__aquifer_transpiration_limit', gwet_lim_hru)
         ! the infiltration closure the coupler evaluated per cell; soilLiqFlux uses it in place of the column's
         istat = summa%set_value('soil_surface_water__aquifer_infiltration_limit', infil_lim_hru)
+        ! the recharge UZF rejected last step, returned to the column base
+        istat = summa%set_value('soil_water__rejected_recharge_volume_flux', rej_hru)
       end if
       if (gwe_feedback .and. atemp_known) istat = summa%set_value('aquifer_water__temperature', atemp_hru)
 
@@ -277,7 +282,7 @@ contains
                         drain_hru, head_hru, stor_hru, bflow_hru, err, message, &
                         surfdis_hru=surfdis_hru, gwet_demand_hru=gwet_dem_hru, gwet_hru=gwet_hru, &
                         gwet_lim_hru=gwet_lim_hru, rtemp_hru=rtemp_hru, atemp_hru=atemp_hru, &
-                        bnrg_hru=bnrg_hru, infil_lim_hru=infil_lim_hru)
+                        bnrg_hru=bnrg_hru, infil_lim_hru=infil_lim_hru, rej_hru=rej_hru)
       if (err /= 0) then; write(*,'(a)') 'summa_modflow6: '//trim(message); error stop 1; end if
       atemp_known = coupler%have_gwe .and. coupler%feedback
     end do
