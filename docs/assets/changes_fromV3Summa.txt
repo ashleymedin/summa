@@ -273,9 +273,9 @@ AFTER tag of v4.0.0-exp-Sundials
       aquifer head/storage/discharge <- bnd_package_names by role (baseflow|surface_discharge|gw_et, CHD by default);
       with gwe_model_name set, RCH's aux variable carries recharge temperature and esl_package_name (ESL) takes basal
       conduction (entry 69.6-69.7).
-      3) presHead drains across the gap to a MODFLOW water table below the column, free drainage when deep, drainage
-      only (no capillary rise); rise above the base at the geometric-mean conductivity, commits 1690d05d Sep 30,
-      05ad3717, c3b02a29 Oct 1, 2026
+      3) presHead drains across the gap to a MODFLOW water table below the column, free drainage when deep; rise
+      above the base and across the gap at the geometric-mean conductivity, commits 1690d05d Sep 30,
+      05ad3717, c3b02a29 Oct 1, 91e7a0e9 Oct 5, 2026
       4) MODFLOW DIS/TOP must be the soil-column base, as in GSFLOW, so the two models share no pore space;
       modLatflow plays GSFLOW's interflow/cascade role on top of it, commits 2ac6318d, 535ead00 Oct 1, 2026
       5) The infiltration compression closure is evaluated per MODFLOW cell (scalarInfilLimAqfr), commit a741b32c Oct 1, 2026
