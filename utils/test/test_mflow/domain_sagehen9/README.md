@@ -71,11 +71,11 @@ see `../README.md`.
 
 Lateral flow runs in every GRU: `mLayerColumnOutflow` is non-zero throughout
 `run1_latflow` and identically zero in `run1_noLatflow`, and the coupled budget
-separates the pair, 56141.900204700250 m3 sent against −43028.643713199672 m3.
+separates the pair, 47986.094261028913 m3 sent against −44878.802494764095 m3.
 The event takes about 3 minutes for the 72 steps once the spin-up exists.
 
 Without mizuRoute the nine stream domains are never solved, so they add nothing to
-`basin__TotalRunoff`: 10.11 mm over the run in `run1_noLatflow`, 18.50 mm in `run1_latflow`.
+`basin__TotalRunoff`: 9.13 mm over the run in `run1_noLatflow`, 18.0 mm in `run1_latflow`.
 
 `run_sagehen9_deeproot.sh` runs the 6 m roots of `run_sagehen1_deeproot.sh` over the
 `ex-gwf-sagehen-ss` EVT model, without lateral flow. With one HRU per cell each HRU's

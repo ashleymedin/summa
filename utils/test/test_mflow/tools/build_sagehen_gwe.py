@@ -4,7 +4,8 @@
 GWE carries the aquifer temperature by advection and conduction (ADV, CND, EST) and along
 the SFR reaches (SFE). Recharge brings SUMMA's drainage temperature in through RCH's
 auxiliary TEMPERATURE, which the coupler overwrites every step and SSM names as the
-recharge source. The coupler returns GWE's water-table temperature to SUMMA as
+recharge source, and through UZE's INFILTRATION temperature on the UZF cells, which the
+coupler overwrites likewise. The coupler returns GWE's water-table temperature to SUMMA as
 scalarAquiferTemp, and loads ESL with SUMMA's conduction out the soil base, one row per
 active cell. GWE runs in degrees Celsius, in the GWF model's metres and seconds.
 
@@ -113,6 +114,34 @@ def equilibrate(model_dir, nrow, ncol):
     return np.where(active, last, 0.0), np.abs(last - prev)[active].max()
 
 
+def uzf_cells(model_dir):
+    """(row, col), zero-based, of each UZF cell in order."""
+    cells, inblock = [], False
+    with open(os.path.join(model_dir, "sagehen.uzf")) as f:
+        for line in f:
+            if line.strip().startswith("BEGIN PACKAGEDATA"):
+                inblock = True
+            elif line.strip().startswith("END PACKAGEDATA"):
+                break
+            elif inblock and line.strip() and not line.lstrip().startswith("#"):
+                w = line.split()
+                cells.append((int(w[2]) - 1, int(w[3]) - 1))
+    return cells
+
+
+def write_uze(out_dir, strt, tinf):
+    with open(os.path.join(out_dir, "sagehen_gwe.uze"), "w") as f:
+        f.write("# Energy in the UZF unsaturated zone. The coupler overwrites INFILTRATION (TEMPINFL, degC)\n"
+                "# with SUMMA's drainage temperature.\n")
+        f.write("BEGIN OPTIONS\n  FLOW_PACKAGE_NAME  UZF\n  SAVE_FLOWS\nEND OPTIONS\n\nBEGIN PACKAGEDATA\n# uzfno strt\n")
+        for n, t in enumerate(strt, 1):
+            f.write(f"  {n:4d} {t:.4f}\n")
+        f.write("END PACKAGEDATA\n\nBEGIN PERIOD 1\n")
+        for n, t in enumerate(tinf, 1):
+            f.write(f"  {n:4d} INFILTRATION {t:.4f}\n")
+        f.write("END PERIOD\n")
+
+
 def write_sfe(out_dir, strt):
     with open(os.path.join(out_dir, "sagehen_gwe.sfe"), "w") as f:
         f.write("# Streamflow energy along the SFR reaches, with conduction through the streambed.\n")
@@ -150,7 +179,7 @@ def main(out_dir):
 # MODFLOW 6 simulation name file - Sagehen with SFR and GWE, configured for the SUMMA coupler
 #   * GWF model "SAGEHEN" and GWE model "{GWE}" on the same DIS grid
 #   * TDIS in SECONDS, MODFLOW time step = SUMMA forcing data_step (3600 s here)
-#   * RCH package "RCHA" with READASARRAYS and AUXILIARY TEMPERATURE
+#   * RCH package "RCHA" with READASARRAYS and AUXILIARY TEMPERATURE, UZF package "UZF" with UZE
 # Written by tools/build_sagehen_gwe.py.
 BEGIN OPTIONS
 END OPTIONS
@@ -189,6 +218,7 @@ BEGIN PACKAGES
   EST6  sagehen_gwe.est  est
   SSM6  sagehen_gwe.ssm  ssm
   SFE6  sagehen_gwe.sfe  SFE
+  UZE6  sagehen_gwe.uze  UZE
   OC6   sagehen_gwe.oc   oc
 END PACKAGES
 """)
@@ -241,6 +271,8 @@ BEGIN SOURCES
 END SOURCES
 """)
     write_sfe(out_dir, [STRT] * nreach)
+    ucells = uzf_cells(out_dir)
+    write_uze(out_dir, [STRT] * len(ucells), [trch[r, c] for r, c in ucells])
 
     write(os.path.join(out_dir, "sagehen_gwe.ims"), """\
 BEGIN OPTIONS
@@ -281,6 +313,7 @@ END PERIOD
           f"# {T_REF + GW_OFFSET} degC at {Z_REF:.0f} m less {LAPSE * 1000} degC km-1, and {Q_GEO * 1000:.0f} mW m-2 geothermal flux.\n"
           "BEGIN GRIDDATA\n  STRT\n    OPEN/CLOSE  strt_gwe1.txt\nEND GRIDDATA\n")
     write_sfe(out_dir, [temp[r, c] for r, c in sfr_cells(out_dir)])
+    write_uze(out_dir, [temp[r, c] for r, c in ucells], [trch[r, c] for r, c in ucells])
     add_esl(out_dir, active, 0.0, "The coupler overwrites SENERRATE (__INPUT__/SAGEHEN_GWE/ESL/SENERRATE, W) with\n"
             "# SUMMA's conduction out the soil base, at each cell's water-table node.")
     print(f"equilibrium aquifer temperature {temp[active].min():.2f} to {temp[active].max():.2f} degC, "
