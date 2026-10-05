@@ -69,6 +69,7 @@ private::superbee,flux,SIA,midpt,pluss,minus
 public::glacAreaChange
 public::time_updateGlacArea
 public::updateGlacDomain
+public::startGlacDomain
 contains
 
 
@@ -1615,6 +1616,191 @@ subroutine updateGlacDomain(&
   
  end associate
 end subroutine updateGlacDomain
+
+
+! ************************************************************************************************
+! public subroutine startGlacDomain: start a glacier domain that has just gained area from a donor domain
+! ************************************************************************************************
+! Donor state is taken per unit area: snow as snow without a layer holding the donor SWE, ice at the same depth
+! below the ice surface, debris at the same fraction of debris thickness (from a clean donor, the donor top ice
+! temperature and the domain's own matric head); phase and enthalpy are recomputed from temperature and water.
+! ************************************************************************************************
+subroutine startGlacDomain(&
+                  use_lookup,          & ! intent(in):    flag to use the lookup table for soil enthalpy
+                  ! donor domain
+                  indx_dnr,            & ! intent(in):    donor model indices
+                  prog_dnr,            & ! intent(in):    donor prognostic variables
+                  ! domain to start
+                  mpar_data,           & ! intent(in):    model parameters
+                  lookup_data,         & ! intent(in):    lookup tables
+                  indx_data,           & ! intent(inout): model indices
+                  prog_data,           & ! intent(inout): model prognostic variables
+                  diag_data,           & ! intent(inout): model diagnostic variables
+                  flux_data,           & ! intent(inout): model fluxes
+                  ! error control
+                  err, message)         ! intent(out):   error control
+  USE data_types,only:zLookup                                 ! x%z(:)%var(:)%lookup(:)
+  USE var_lookup,only:iLookINDEX,iLookPARAM,iLookDIAG         ! named variables for structure elements
+  USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta ! metadata
+  USE globalData,only:icefrz_mult                             ! freezing curve scaling multiplier of snow to ice
+  USE multiconst,only:LH_fus                                  ! latent heat of fusion (J kg-1)
+  USE layerMerge_module,only:rmLyAllVars                      ! remove a layer from the data structures
+  USE var_derive_module,only:calcHeight                       ! layer heights from layer depths
+  USE updatState_module,only:updatSnLaGl,updatSoil            ! phase partitioning
+  USE convertEnthalpyTemp_module,only:T2enthTemp_snLaGl       ! temperature component of enthalpy, snow, lake, and ice
+  USE convertEnthalpyTemp_module,only:T2enthTemp_soil         ! temperature component of enthalpy, soil
+  implicit none
+  logical(lgt),intent(in)         :: use_lookup               ! flag to use the lookup table for soil enthalpy
+  type(var_ilength),intent(in)    :: indx_dnr                 ! donor model indices
+  type(var_dlength),intent(in)    :: prog_dnr                 ! donor prognostic variables
+  type(var_dlength),intent(in)    :: mpar_data                ! model parameters
+  type(zLookup),intent(in)        :: lookup_data              ! lookup tables
+  type(var_ilength),intent(inout) :: indx_data                ! model indices
+  type(var_dlength),intent(inout) :: prog_data                ! model prognostic variables
+  type(var_dlength),intent(inout) :: diag_data                ! model diagnostic variables
+  type(var_dlength),intent(inout) :: flux_data                ! model fluxes
+  integer(i4b),intent(out)        :: err                      ! error code
+  character(*),intent(out)        :: message                  ! error message
+  ! local variables
+  integer(i4b)                    :: nSnow,nLake,nSoil,nGlce,nLayers ! layer counts of the domain to start
+  integer(i4b)                    :: dSnow,dSoil,dGlce        ! layer counts of the donor
+  integer(i4b)                    :: iTop,dTop                ! layer above the top glacier ice layer, domain and donor
+  integer(i4b)                    :: iLayer,jLayer            ! layer indices, domain and donor
+  integer(i4b)                    :: iSoil                    ! soil layer index
+  real(rkind)                     :: zMid                     ! depth or depth fraction of a layer mid-point (m or -)
+  real(rkind)                     :: zDnr                     ! depth or depth fraction of the base of a donor layer (m or -)
+  real(rkind)                     :: dThick,mThick            ! debris thickness, donor and domain (m)
+  real(rkind)                     :: theta                    ! volumetric fraction of total water (-)
+  real(rkind)                     :: fLiq                     ! fraction of liquid water (-)
+  real(rkind)                     :: vGn_m                    ! van Genuchten "m" parameter (-)
+  character(len=256)              :: cmessage                 ! error message
+  ! ----------------------------------------------------------------------------------------------
+  err=0; message='startGlacDomain/'
+  nSnow = indx_data%var(iLookINDEX%nSnow)%dat(1)
+  nLake = indx_data%var(iLookINDEX%nLake)%dat(1)
+  nSoil = indx_data%var(iLookINDEX%nSoil)%dat(1)
+  nGlce = indx_data%var(iLookINDEX%nGlce)%dat(1)
+  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
+  dSnow = indx_dnr%var(iLookINDEX%nSnow)%dat(1)
+  dSoil = indx_dnr%var(iLookINDEX%nSoil)%dat(1)
+  dGlce = indx_dnr%var(iLookINDEX%nGlce)%dat(1)
+  dTop  = indx_dnr%var(iLookINDEX%nLayers)%dat(1) - dGlce
+  if(nGlce==0 .or. dGlce==0)then; err=20; message=trim(message)//'expect glacier ice layers in both domains'; return; endif
+
+  ! ----- snow: remove the domain's own snow layers and hold the donor SWE as snow without a layer -----
+  do while(nSnow>0)
+    call rmLyAllVars(.false.,prog_data,prog_meta,0,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call rmLyAllVars(.false.,diag_data,diag_meta,0,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call rmLyAllVars(.false.,flux_data,flux_meta,0,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call rmLyAllVars(.false.,indx_data,indx_meta,0,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    nSnow = nSnow - 1
+    nLayers = nLayers - 1
+  enddo
+  indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
+  indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
+  call calcHeight(indx_data,prog_data,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  iTop = nLayers - nGlce
+
+  associate(&
+   dLayerDepth   => prog_dnr%var(iLookPROG%mLayerDepth)%dat,       & ! donor layer depth (m)
+   dLayerTemp    => prog_dnr%var(iLookPROG%mLayerTemp)%dat,        & ! donor layer temperature (K)
+   dLayerIce     => prog_dnr%var(iLookPROG%mLayerVolFracIce)%dat,  & ! donor volumetric fraction of ice (-)
+   dLayerLiq     => prog_dnr%var(iLookPROG%mLayerVolFracLiq)%dat,  & ! donor volumetric fraction of liquid water (-)
+   dMatricHead   => prog_dnr%var(iLookPROG%mLayerMatricHead)%dat,  & ! donor matric head (m)
+   mLayerDepth   => prog_data%var(iLookPROG%mLayerDepth)%dat,      & ! layer depth (m)
+   mLayerTemp    => prog_data%var(iLookPROG%mLayerTemp)%dat,       & ! layer temperature (K)
+   mLayerIce     => prog_data%var(iLookPROG%mLayerVolFracIce)%dat, & ! volumetric fraction of ice (-)
+   mLayerLiq     => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat, & ! volumetric fraction of liquid water (-)
+   mLayerWat     => prog_data%var(iLookPROG%mLayerVolFracWat)%dat, & ! volumetric fraction of total water (-)
+   mMatricHead   => prog_data%var(iLookPROG%mLayerMatricHead)%dat, & ! matric head (m)
+   mLayerEnth    => prog_data%var(iLookPROG%mLayerEnthalpy)%dat,   & ! enthalpy (J m-3)
+   mLayerEnthTemp=> diag_data%var(iLookDIAG%mLayerEnthTemp)%dat,   & ! temperature component of enthalpy (J m-3)
+   noThetaChange => indx_data%var(iLookINDEX%noThetaChange)%dat(1), & ! number of bottom layers with no change in total water
+   snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1), & ! scaling parameter for the snow freezing curve (K-1)
+   soil_dens_intr=> mpar_data%var(iLookPARAM%soil_dens_intr)%dat,  & ! intrinsic soil density (kg m-3)
+   vGn_alpha     => mpar_data%var(iLookPARAM%vGn_alpha)%dat,       & ! van Genuchten "alpha" parameter (m-1)
+   vGn_n         => mpar_data%var(iLookPARAM%vGn_n)%dat,           & ! van Genuchten "n" parameter (-)
+   theta_sat     => mpar_data%var(iLookPARAM%theta_sat)%dat,       & ! soil porosity (-)
+   theta_res     => mpar_data%var(iLookPARAM%theta_res)%dat        & ! soil residual volumetric water content (-)
+   )
+
+   if(dSnow>0)then
+     prog_data%var(iLookPROG%scalarSWE)%dat(1) = sum((dLayerLiq(1:dSnow)*iden_water + dLayerIce(1:dSnow)*iden_ice)*dLayerDepth(1:dSnow))
+     prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(dLayerDepth(1:dSnow))
+     prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1) = 0._rkind
+   else
+     prog_data%var(iLookPROG%scalarSWE)%dat(1) = prog_dnr%var(iLookPROG%scalarSWE)%dat(1)
+     prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = prog_dnr%var(iLookPROG%scalarSnowDepth)%dat(1)
+     prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1) = prog_dnr%var(iLookPROG%scalarSfcMeltPond)%dat(1)
+   endif
+   prog_data%var(iLookPROG%scalarSnowAlbedo)%dat = prog_dnr%var(iLookPROG%scalarSnowAlbedo)%dat
+   prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat = prog_dnr%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat
+
+   ! ----- glacier ice: the donor layer holding the same depth below the ice surface -----
+   jLayer = dTop + 1
+   zDnr = dLayerDepth(jLayer)
+   zMid = 0._rkind
+   do iLayer = iTop+1, nLayers
+     zMid = zMid + 0.5_rkind*mLayerDepth(iLayer)
+     do while(zMid > zDnr .and. jLayer < dTop+dGlce)
+       jLayer = jLayer + 1
+       zDnr = zDnr + dLayerDepth(jLayer)
+     enddo
+     mLayerTemp(iLayer) = dLayerTemp(jLayer)
+     mLayerIce(iLayer)  = dLayerIce(jLayer)
+     mLayerLiq(iLayer)  = dLayerLiq(jLayer)
+     zMid = zMid + 0.5_rkind*mLayerDepth(iLayer)
+   enddo
+
+   ! ----- debris: the donor debris layer at the same fraction of debris thickness, else the donor top ice temperature -----
+   if(nSoil>0)then
+     if(dSoil>0)then
+       dThick = sum(dLayerDepth(dTop-dSoil+1:dTop))
+       mThick = sum(mLayerDepth(iTop-nSoil+1:iTop))
+       jLayer = dTop - dSoil + 1
+       zDnr = dLayerDepth(jLayer)/dThick
+       zMid = 0._rkind
+       do iLayer = iTop-nSoil+1, iTop
+         zMid = zMid + 0.5_rkind*mLayerDepth(iLayer)/mThick
+         do while(zMid > zDnr .and. jLayer < dTop)
+           jLayer = jLayer + 1
+           zDnr = zDnr + dLayerDepth(jLayer)/dThick
+         enddo
+         mLayerTemp(iLayer) = dLayerTemp(jLayer)
+         mMatricHead(iLayer-nSnow-nLake) = dMatricHead(jLayer-dTop+dSoil)
+         zMid = zMid + 0.5_rkind*mLayerDepth(iLayer)/mThick
+       enddo
+     else
+       mLayerTemp(iTop-nSoil+1:iTop) = dLayerTemp(dTop+1)
+     endif
+   endif
+
+   ! ----- phase partitioning and enthalpy consistent with the new temperature and water content -----
+   do iLayer = nSnow+nLake+1, nLayers
+     if(iLayer > iTop)then
+       theta = mLayerIce(iLayer)*(iden_ice/iden_water) + mLayerLiq(iLayer)
+       call updatSnLaGl(iLayer>nLayers-noThetaChange, mLayerTemp(iLayer), theta, snowfrz_scale*icefrz_mult, &
+                        mLayerLiq(iLayer), mLayerIce(iLayer), fLiq, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+       mLayerWat(iLayer) = theta
+       call T2enthTemp_snLaGl(iLayer>nLayers-noThetaChange, snowfrz_scale*icefrz_mult, mLayerTemp(iLayer), theta, mLayerEnthTemp(iLayer))
+       mLayerEnth(iLayer) = mLayerEnthTemp(iLayer) - iden_ice*LH_fus*mLayerIce(iLayer)
+     else
+       iSoil = iLayer - nSnow - nLake
+       vGn_m = 1._rkind - 1._rkind/vGn_n(iSoil)
+       call updatSoil(mLayerTemp(iLayer), mMatricHead(iSoil), vGn_alpha(iSoil), vGn_n(iSoil), theta_sat(iSoil), theta_res(iSoil), vGn_m, &
+                      mLayerWat(iLayer), mLayerLiq(iLayer), mLayerIce(iLayer), err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+       call T2enthTemp_soil(use_lookup, soil_dens_intr(iSoil), vGn_alpha(iSoil), vGn_n(iSoil), theta_sat(iSoil), theta_res(iSoil), vGn_m, &
+                            iSoil, lookup_data, realMissing, mLayerTemp(iLayer), mMatricHead(iSoil), mLayerEnthTemp(iLayer), err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+       mLayerEnth(iLayer) = mLayerEnthTemp(iLayer) - iden_water*LH_fus*mLayerIce(iLayer)
+     endif
+   enddo
+
+  end associate
+end subroutine startGlacDomain
 
 
 end module glacAreaChange_module

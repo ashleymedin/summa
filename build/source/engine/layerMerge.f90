@@ -67,6 +67,7 @@ USE var_derive_module,only:calcHeight ! module to calculate height at layer inte
 implicit none
 private
 public::layerMerge
+public::rmLyAllVars
 
 contains
 
@@ -518,7 +519,7 @@ contains
 
 
  ! ***********************************************************************************************************
- ! private subroutine rmLyAllVars: reduce the length of the vectors in data structures
+ ! public subroutine rmLyAllVars: reduce the length of the vectors in data structures
  ! ***********************************************************************************************************
  ! removes layer "iLayer+1" and sets layer "iLayer" to a missing value
  ! (layer "iLayer" will be filled with a combined layer later)
