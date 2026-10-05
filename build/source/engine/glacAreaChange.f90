@@ -1622,14 +1622,14 @@ end subroutine updateGlacDomain
 ! public subroutine startGlacDomain: start a glacier domain that has just gained area from a donor domain
 ! ************************************************************************************************
 ! Donor state is taken per unit area: snow as snow without a layer holding the donor SWE, ice at the same depth
-! below the ice surface, debris at the same fraction of debris thickness (from a clean donor, the donor top ice
-! temperature and the domain's own matric head); phase and enthalpy are recomputed from temperature and water.
+! below the ice surface, debris from the debris donor at the same fraction of debris thickness (with no debris
+! donor, the donor top ice temperature and the domain's own matric head); phase and enthalpy are recomputed.
 ! ************************************************************************************************
 subroutine startGlacDomain(&
                   use_lookup,          & ! intent(in):    flag to use the lookup table for soil enthalpy
-                  ! donor domain
-                  indx_dnr,            & ! intent(in):    donor model indices
-                  prog_dnr,            & ! intent(in):    donor prognostic variables
+                  ! snow and ice donor
+                  indx_dnr,            & ! intent(in):    snow and ice donor model indices
+                  prog_dnr,            & ! intent(in):    snow and ice donor prognostic variables
                   ! domain to start
                   mpar_data,           & ! intent(in):    model parameters
                   lookup_data,         & ! intent(in):    lookup tables
@@ -1638,7 +1638,10 @@ subroutine startGlacDomain(&
                   diag_data,           & ! intent(inout): model diagnostic variables
                   flux_data,           & ! intent(inout): model fluxes
                   ! error control
-                  err, message)         ! intent(out):   error control
+                  err, message,        & ! intent(out):   error control
+                  ! optional debris donor
+                  indx_dbr,            & ! intent(in):    debris donor model indices
+                  prog_dbr)              ! intent(in):    debris donor prognostic variables
   USE data_types,only:zLookup                                 ! x%z(:)%var(:)%lookup(:)
   USE var_lookup,only:iLookINDEX,iLookPARAM,iLookDIAG         ! named variables for structure elements
   USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta ! metadata
@@ -1653,6 +1656,8 @@ subroutine startGlacDomain(&
   logical(lgt),intent(in)         :: use_lookup               ! flag to use the lookup table for soil enthalpy
   type(var_ilength),intent(in)    :: indx_dnr                 ! donor model indices
   type(var_dlength),intent(in)    :: prog_dnr                 ! donor prognostic variables
+  type(var_ilength),intent(in),optional :: indx_dbr           ! debris donor model indices
+  type(var_dlength),intent(in),optional :: prog_dbr           ! debris donor prognostic variables
   type(var_dlength),intent(in)    :: mpar_data                ! model parameters
   type(zLookup),intent(in)        :: lookup_data              ! lookup tables
   type(var_ilength),intent(inout) :: indx_data                ! model indices
@@ -1663,7 +1668,8 @@ subroutine startGlacDomain(&
   character(*),intent(out)        :: message                  ! error message
   ! local variables
   integer(i4b)                    :: nSnow,nLake,nSoil,nGlce,nLayers ! layer counts of the domain to start
-  integer(i4b)                    :: dSnow,dSoil,dGlce        ! layer counts of the donor
+  integer(i4b)                    :: dSnow,dGlce              ! layer counts of the donor
+  integer(i4b)                    :: bSoil,bTop               ! debris donor layer count, and its layer above the top ice layer
   integer(i4b)                    :: iTop,dTop                ! layer above the top glacier ice layer, domain and donor
   integer(i4b)                    :: iLayer,jLayer            ! layer indices, domain and donor
   integer(i4b)                    :: iSoil                    ! soil layer index
@@ -1682,7 +1688,6 @@ subroutine startGlacDomain(&
   nGlce = indx_data%var(iLookINDEX%nGlce)%dat(1)
   nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
   dSnow = indx_dnr%var(iLookINDEX%nSnow)%dat(1)
-  dSoil = indx_dnr%var(iLookINDEX%nSoil)%dat(1)
   dGlce = indx_dnr%var(iLookINDEX%nGlce)%dat(1)
   dTop  = indx_dnr%var(iLookINDEX%nLayers)%dat(1) - dGlce
   if(nGlce==0 .or. dGlce==0)then; err=20; message=trim(message)//'expect glacier ice layers in both domains'; return; endif
@@ -1707,7 +1712,6 @@ subroutine startGlacDomain(&
    dLayerTemp    => prog_dnr%var(iLookPROG%mLayerTemp)%dat,        & ! donor layer temperature (K)
    dLayerIce     => prog_dnr%var(iLookPROG%mLayerVolFracIce)%dat,  & ! donor volumetric fraction of ice (-)
    dLayerLiq     => prog_dnr%var(iLookPROG%mLayerVolFracLiq)%dat,  & ! donor volumetric fraction of liquid water (-)
-   dMatricHead   => prog_dnr%var(iLookPROG%mLayerMatricHead)%dat,  & ! donor matric head (m)
    mLayerDepth   => prog_data%var(iLookPROG%mLayerDepth)%dat,      & ! layer depth (m)
    mLayerTemp    => prog_data%var(iLookPROG%mLayerTemp)%dat,       & ! layer temperature (K)
    mLayerIce     => prog_data%var(iLookPROG%mLayerVolFracIce)%dat, & ! volumetric fraction of ice (-)
@@ -1753,24 +1757,30 @@ subroutine startGlacDomain(&
      zMid = zMid + 0.5_rkind*mLayerDepth(iLayer)
    enddo
 
-   ! ----- debris: the donor debris layer at the same fraction of debris thickness, else the donor top ice temperature -----
+   ! ----- debris: the debris donor layer at the same fraction of debris thickness, else the donor top ice temperature -----
    if(nSoil>0)then
-     if(dSoil>0)then
-       dThick = sum(dLayerDepth(dTop-dSoil+1:dTop))
-       mThick = sum(mLayerDepth(iTop-nSoil+1:iTop))
-       jLayer = dTop - dSoil + 1
-       zDnr = dLayerDepth(jLayer)/dThick
-       zMid = 0._rkind
-       do iLayer = iTop-nSoil+1, iTop
-         zMid = zMid + 0.5_rkind*mLayerDepth(iLayer)/mThick
-         do while(zMid > zDnr .and. jLayer < dTop)
-           jLayer = jLayer + 1
-           zDnr = zDnr + dLayerDepth(jLayer)/dThick
+     if(present(prog_dbr))then
+       bSoil = indx_dbr%var(iLookINDEX%nSoil)%dat(1)
+       bTop  = indx_dbr%var(iLookINDEX%nLayers)%dat(1) - indx_dbr%var(iLookINDEX%nGlce)%dat(1)
+       associate(bLayerDepth => prog_dbr%var(iLookPROG%mLayerDepth)%dat, &
+                 bLayerTemp  => prog_dbr%var(iLookPROG%mLayerTemp)%dat,  &
+                 bMatricHead => prog_dbr%var(iLookPROG%mLayerMatricHead)%dat)
+         dThick = sum(bLayerDepth(bTop-bSoil+1:bTop))
+         mThick = sum(mLayerDepth(iTop-nSoil+1:iTop))
+         jLayer = bTop - bSoil + 1
+         zDnr = bLayerDepth(jLayer)/dThick
+         zMid = 0._rkind
+         do iLayer = iTop-nSoil+1, iTop
+           zMid = zMid + 0.5_rkind*mLayerDepth(iLayer)/mThick
+           do while(zMid > zDnr .and. jLayer < bTop)
+             jLayer = jLayer + 1
+             zDnr = zDnr + bLayerDepth(jLayer)/dThick
+           enddo
+           mLayerTemp(iLayer) = bLayerTemp(jLayer)
+           mMatricHead(iLayer-nSnow-nLake) = bMatricHead(jLayer-bTop+bSoil)
+           zMid = zMid + 0.5_rkind*mLayerDepth(iLayer)/mThick
          enddo
-         mLayerTemp(iLayer) = dLayerTemp(jLayer)
-         mMatricHead(iLayer-nSnow-nLake) = dMatricHead(jLayer-dTop+dSoil)
-         zMid = zMid + 0.5_rkind*mLayerDepth(iLayer)/mThick
-       enddo
+       end associate
      else
        mLayerTemp(iTop-nSoil+1:iTop) = dLayerTemp(dTop+1)
      endif
