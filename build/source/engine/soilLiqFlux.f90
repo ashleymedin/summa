@@ -2061,8 +2061,8 @@ contains
    baseHydCond = hydCond_psi(lowerBoundHead,bottomSatHydCond,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac
 
    ! a coupled water table below the column base: Darcy flux from the node to the water table across a quasi-steady
-   ! unsaturated gap, at the wetter of the boundary and node conductivities, so a deep water table gives free drainage;
-   ! drainage only, as in GSFLOW, since water below the base is the aquifer's and returns only as head above it
+   ! unsaturated gap, draining at the wetter of the boundary and node conductivities, so a deep water table gives free
+   ! drainage, and rising at their geometric mean, which the dry boundary conductivity shuts off below about a metre
    if((ix_groundwatr==modflowCpl .or. ix_groundwatr==modLatflow) .and. lowerBoundHead < 0._rkind)then
      pathLength = nodeDepth*0.5_rkind - lowerBoundHead
      headDrop   = nodeMatricHeadLiq + pathLength
@@ -2079,6 +2079,13 @@ contains
        dq_dHydStateUnsat = bottomHydCond*dPosDrop/pathLength
        dq_dNrgStateUnsat = bottomHydCond*dPosDrop*node_dPsiLiq_dTemp/pathLength
      end if
+     upHydCond   = sqrt(baseHydCond*max(nodeHydCond, tiny(1._rkind)))
+     dUp_dMatric = 0.5_rkind*upHydCond*dHydCond_dMatric/max(nodeHydCond, tiny(1._rkind))
+     dUp_dTemp   = 0.5_rkind*upHydCond*dHydCond_dTemp/max(nodeHydCond, tiny(1._rkind))
+     scalarDrainage    = scalarDrainage + upHydCond*(headDrop - posDrop)/pathLength
+     dq_dHydStateUnsat = dq_dHydStateUnsat + (upHydCond*(1._rkind - dPosDrop) + dUp_dMatric*(headDrop - posDrop))/pathLength
+     dq_dNrgStateUnsat = dq_dNrgStateUnsat + (upHydCond*(1._rkind - dPosDrop)*node_dPsiLiq_dTemp &
+                       &  + dUp_dTemp*(headDrop - posDrop))/pathLength
    ! a coupled water table at or above the base: drainage at the boundary conductivity, but rise into the column at the
    ! geometric mean of that and the bottom layer's own, which limits flow into dry soil
    elseif(ix_groundwatr==modflowCpl .or. ix_groundwatr==modLatflow)then
