@@ -258,7 +258,7 @@ module summabmi
 #else
   integer, parameter :: input_item_count = 14
 #endif
-  integer, parameter :: output_item_count = 20
+  integer, parameter :: output_item_count = 21
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
   character (len=BMI_MAX_VAR_NAME), target,dimension(output_item_count) :: output_items
   ! Buffers behind summa_get_ptr_int/float.  The BMI contract is that the returned pointer
@@ -692,13 +692,14 @@ module summabmi
      output_items(14)= 'land_vegetation_energy~net~total__energy_flux'
      output_items(15)= 'land_surface_energy~net~total__energy_flux'
      output_items(16)= 'land_surface_water__baseflow_volume_flux'
-     output_items(17)= 'soil_water__drainage_volume_flux'   ! drainage from the base of the soil column (recharge to MODFLOW 6)
+     output_items(17)= 'land_surface_water__runoff_volume_flux_mh'   !(runoff in m h-1, the main output ngen and t-route expect)
+     output_items(18)= 'soil_water__drainage_volume_flux'   ! drainage from the base of the soil column (recharge to MODFLOW 6)
      ! aquifer transpiration DEMAND: the share of canopy transpiration the deep roots want from
      ! below the soil column.  Read as an output (SUMMA -> MODFLOW EVT) and written back as an
      ! input with what MODFLOW could actually supply.
-     output_items(18)= 'land_vegetation_water__aquifer_transpiration_volume_flux'
-     output_items(19)= 'soil_water~drainage__temperature'   ! temperature of the drainage (recharge to MODFLOW 6 GWE)
-     output_items(20)= 'soil_bottom_surface__conductive_energy_flux' ! conduction out the base of the soil column (to MODFLOW 6 GWE)
+     output_items(19)= 'land_vegetation_water__aquifer_transpiration_volume_flux'
+     output_items(20)= 'soil_water~drainage__temperature'   ! temperature of the drainage (recharge to MODFLOW 6 GWE)
+     output_items(21)= 'soil_bottom_surface__conductive_energy_flux' ! conduction out the base of the soil column (to MODFLOW 6 GWE)
      names => output_items
      bmi_status = BMI_SUCCESS
    end function summa_output_var_names
@@ -1102,6 +1103,7 @@ module summabmi
 
      ! output (note: 'land_surface_water__baseflow_volume_flux' below is also a valid input)
      case('land_surface_water__runoff_volume_flux')        ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
+     case('land_surface_water__runoff_volume_flux_mh')     ; units = 'm h-1'     ; bmi_status = BMI_SUCCESS
      case('land_surface_water__evaporation_mass_flux')     ; units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
      case('land_vegetation_water__evaporation_mass_flux')  ; units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
      case('land_vegetation_water__transpiration_mass_flux'); units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
@@ -1635,6 +1637,8 @@ module summabmi
               ! output is averaged over domains
               case('land_surface_water__runoff_volume_flux')
                 target_arr(i) = bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1); exit
+              case('land_surface_water__runoff_volume_flux_mh')
+                target_arr(i) = bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1) * 3600._rkind; exit
               case('land_surface_water__evaporation_mass_flux')
                 target_arr(i) = target_arr(i) + fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarGroundEvaporation)%dat(1) * fracDOM
               case('land_vegetation_water__evaporation_mass_flux')
