@@ -559,6 +559,7 @@ subroutine popMetadat(err,message)
   ! hyporheic exchange
   diag_meta(iLookDIAG%scalarHypTemp)                   = var_info('scalarHypTemp'                  , 'temperature of the hyporheic return flow'                         , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarInfilLimAqfr)              = var_info('scalarInfilLimAqfr'             , 'aquifer control on the infiltrating area'                         , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%scalarAquiferReject)             = var_info('scalarAquiferReject'            , 'recharge rejected below the soil column, returned to its base'   , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model fluxes...
   ! -----------------------

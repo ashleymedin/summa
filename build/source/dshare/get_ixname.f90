@@ -685,6 +685,7 @@ contains
   ! hyporheic exchange
   case('scalarHypTemp'                  ); get_ixDiag = iLookDIAG%scalarHypTemp                    ! temperature of the hyporheic return flow (K)
   case('scalarInfilLimAqfr'             ); get_ixDiag = iLookDIAG%scalarInfilLimAqfr               ! aquifer control on the infiltrating area (-)
+  case('scalarAquiferReject'            ); get_ixDiag = iLookDIAG%scalarAquiferReject              ! recharge rejected below the soil column, returned to its base (m s-1)
   case('scalarLakeLiqDepth'             ); get_ixDiag = iLookDIAG%scalarLakeLiqDepth               ! total liquid depth of the lake layers (m)
   case('scalarLakeIceThick'             ); get_ixDiag = iLookDIAG%scalarLakeIceThick               ! thickness of the ice cover of the lake layers (m)
   case('scalarStreamSfcInflowTemp'      ); get_ixDiag = iLookDIAG%scalarStreamSfcInflowTemp        ! temperature of the rain plus melt entering the open water column (K)

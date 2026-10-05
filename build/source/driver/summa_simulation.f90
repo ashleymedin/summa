@@ -60,6 +60,7 @@ USE summa_mf6_exchange, only: mf6x_get_drainage
 USE summa_mf6_exchange, only: mf6x_put_lower_bound_head
 USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
 USE summa_mf6_exchange, only: mf6x_put_aquifer_baseflow
+USE summa_mf6_exchange, only: mf6x_put_aquifer_reject
 #endif
 
 #ifdef OPENWQ_ACTIVE
@@ -752,6 +753,7 @@ contains
     real, allocatable                          :: head_hru(:)   ! per-HRU prescribed head (m), MODFLOW -> SUMMA
     real, allocatable                          :: stor_hru(:)   ! per-HRU aquifer storage (m), MODFLOW -> SUMMA
     real, allocatable                          :: bflow_hru(:)  ! per-HRU aquifer baseflow (m s-1), MODFLOW -> SUMMA
+    real, allocatable                          :: rej_hru(:)    ! per-HRU recharge UZF rejected (m s-1), MODFLOW -> SUMMA
     integer(i4b)                               :: errFinal      ! error code of the MODFLOW 6 shutdown
 #endif
 
@@ -767,6 +769,7 @@ contains
                          drain_hru, head_hru, stor_hru, bflow_hru,     &
                          err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      allocate(rej_hru(size(drain_hru)), source=0.0)
     endif
 #endif
 
@@ -790,6 +793,8 @@ contains
           if(coupler%have_sy)    call mf6x_put_aquifer_storage(summa_struct, stor_hru)
           if(coupler%have_bflow) call mf6x_put_aquifer_baseflow(summa_struct, bflow_hru)
         endif
+        ! every step, so a sample never starts from the last one's rejected recharge
+        call mf6x_put_aquifer_reject(summa_struct, rej_hru)
       endif
 #endif
 
@@ -853,7 +858,7 @@ contains
         call mf6x_get_drainage(summa_struct, drain_hru)
         call coupler%step(modelTimeStep, dble(data_step),           &
                           drain_hru, head_hru, stor_hru, bflow_hru, &
-                          err, cmessage)
+                          err, cmessage, rej_hru=rej_hru)
         if(err/=0)then
           message=trim(message)//trim(cmessage)
           if(present(physics_failed)) physics_failed=.true.

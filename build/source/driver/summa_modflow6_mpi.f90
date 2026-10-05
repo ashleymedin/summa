@@ -100,6 +100,7 @@ program summa_modflow6_mpi
   real, allocatable          :: drain_hru(:)     ! per-HRU soil drainage        (m s-1)
   real, allocatable          :: head_hru(:)      ! per-HRU prescribed head      (m, matric head at soil base)
   real, allocatable          :: bflow_hru(:)     ! per-HRU aquifer baseflow     (m s-1, + = out of aquifer)  -> scalarAquiferBaseflow
+  real, allocatable          :: rej_hru(:)       ! per-HRU recharge UZF rejected (m s-1, + = into the column) -> scalarAquiferReject
   real, allocatable          :: stor_hru(:)      ! per-HRU relative aquifer storage (m of water)              -> scalarAquiferStorage
   double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:)  ! HRU centroid lon/lat and surface elevation
   double precision, allocatable :: soil_thk(:)   ! per-HRU SUMMA soil-column thickness (m), read from SUMMA
@@ -107,6 +108,7 @@ program summa_modflow6_mpi
 
   ! ---- this rank's local slice (every rank allocates these; sized nHRU_local) ----
   real, allocatable          :: drain_hru_local(:), head_hru_local(:), bflow_hru_local(:), stor_hru_local(:)
+  real, allocatable          :: rej_hru_local(:)
   double precision, allocatable :: hru_x_local(:), hru_y_local(:), hru_z_local(:), soil_thk_local(:)
   double precision, allocatable :: hru_area_local(:)
 
@@ -174,8 +176,8 @@ contains
     ! -- this rank's local HRU count and geometry (BMI grid 0 = HRU points, local to this rank) --
     istat = summa%get_grid_size(0, nHRU_local)
     allocate(drain_hru_local(nHRU_local), head_hru_local(nHRU_local))
-    allocate(bflow_hru_local(nHRU_local), stor_hru_local(nHRU_local))
-    bflow_hru_local = 0.0; stor_hru_local = 0.0
+    allocate(bflow_hru_local(nHRU_local), stor_hru_local(nHRU_local), rej_hru_local(nHRU_local))
+    bflow_hru_local = 0.0; stor_hru_local = 0.0; rej_hru_local = 0.0
     allocate(hru_x_local(nHRU_local), hru_y_local(nHRU_local), hru_z_local(nHRU_local))
     istat = summa%get_grid_x(0, hru_x_local)   ! HRU longitude  (deg or projected x, must match MODFLOW grid CRS)
     istat = summa%get_grid_y(0, hru_y_local)   ! HRU latitude   (deg or projected y)
@@ -196,13 +198,14 @@ contains
       do i = 2, nRanks
         hru_displs(i) = hru_displs(i-1) + hru_counts(i-1)
       end do
-      allocate(drain_hru(nHRU), head_hru(nHRU), bflow_hru(nHRU), stor_hru(nHRU))
+      allocate(drain_hru(nHRU), head_hru(nHRU), bflow_hru(nHRU), stor_hru(nHRU), rej_hru(nHRU))
+      rej_hru = 0.0
       allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU))
       head_hru = 0.0; bflow_hru = 0.0; stor_hru = 0.0
     else
       ! placeholders: never dereferenced off rank 0, but must be allocated to legally pass as the
       ! (rank-0-significant) recvbuf/sendbuf argument of the Gatherv/Scatterv calls below
-      allocate(drain_hru(1), head_hru(1), bflow_hru(1), stor_hru(1))
+      allocate(drain_hru(1), head_hru(1), bflow_hru(1), stor_hru(1), rej_hru(1))
       allocate(hru_x(1), hru_y(1), hru_z(1), soil_thk(1), hru_area(1))
     end if
     call gatherv_dp(hru_x_local, hru_x)
@@ -259,6 +262,8 @@ contains
           call scatterv_real(bflow_hru, bflow_hru_local)
           istat = summa%set_value('land_surface_water__baseflow_volume_flux', bflow_hru_local)
         end if
+        call scatterv_real(rej_hru, rej_hru_local)
+        istat = summa%set_value('soil_water__rejected_recharge_volume_flux', rej_hru_local)
       end if
 
       ! 2. advance SUMMA one data step on every rank (reads forcing, runs physics, writes output)
@@ -274,7 +279,7 @@ contains
       call gatherv_real(drain_hru_local, drain_hru)
       if (myrank == 0) then
         call coupler%step(modelTimeStep, dble(data_step), &
-                          drain_hru, head_hru, stor_hru, bflow_hru, err, message)
+                          drain_hru, head_hru, stor_hru, bflow_hru, err, message, rej_hru=rej_hru)
         if (err /= 0) then
           write(*,'(a)') 'summa_modflow6_mpi: '//trim(message)
           call MPI_Abort(MPI_COMM_WORLD, 1, mpi_ierr)

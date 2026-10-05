@@ -82,6 +82,7 @@ module summa_mf6_exchange
   public :: mf6x_put_aquifer_transpire
   public :: mf6x_put_transpire_lim_aqfr
   public :: mf6x_put_infil_lim_aqfr
+  public :: mf6x_put_aquifer_reject
   public :: mf6x_root_zone_depth
   public :: mf6x_get_drainage_temp
   public :: mf6x_get_base_nrg_flux
@@ -442,6 +443,28 @@ contains
       end do
     end associate
   end subroutine mf6x_put_infil_lim_aqfr
+
+  ! **************************************************************************************************
+  ! Recharge the unsaturated zone below the soil column rejected (m s-1, + = back into the column).
+  ! Written into diag, where the presHead lower boundary returns it to the column base.
+  ! **************************************************************************************************
+  subroutine mf6x_put_aquifer_reject(summa_struct, reject)
+    type(summa1_type_dec), intent(inout) :: summa_struct
+    real,                  intent(in)    :: reject(:)
+    integer(i4b) :: iGRU, jHRU, iDOM, i
+    associate(diagStruct => summa_struct%diagStruct, &
+              indxStruct => summa_struct%indxStruct)
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            if (indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1) == 0) &
+              diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%scalarAquiferReject)%dat(1) = reject(i)
+          end do
+        end do
+      end do
+    end associate
+  end subroutine mf6x_put_aquifer_reject
 
   ! **************************************************************************************************
   ! SUMMA's aquifer transpiration demand, per HRU (m s-1, + = out of aquifer): the aquifer's share of

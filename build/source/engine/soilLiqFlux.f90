@@ -2047,6 +2047,7 @@ contains
    nodeDepth  => in_qDrainFlux % nodeDepth , &                ! depth of the lowest unsaturated soil layer (m)
    ! input: diriclet boundary conditions
    lowerBoundHead  => in_qDrainFlux % lowerBoundHead , &      ! lower boundary condition for matric head (m)
+   scalarAquiferReject => in_qDrainFlux % scalarAquiferReject, & ! recharge rejected below the soil column, returned to its base (m s-1)
    ! input: transmittance
    bottomSatHydCond  => in_qDrainFlux % bottomSatHydCond , &  ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
    nodeHydCond       => in_qDrainFlux % nodeHydCond      , &  ! hydraulic conductivity at the node itself (m s-1)
@@ -2072,32 +2073,13 @@ contains
 
    baseHydCond = hydCond_psi(lowerBoundHead,bottomSatHydCond,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac
 
-   ! a coupled water table below the column base: Darcy flux from the node to the water table across a quasi-steady
-   ! unsaturated gap, draining at the wetter of the boundary and node conductivities, so a deep water table gives free
-   ! drainage, and rising at their geometric mean, which the dry boundary conductivity shuts off below about a metre
+   ! a coupled water table below the column base: free drainage into the unsaturated zone below, as GSFLOW's soil zone
+   ! drains to UZF, less the recharge that zone rejected last step
    if((ix_groundwatr==modflowCpl .or. ix_groundwatr==modLatflow) .and. lowerBoundHead < 0._rkind)then
-     pathLength = nodeDepth*0.5_rkind - lowerBoundHead
-     headDrop   = nodeMatricHeadLiq + pathLength
-     posDrop    = 0.5_rkind*(headDrop + sqrt(headDrop**2_i4b + dropSmooth**2_i4b)) ! smooth positive part (m)
-     dPosDrop   = 0.5_rkind*(1._rkind + headDrop/sqrt(headDrop**2_i4b + dropSmooth**2_i4b))
-     if(nodeHydCond > baseHydCond)then
-       bottomHydCond     = nodeHydCond
-       scalarDrainage    = bottomHydCond*posDrop/pathLength
-       dq_dHydStateUnsat = (dHydCond_dMatric*posDrop + bottomHydCond*dPosDrop)/pathLength
-       dq_dNrgStateUnsat = (dHydCond_dTemp*posDrop + bottomHydCond*dPosDrop*node_dPsiLiq_dTemp)/pathLength
-     else
-       bottomHydCond     = baseHydCond
-       scalarDrainage    = bottomHydCond*posDrop/pathLength
-       dq_dHydStateUnsat = bottomHydCond*dPosDrop/pathLength
-       dq_dNrgStateUnsat = bottomHydCond*dPosDrop*node_dPsiLiq_dTemp/pathLength
-     end if
-     upHydCond   = sqrt(baseHydCond*max(nodeHydCond, tiny(1._rkind)))
-     dUp_dMatric = 0.5_rkind*upHydCond*dHydCond_dMatric/max(nodeHydCond, tiny(1._rkind))
-     dUp_dTemp   = 0.5_rkind*upHydCond*dHydCond_dTemp/max(nodeHydCond, tiny(1._rkind))
-     scalarDrainage    = scalarDrainage + upHydCond*(headDrop - posDrop)/pathLength
-     dq_dHydStateUnsat = dq_dHydStateUnsat + (upHydCond*(1._rkind - dPosDrop) + dUp_dMatric*(headDrop - posDrop))/pathLength
-     dq_dNrgStateUnsat = dq_dNrgStateUnsat + (upHydCond*(1._rkind - dPosDrop)*node_dPsiLiq_dTemp &
-                       &  + dUp_dTemp*(headDrop - posDrop))/pathLength
+     bottomHydCond     = nodeHydCond
+     scalarDrainage    = nodeHydCond - scalarAquiferReject
+     dq_dHydStateUnsat = dHydCond_dMatric
+     dq_dNrgStateUnsat = dHydCond_dTemp
    ! a coupled water table at or above the base: drainage at the boundary conductivity, but rise into the column at the
    ! geometric mean of that and the bottom layer's own, which limits flow into dry soil
    elseif(ix_groundwatr==modflowCpl .or. ix_groundwatr==modLatflow)then
@@ -2109,7 +2091,7 @@ contains
      dUp_dMatric = 0.5_rkind*upHydCond*dHydCond_dMatric/max(nodeHydCond, tiny(1._rkind))
      dUp_dTemp   = 0.5_rkind*upHydCond*dHydCond_dTemp/max(nodeHydCond, tiny(1._rkind))
      bottomHydCond     = baseHydCond
-     scalarDrainage    = (baseHydCond*posDrop + upHydCond*(headDrop - posDrop))/pathLength
+     scalarDrainage    = (baseHydCond*posDrop + upHydCond*(headDrop - posDrop))/pathLength - scalarAquiferReject
      dq_dHydStateUnsat = (baseHydCond*dPosDrop + upHydCond*(1._rkind - dPosDrop) + dUp_dMatric*(headDrop - posDrop))/pathLength
      dq_dNrgStateUnsat = ((baseHydCond*dPosDrop + upHydCond*(1._rkind - dPosDrop))*node_dPsiLiq_dTemp &
                        &  + dUp_dTemp*(headDrop - posDrop))/pathLength

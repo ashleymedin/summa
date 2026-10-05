@@ -1093,6 +1093,7 @@ MODULE data_types
    ! input: diriclet boundary conditions
    real(rkind)  :: scalarGlceMelt            ! glacier ice melt (m s-1)
    real(rkind)  :: lowerBoundHead            ! lower boundary condition for matric head (m)
+   real(rkind)  :: scalarAquiferReject       ! recharge rejected below the soil column, returned to its base (m s-1)
    ! input: derivative in soil water characteristic
    real(rkind)  :: node_dPsiLiq_dTemp        ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! input: transmittance
@@ -2403,6 +2404,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
    ! intent(in): boundary conditions
    scalarGlceMelt  => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),  & ! intent(out): [dp] glacier ice melt (m s-1)
    lowerBoundHead  => mpar_data%var(iLookPARAM%lowerBoundHead)%dat(1), & ! lower boundary condition for matric head (m)
+   scalarAquiferReject => diag_data%var(iLookDIAG%scalarAquiferReject)%dat(1), & ! recharge returned to the soil base, realMissing if none (m s-1)
    ! intent(in): derivative in the soil water characteristic
    dPsiLiq_dTemp     => in_soilLiqFlux % dPsiLiq_dTemp,         & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! intent(in): transmittance
@@ -2431,6 +2433,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
    ! intent(in): boundary conditions
    in_qDrainFlux % scalarGlceMelt  = scalarGlceMelt  ! glacier ice melt (m s-1)
    in_qDrainFlux % lowerBoundHead  = lowerBoundHead  ! lower boundary condition (m)
+   in_qDrainFlux % scalarAquiferReject = max(scalarAquiferReject, 0._rkind) ! returned recharge, none if missing (m s-1)
    ! intent(in): derivative in the soil water characteristic
    in_qDrainFlux % node_dPsiLiq_dTemp = dPsiLiq_dTemp(nSoil)     ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! intent(in): transmittance

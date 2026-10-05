@@ -28,12 +28,14 @@ module mf6_coupling
   !
   ! One exchange per SUMMA data step, explicit with a one-step lag.  The driver writes the
   ! previous head into SUMMA as lowerBoundHead and advances SUMMA; mf6_step scatters the soil
-  ! drainage into RCH, advances MODFLOW one step, and gathers the new head and the feedback
+  ! drainage into UZF and RCH, advances MODFLOW one step, and gathers the new head and the feedback
   ! fluxes per HRU.
   !
   !   &coupler
   !     mf6_model_name     = 'MYMODEL' ! GWF model name, as in mfsim.nam (upper case)
   !     rch_package_name   = 'RCHA'    ! RCH package name (READASARRAYS), as in the GWF name file
+  !     uzf_package_name   = 'UZF'     ! UZF package below the soil column, one landflag-1 cell per column
+  !     uze_package_name   = ''        ! GWE UZE package carrying UZF's infiltration temperature
   !     bflow_package_name = 'CHD'     ! shorthand for a one-entry role='baseflow' table below
   !     bnd_package_names  = 'CHD','DRN'                      ! up to MAXBND boundary packages
   !     bnd_package_roles  = 'baseflow','surface_discharge'    ! baseflow | surface_discharge | gw_et
@@ -49,13 +51,21 @@ module mf6_coupling
   !
   ! DIS/TOP must be the base of SUMMA's soil column, as in GSFLOW, so the two models share no pore
   ! space: SUMMA owns the saturated zone within the column and MODFLOW everything below.
+  ! Where a cell's water table is below its UZF top, positive drainage enters UZF, as GSFLOW's
+  ! gravity drainage enters UZF1, a day's worth at a time at a constant rate over the next day, so
+  ! hourly pulses do not each start a wave; elsewhere it enters RCH.  Neither that store nor UZF's
+  ! water content is in the head restart, so a restarted UZF starts from THTI with an empty store.
+  ! UZF's ET, groundwater ET and seepage must be off: EVT takes groundwater ET and SUMMA's presHead
+  ! flux is the discharge into the column.  Rejected infiltration returns to the column base, and
+  ! is added back onto the next step's drainage, which SUMMA reports net of it.
   !
   ! Roles are summed when several packages share one, and are how SUMMA consumes a returned flux:
   ! baseflow reaches routing, surface_discharge is added to surface runoff, gw_et is groundwater
   ! evapotranspiration.  Restart paths resolve against the process working directory, not run_dir.
   !
   ! With gwe_model_name set, SUMMA's drainage temperature goes into RCH's one auxiliary variable,
-  ! which GWE's SSM names as the recharge temperature, and GWE's temperature at the water table comes
+  ! which GWE's SSM names as the recharge temperature, and into UZE's infiltration temperature
+  ! (uze_package_name, required with UZF), and GWE's temperature at the water table comes
   ! back per HRU.  GWE runs in degrees Celsius; every temperature exchanged here is in kelvin.
   ! With esl_package_name also set, SUMMA's conduction out the soil base (W m-2) loads that ESL
   ! package at each cell's water-table node (W), so the heat SUMMA loses below is the heat GWE gains.
@@ -179,6 +189,8 @@ module mf6_coupling
     ! ---- configuration, from the &coupler namelist ----
     character(len=256)  :: mf6_model_name     = ''
     character(len=256)  :: rch_package_name   = 'RCHA'
+    character(len=256)  :: uzf_package_name   = 'UZF'   ! UZF package below the soil column
+    character(len=256)  :: uze_package_name   = ''      ! GWE UZE package for UZF's infiltration temperature
     character(len=256)  :: bflow_package_name = 'CHD'   ! back-compatible alias for a single role=baseflow entry
     character(len=256)  :: evt_package_name   = ''      ! EVT package driven with SUMMA's aquifer transpiration demand
     character(len=256)  :: gwe_model_name     = ''      ! GWE model carrying the aquifer temperature; blank = none
@@ -222,8 +234,11 @@ module mf6_coupling
     ! ---- coupled budget diagnostic (see mf6_budget_report) ----
     logical          :: budget = .false.    ! report the per-step coupled budget
     double precision :: bud_sent = 0.d0     ! cumulative volume SUMMA sent as recharge (m3)
-    double precision :: bud_taken = 0.d0    ! cumulative volume MODFLOW's RCH array received (m3)
+    double precision :: bud_taken = 0.d0    ! cumulative volume MODFLOW's RCH array and UZF received (m3)
     double precision :: bud_back(3) = 0.d0  ! cumulative volume returned, by role (m3)
+    double precision :: bud_uzf = 0.d0      ! cumulative volume of that taken by UZF (m3)
+    double precision :: bud_rej = 0.d0      ! cumulative volume UZF rejected, returned to the soil column (m3)
+    double precision :: bud_dt  = 0.d0      ! SUMMA data step (s)
     double precision :: bud_etdem = 0.d0    ! cumulative aquifer-transpiration demand sent (m3)
     double precision :: bud_heat_sent = 0.d0  ! cumulative heat SUMMA conducted out the soil base (J)
     double precision :: bud_heat_taken = 0.d0 ! cumulative heat GWE's ESL package received (J)
@@ -241,6 +256,16 @@ module mf6_coupling
     real(c_double), pointer :: mf6_esl_rate(:) => null()  ! ESL energy loading      __INPUT__/<GWE>/<ESL>/SENERRATE (W, per list row)
     integer(c_int), pointer :: mf6_esl_node(:) => null()  ! ESL list nodes          <GWE>/<ESL>/NODELIST (REDUCED nodes)
     real(c_double), pointer :: bnrg_cell(:) => null()     ! basal conduction per horizontal cell (W m-2), owned here
+    real(c_double), pointer :: uzf_sinf(:) => null()      ! UZF infiltration input    <MODEL>/<UZF>/SINF_PVAR (m s-1, per UZF cell)
+    real(c_double), pointer :: uzf_celtop(:) => null()    ! UZF top                   <MODEL>/<UZF>/CELTOP (m, per UZF cell)
+    real(c_double), pointer :: uzf_area(:) => null()      ! UZF plan area             <MODEL>/<UZF>/UZFAREA (m2, per UZF cell)
+    real(c_double), pointer :: uzf_rejinf(:) => null()    ! UZF rejected infiltration <MODEL>/<UZF>/REJINF (m3 s-1, per UZF cell)
+    real(c_double), pointer :: uze_temp(:) => null()      ! UZE infiltration temperature <GWE>/<UZE>/TEMPINFL (degC, per UZF cell)
+    integer, allocatable    :: uzf_of_cell(:)             ! landflag-1 UZF cell of each horizontal cell, 0 if none
+    real(c_double), allocatable :: uzf_held(:)            ! drainage held for UZF's next day (m, per UZF cell)
+    real(c_double), allocatable :: uzf_rate(:)            ! infiltration UZF takes over the current day (m s-1, per UZF cell)
+    integer                 :: uzf_nbatch = 1             ! SUMMA steps in a UZF day
+    integer                 :: uzf_kstep  = 0             ! steps into the current UZF day
     logical                 :: grid_reduced = .false.
 
     ! ---- head-dependent boundary packages fed back to SUMMA, by role ----
@@ -283,6 +308,8 @@ module mf6_coupling
     procedure, private :: read_map_file         => mf6_read_map_file
     procedure, private :: build_sy_hru          => mf6_build_sy_hru
     procedure, private :: scatter_drainage_to_rch => mf6_scatter_drainage_to_rch
+    procedure, private :: init_uzf              => mf6_init_uzf
+    procedure, private :: gather_reject_to_hru  => mf6_gather_reject_to_hru
     procedure, private :: scatter_hru_to_array  => mf6_scatter_hru_to_array
     procedure, private :: gather_head_to_hru    => mf6_gather_head_to_hru
     procedure, private :: gather_aquifer_to_hru => mf6_gather_aquifer_to_hru
@@ -493,6 +520,10 @@ contains
       this%have_esl = .true.
     end if
 
+    ! -- UZF below the soil column, and UZE for its infiltration temperature
+    call this%init_uzf(err, message)
+    if (err /= 0) then; call this%leave_run_dir(); return; end if
+
     ! -- coupling time-step consistency --
     ! NB: MODFLOW's delt is only set once the first time step is prepared, so it is
     ! not meaningful yet right after initialize(); the delt == data_step check is
@@ -519,6 +550,7 @@ contains
     ! the coupled budget needs HRU areas to convert per-HRU fluxes to volumes
     this%budget = allocated(this%hru_area)
     this%bud_sent = 0.d0; this%bud_taken = 0.d0; this%bud_back = 0.d0; this%bud_etdem = 0.d0
+    this%bud_uzf = 0.d0; this%bud_rej = 0.d0
     this%bud_heat_sent = 0.d0; this%bud_heat_taken = 0.d0
 
     call this%leave_run_dir()
@@ -532,7 +564,8 @@ contains
   ! back here for the next step, and are left untouched when feedback is off.
   ! ==================================================================================
   subroutine mf6_step(this, istep, summa_data_step, drain_hru, head_hru, stor_hru, bflow_hru, err, message, &
-                      surfdis_hru, gwet_demand_hru, gwet_hru, gwet_lim_hru, rtemp_hru, atemp_hru, bnrg_hru, infil_lim_hru)
+                      surfdis_hru, gwet_demand_hru, gwet_hru, gwet_lim_hru, rtemp_hru, atemp_hru, bnrg_hru, infil_lim_hru, &
+                      rej_hru)
     class(mf6_coupler_type), intent(inout) :: this
     integer,                 intent(in)    :: istep             ! 1-based coupling step index
     double precision,        intent(in)    :: summa_data_step   ! length of a SUMMA data step (s)
@@ -551,8 +584,11 @@ contains
     real, optional,          intent(inout) :: atemp_hru(:)        ! per-HRU aquifer temperature at the water table (K)
     real, optional,          intent(in)    :: bnrg_hru(:)         ! per-HRU conduction out the soil base (W m-2, + = into the aquifer)
     real, optional,          intent(inout) :: infil_lim_hru(:)    ! per-HRU aquifer control on the infiltrating area (-), cell-wise mean
-    integer        :: istat
+    real, optional,          intent(inout) :: rej_hru(:)          ! per-HRU rejected recharge (m s-1, + = into the column): in, what SUMMA
+                                                                  !   took back this step; out, what UZF rejected for the next
+    integer        :: istat, c
     real(c_double) :: dt_mf6
+    real, allocatable :: gross_hru(:)
 
     err = 0; message = ''
 
@@ -590,8 +626,12 @@ contains
       end if
     end if
 
-    ! 4. SUMMA soil drainage -> MODFLOW 6 RCH recharge array
-    call this%scatter_drainage_to_rch(drain_hru)
+    ! 4. SUMMA soil drainage -> MODFLOW 6 UZF and RCH, gross of the recharge SUMMA has just taken back
+    gross_hru = drain_hru
+    if (present(rej_hru)) gross_hru = drain_hru + rej_hru
+    if (istep == 1) this%uzf_nbatch = max(1, nint(86400.d0/summa_data_step))
+    this%bud_dt = summa_data_step
+    call this%scatter_drainage_to_rch(gross_hru, summa_data_step)
 
     ! 4b. SUMMA aquifer transpiration demand -> MODFLOW 6 EVT rate array.  MODFLOW applies its
     !     own water-table-depth limiting, so what it actually takes comes back at step 5.
@@ -599,8 +639,14 @@ contains
       call this%scatter_hru_to_array(gwet_demand_hru, this%mf6_evt)
 
     ! 4c. SUMMA drainage temperature -> RCH's auxiliary array, the temperature of GWE's recharge source
-    if (this%have_gwe .and. present(rtemp_hru)) &
+    if (this%have_gwe .and. present(rtemp_hru)) then
       call this%scatter_hru_to_array(real(rtemp_hru - TFREEZE_K), this%mf6_rch_temp)
+      if (associated(this%uze_temp)) then
+        do c = 1, this%nrow*this%ncol
+          if (this%uzf_of_cell(c) > 0) this%uze_temp(this%uzf_of_cell(c)) = this%mf6_rch_temp(c)
+        end do
+      end if
+    end if
 
     ! 4d. SUMMA's conduction out the soil base -> GWE's ESL energy loading
     if (this%have_esl .and. present(bnrg_hru)) call this%scatter_nrg_to_esl(bnrg_hru, summa_data_step)
@@ -624,7 +670,13 @@ contains
     end if
 
     ! 6. accumulate the coupled budget, now that both sides of this step are known
-    call this%budget_accumulate(summa_data_step, drain_hru, bflow_hru, surfdis_hru, gwet_hru, gwet_demand_hru)
+    call this%budget_accumulate(summa_data_step, gross_hru, bflow_hru, surfdis_hru, gwet_hru, gwet_demand_hru)
+
+    ! 7. UZF's rejected infiltration, for SUMMA to take back next step
+    if (this%feedback .and. present(rej_hru)) then
+      call this%gather_reject_to_hru(rej_hru)
+      if (this%budget) this%bud_rej = this%bud_rej + sum(this%hru_area * dble(rej_hru)) * summa_data_step
+    end if
 
     call this%leave_run_dir()
   end subroutine mf6_step
@@ -674,6 +726,14 @@ contains
     this%mf6_rch_temp => null()
     this%mf6_esl_rate => null()
     this%mf6_esl_node => null()
+    this%uzf_sinf     => null()
+    this%uzf_celtop   => null()
+    this%uzf_area     => null()
+    this%uzf_rejinf   => null()
+    this%uze_temp     => null()
+    if (allocated(this%uzf_of_cell)) deallocate(this%uzf_of_cell)
+    if (allocated(this%uzf_held)) deallocate(this%uzf_held)
+    if (allocated(this%uzf_rate)) deallocate(this%uzf_rate)
     if (associated(this%bnrg_cell)) deallocate(this%bnrg_cell)
     this%mf6_mshape   => null()
     this%mf6_nodered  => null()
@@ -762,13 +822,15 @@ contains
     character(len=*),        intent(out)   :: message
     integer :: fu, rc, ib, ir
     character(len=256) :: mf6_model_name, rch_package_name, bflow_package_name, map_file
+    character(len=256) :: uzf_package_name, uze_package_name
     character(len=256) :: evt_package_name, gwe_model_name, esl_package_name
     character(len=1024):: head_restart_read, head_restart_write
     character(len=256) :: bnd_package_names(MAXBND)
     character(len=32)  :: bnd_package_roles(MAXBND)
     integer            :: mf6_epsg
     logical            :: feedback
-    namelist /coupler/ mf6_model_name, rch_package_name, bflow_package_name, evt_package_name, &
+    namelist /coupler/ mf6_model_name, rch_package_name, uzf_package_name, uze_package_name, &
+                       bflow_package_name, evt_package_name, &
                        bnd_package_names, bnd_package_roles, map_file, mf6_epsg, feedback, &
                        head_restart_read, head_restart_write, gwe_model_name, esl_package_name
 
@@ -777,6 +839,8 @@ contains
     ! namelist defaults
     mf6_model_name     = ''
     rch_package_name   = 'RCHA'
+    uzf_package_name   = 'UZF'
+    uze_package_name   = ''
     bflow_package_name = 'CHD'
     evt_package_name   = ''
     gwe_model_name     = ''
@@ -804,6 +868,8 @@ contains
 
     this%mf6_model_name     = mf6_model_name
     this%rch_package_name   = rch_package_name
+    this%uzf_package_name   = uzf_package_name
+    this%uze_package_name   = uze_package_name
     this%bflow_package_name = bflow_package_name
     this%evt_package_name   = evt_package_name
     this%gwe_model_name     = gwe_model_name
@@ -816,6 +882,8 @@ contains
 
     call to_upper(this%mf6_model_name)
     call to_upper(this%rch_package_name)
+    call to_upper(this%uzf_package_name)
+    call to_upper(this%uze_package_name)
     call to_upper(this%bflow_package_name)
     call to_upper(this%evt_package_name)
     call to_upper(this%gwe_model_name)
@@ -895,16 +963,151 @@ contains
   end subroutine mf6_leave_run_dir
 
   ! ==================================================================================
-  ! SUMMA drainage (m s-1, per HRU)  ->  MODFLOW RECHARGE array (m s-1, per top cell).
+  ! SUMMA drainage (m s-1, per HRU)  ->  MODFLOW RECHARGE array, then UZF (m s-1, per top cell).
   ! Each HRU's flux is spread over its mapped cells by weight; a cell that receives
   ! from several HRUs gets the area-weighted mean flux (so recharge volume is conserved
-  ! when the HRU areas equal the covered cell areas).
+  ! when the HRU areas equal the covered cell areas).  A positive flux on a cell whose last
+  ! head is below its UZF top moves from RCH into that cell's UZF store; each day the store
+  ! becomes UZF's constant infiltration over the next, or RCH's while the water table is at the
+  ! top.  It is written into UZF's period input, which do_time_step's advance hands to the UZF
+  ! cells, so this must follow prepare_time_step.
   ! ==================================================================================
-  subroutine mf6_scatter_drainage_to_rch(this, drain_hru)
+  subroutine mf6_scatter_drainage_to_rch(this, drain_hru, dt)
     class(mf6_coupler_type), intent(inout) :: this
     real,                    intent(in)    :: drain_hru(:)
+    double precision,        intent(in)    :: dt              ! SUMMA data step (s)
+    integer :: c, iuz, node
+
     call this%scatter_hru_to_array(drain_hru, this%mf6_rch)
+    if (.not. allocated(this%uzf_of_cell)) return
+    do c = 1, this%nrow*this%ncol
+      iuz = this%uzf_of_cell(c)
+      if (iuz < 1) cycle
+      node = this%top_active_node(c)
+      if (node < 1) cycle
+      ! a water table at the top takes the day's rate straight, rather than through UZF rejecting it
+      if (this%mf6_head(node) >= this%uzf_celtop(iuz)) then
+        this%uzf_sinf(iuz) = 0.0_c_double
+        this%mf6_rch(c)    = this%mf6_rch(c) + this%uzf_rate(iuz) * this%uzf_area(iuz) / this%cell_area(c)
+        cycle
+      end if
+      this%uzf_sinf(iuz) = this%uzf_rate(iuz)
+      if (this%mf6_rch(c) <= 0.0_c_double) cycle
+      this%uzf_held(iuz) = this%uzf_held(iuz) + this%mf6_rch(c) * dt
+      this%mf6_rch(c)    = 0.0_c_double
+    end do
+
+    this%uzf_kstep = this%uzf_kstep + 1
+    if (this%uzf_kstep == this%uzf_nbatch) then
+      this%uzf_rate  = this%uzf_held / (this%uzf_nbatch * dt)
+      this%uzf_held  = 0.0_c_double
+      this%uzf_kstep = 0
+    end if
   end subroutine mf6_scatter_drainage_to_rch
+
+  ! ==================================================================================
+  ! Find the UZF package and map each horizontal cell to its landflag-1 UZF cell.  UZF must
+  ! simulate no ET, no groundwater ET and no seepage, which the coupling supplies otherwise.
+  ! ==================================================================================
+  subroutine mf6_init_uzf(this, err, message)
+    class(mf6_coupler_type), intent(inout) :: this
+    integer,                 intent(out)   :: err
+    character(len=*),        intent(out)   :: message
+    character(len=512)      :: pkg
+    integer(c_int), pointer :: nodelist(:) => null(), landflag(:) => null(), flag(:) => null()
+    integer, allocatable    :: cell_of_node(:)
+    integer :: c, iuz, node, k
+    character(len=10), parameter :: offflag(4) = [character(len=10) :: 'IETFLAG', 'IGWETFLAG', 'ISEEPFLAG', 'IMOVER']
+    character(len=30), parameter :: offname(4) = [character(len=30) :: 'SIMULATE_ET', &
+                                                  'LINEAR_GWET or SQUARE_GWET', 'SIMULATE_GWSEEP', 'MOVER']
+
+    err = 0; message = ''
+    if (len_trim(this%uzf_package_name) == 0) then
+      message = 'uzf_package_name must be set: drainage below the soil column enters MODFLOW through UZF'
+      err = 20; return
+    end if
+    pkg = trim(this%mf6_model_name)//'/'//trim(this%uzf_package_name)
+    if (.not. (mf6_try_ptr_int(trim(pkg)//'/NODELIST', nodelist) .and. &
+               mf6_try_ptr_int(trim(pkg)//'/LANDFLAG', landflag) .and. &
+               mf6_try_ptr_double(trim(pkg)//'/SINF_PVAR', this%uzf_sinf) .and. &
+               mf6_try_ptr_double(trim(pkg)//'/CELTOP', this%uzf_celtop) .and. &
+               mf6_try_ptr_double(trim(pkg)//'/UZFAREA', this%uzf_area) .and. &
+               mf6_try_ptr_double(trim(pkg)//'/REJINF', this%uzf_rejinf))) then
+      message = 'no UZF package '//trim(this%uzf_package_name)//' in GWF model '//trim(this%mf6_model_name)// &
+            ' - check uzf_package_name in the config (upper case, as in the GWF name file)'
+      err = 20; return
+    end if
+    ! UZF ET and groundwater ET are EVT's, seepage is SUMMA's, and rejected infiltration is the coupler's
+    do k = 1, size(offflag)
+      if (mf6_try_ptr_int(trim(pkg)//'/'//trim(offflag(k)), flag)) then
+        if (flag(1) /= 0) then
+          message = 'UZF package '//trim(this%uzf_package_name)//' must not set '//trim(offname(k))// &
+                ': the coupling supplies that flux'
+          err = 20; return
+        end if
+      end if
+    end do
+
+    ! horizontal cell of each reduced node, then of each landflag-1 UZF cell
+    allocate(cell_of_node(size(this%mf6_head))); cell_of_node = 0
+    do k = 1, this%nlay
+      do c = 1, this%nrow*this%ncol
+        node = this%to_reduced((k-1)*this%nrow*this%ncol + c)
+        if (node >= 1 .and. node <= size(cell_of_node)) cell_of_node(node) = c
+      end do
+    end do
+    allocate(this%uzf_of_cell(this%nrow*this%ncol)); this%uzf_of_cell = 0
+    allocate(this%uzf_held(size(nodelist)), this%uzf_rate(size(nodelist)))
+    this%uzf_held = 0.0_c_double; this%uzf_rate = 0.0_c_double; this%uzf_kstep = 0
+    do iuz = 1, min(size(nodelist), size(landflag))
+      if (landflag(iuz) /= 1) cycle
+      node = nodelist(iuz)
+      if (node < 1 .or. node > size(cell_of_node)) cycle
+      if (cell_of_node(node) > 0) this%uzf_of_cell(cell_of_node(node)) = iuz
+    end do
+    deallocate(cell_of_node)
+
+    ! UZE's infiltration temperature, one per UZF cell, when GWE carries the aquifer temperature
+    if (this%have_gwe) then
+      if (len_trim(this%uze_package_name) == 0) then
+        message = 'uze_package_name must be set with gwe_model_name: UZF infiltration carries SUMMA''s drainage temperature'
+        err = 20; return
+      end if
+      if (.not. mf6_try_ptr_double(trim(this%gwe_model_name)//'/'//trim(this%uze_package_name)//'/TEMPINFL', &
+                                   this%uze_temp)) then
+        message = 'no UZE package '//trim(this%uze_package_name)//' in GWE model '//trim(this%gwe_model_name)
+        err = 20; return
+      end if
+      if (size(this%uze_temp) /= size(nodelist)) then
+        message = 'UZE package '//trim(this%uze_package_name)//' must have one control volume per UZF cell'
+        err = 20; return
+      end if
+    end if
+  end subroutine mf6_init_uzf
+
+  ! ==================================================================================
+  ! UZF rejected infiltration (m3 s-1, per UZF cell)  ->  per-HRU flux back into the soil column
+  ! (m s-1), over the HRU's mapped-cell area as gather_boundary_to_hru forms it.
+  ! ==================================================================================
+  subroutine mf6_gather_reject_to_hru(this, rej_hru)
+    class(mf6_coupler_type), intent(inout) :: this
+    real,                    intent(inout) :: rej_hru(:)
+    integer :: i, k, c, iuz
+    real(c_double) :: qsum, asum
+
+    do i = 1, this%nHRU
+      qsum = 0.0_c_double; asum = 0.0_c_double
+      do k = this%map_ptr(i), this%map_ptr(i+1) - 1
+        c = this%map_cell(k)
+        if (c < 1 .or. c > this%nrow*this%ncol) cycle
+        iuz = this%uzf_of_cell(c)
+        if (iuz > 0) qsum = qsum + real(this%map_wgt(k), c_double) * this%uzf_rejinf(iuz)
+        asum = asum + real(this%map_wgt(k), c_double) * this%cell_area(c)
+      end do
+      rej_hru(i) = 0.0
+      if (asum > 0.0_c_double) rej_hru(i) = real(qsum / asum)
+    end do
+  end subroutine mf6_gather_reject_to_hru
 
   ! ==================================================================================
   ! The general version: a per-HRU flux (m s-1) onto a READASARRAYS per-horizontal-cell
@@ -1629,8 +1832,8 @@ contains
 
   ! ==================================================================================
   ! Coupled budget, accumulated per step and reported at finalize (m3):
-  !   sent  = sum_i A_HRU,i q_i dt      what SUMMA handed over
-  !   taken = sum_c A_c R_c dt          what MODFLOW's RCH array received
+  !   sent  = sum_i A_HRU,i q_i dt      what SUMMA handed over, gross of the recharge it took back
+  !   taken = sum_c A_c R_c dt          what MODFLOW's RCH array and UZF received
   !   back  = sum_i A_HRU,i f_i dt      what came back, per role
   ! The residual sent - taken is the mapping error, separate from the one-step lag error.
   ! ==================================================================================
@@ -1657,25 +1860,38 @@ contains
         this%bud_etdem = this%bud_etdem + this%hru_area(i) * dble(gwet_demand_hru(i)) * dt
     end do
 
-    ! MODFLOW side: the RCH array as it now stands, over the cells' own areas
+    ! MODFLOW side: the RCH array as it now stands, over the cells' own areas, and UZF's infiltration
     do c = 1, min(size(this%mf6_rch), this%nrow*this%ncol)
       this%bud_taken = this%bud_taken + this%cell_area(c) * this%mf6_rch(c) * dt
     end do
+    if (associated(this%uzf_sinf)) then
+      this%bud_uzf   = this%bud_uzf + sum(this%uzf_area * this%uzf_sinf) * dt
+      this%bud_taken = this%bud_taken + sum(this%uzf_area * this%uzf_sinf) * dt
+    end if
   end subroutine mf6_budget_accumulate
 
   subroutine mf6_budget_report(this)
     class(mf6_coupler_type), intent(in) :: this
-    double precision :: resid, pct
+    double precision :: resid, pct, held
 
     if (.not. this%budget) return
 
-    resid = this%bud_sent - this%bud_taken
+    ! the day's store plus what the current day's rate has still to deliver
+    held = 0.d0
+    if (allocated(this%uzf_held)) held = sum(this%uzf_area * (this%uzf_held + &
+      this%uzf_rate * this%bud_dt * (this%uzf_nbatch - this%uzf_kstep)))
+    resid = this%bud_sent - this%bud_taken - held
     pct   = 0.d0
     if (abs(this%bud_sent) > 0.d0) pct = 100.d0 * resid / this%bud_sent
 
     write(*,'(a)')        'summa_modflow6: coupled water budget over the run (m3)'
     write(*,'(a,g0)')     '  SUMMA drainage sent      : ', this%bud_sent
     write(*,'(a,g0)')     '  MODFLOW recharge received: ', this%bud_taken
+    if (associated(this%uzf_sinf)) then
+      write(*,'(a,g0)')   '    of which into UZF      : ', this%bud_uzf
+      write(*,'(a,g0)')   '  held for UZF, undelivered: ', held
+      write(*,'(a,g0)')   '  UZF rejected, returned   : ', this%bud_rej
+    end if
     write(*,'(a,g0,a,f0.3,a)') '  mapping residual         : ', resid, '  (', pct, '% of sent)'
     if (this%have_bflow)   write(*,'(a,g0)') '  returned as baseflow     : ', this%bud_back(ROLE_BASEFLOW)
     if (this%have_surfdis) write(*,'(a,g0)') '  returned at land surface : ', this%bud_back(ROLE_SURFACE_DISCH)
