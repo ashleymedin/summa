@@ -48,9 +48,9 @@ so running the pair isolates what lateral flow contributes. They write `run1_lat
 
 Run totals over the 72 hours, `run1_latflow`:
 
-    hru 1 (receiver    ): inflow  9085.04 m3   outflow  717.50 m3
-    hru 2 (contributor ): inflow     0.00 m3   outflow 4570.03 m3
-    hru 3 (contributor ): inflow     0.00 m3   outflow 4515.01 m3
+    hru 1 (receiver    ): inflow  9085.06 m3   outflow  717.50 m3
+    hru 2 (contributor ): inflow     0.00 m3   outflow 4570.04 m3
+    hru 3 (contributor ): inflow     0.00 m3   outflow 4515.02 m3
     hru 4 (CONTROL twin): inflow     0.00 m3   outflow  710.22 m3   (ratio 1.0102)
 
 HRU 1's inflow is HRU 2 plus HRU 3 to the last digit, which is the cascade delivering, and
@@ -72,5 +72,5 @@ they differ for unrelated reasons. Only HRU 4 is a true control, which is why it
 HRU 1's cells and elevation rather than owning a private region.
 
 In `run1_noLatflow` every column outflow is zero, which is the expected contrast rather than
-a second cascade check. The coupled water budget reports 7461.7565734739601 m3 sent with
-lateral flow and 7463.4612257389226 m3 without.
+a second cascade check. The coupled water budget reports 7461.7567368540804 m3 sent with
+lateral flow and 7463.4614055667071 m3 without.
