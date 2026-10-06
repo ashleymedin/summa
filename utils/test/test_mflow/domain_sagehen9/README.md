@@ -71,11 +71,15 @@ see `../README.md`.
 
 Lateral flow runs in every GRU: `mLayerColumnOutflow` is non-zero throughout
 `run1_latflow` and identically zero in `run1_noLatflow`, and the coupled budget
-separates the pair, 47986.094261028913 m3 sent against −44878.802494764095 m3.
+separates the pair, 24274.554487668451 m3 sent against −53414.725614536175 m3.
 The event takes about 3 minutes for the 72 steps once the spin-up exists.
 
+Every config here names the base exchange's `GHBB` and `DRNB`, so MODFLOW solves the exchange at
+the soil-column base against its own new head. Without it about 700 HRUs reversed their drainage
+nearly every hour; with it, no HRU in any run here reverses more than 20 times in the 72 steps.
+
 Without mizuRoute the nine stream domains are never solved, so they add nothing to
-`basin__TotalRunoff`: 9.13 mm over the run in `run1_noLatflow`, 18.0 mm in `run1_latflow`.
+`basin__TotalRunoff`: 7.35 mm over the run in `run1_noLatflow`, 17.5 mm in `run1_latflow`.
 
 `run_sagehen9_deeproot.sh` runs the 6 m roots of `run_sagehen1_deeproot.sh` over the
 `ex-gwf-sagehen-ss` EVT model, without lateral flow. With one HRU per cell each HRU's
@@ -120,14 +124,14 @@ What to check, over the 72 steps:
 
 - `upArea` of reach 9 is 27434700 m2, the grid's active area, and each junction reach
   is the sum of its tributaries.
-- the network conserves water. 381331.7 m3 enters as lateral inflow,
-  380133.3 m3 leaves reach 9, and the 1198.4 m3 difference (0.31%) is still in the
+- the network conserves water. 358434.4 m3 enters as lateral inflow,
+  356822.0 m3 leaves reach 9, and the 1612.4 m3 difference (0.45%) is still in the
   reaches at the end.
 - `Q_reach` tracks `averageRoutedRunoff`, not `basin__TotalRunoff`: the latter is
   ahead of SUMMA's own time-delay histogram (`subRouting = timeDlay`), which holds
   back about a quarter of the storm over a run this short.
 - the coupled budget is the unrouted run's. MODFLOW receives
-  56141.90 m3, as `run1_latflow` does, since nothing the routing
+  −18162.50 m3, as `run1_latflow` does, since nothing the routing
   does reaches the soil column.
 
 Routing solves the nine stream columns, which have no cell in `hru2cell_map.txt`. Under

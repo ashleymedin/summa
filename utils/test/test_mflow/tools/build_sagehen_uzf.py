@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Add a UZF package below SUMMA's soil column to a Sagehen MODFLOW 6 model.
 
-One landflag-1 UZF cell per active cell, except the CHD outlet cells, as the upstream
+One landflag-1 UZF cell per active cell, except the CHD outlet cells where the model has CHD, as the upstream
 ex-gwf-sagehen does. Parameters are the upstream example's, but for 3 trailing waves: VKS the cell's vertical conductivity,
 THTS from thts1.txt, THTR 0.1002 and EPS 4. THTI is the water content whose kinematic-wave flux
 VKS ((theta - THTR)/(THTS - THTR))^EPS carries the long-term mean recharge, so the unsaturated
@@ -37,7 +37,8 @@ def add_uzf(model_dir):
     vks = load(model_dir, "kv1.txt").reshape(nrow, ncol) / 86400.0
     thts = load(model_dir, "thts1.txt").reshape(nrow, ncol)
     chd = set()
-    if os.path.exists(os.path.join(model_dir, "chd1.txt")):
+    has_chd = "CHD6" in open(os.path.join(model_dir, "sagehen.nam")).read()
+    if has_chd and os.path.exists(os.path.join(model_dir, "chd1.txt")):
         for line in open(os.path.join(model_dir, "chd1.txt")):
             w = line.split()
             if len(w) >= 3 and not line.lstrip().startswith("#"):

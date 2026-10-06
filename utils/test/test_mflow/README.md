@@ -36,6 +36,13 @@ outlet, written by `tools/build_sagehen_uzf.py` with the upstream example's para
 trailing waves. Its starting water content carries the long-term mean recharge, so the
 unsaturated zone starts in step with the settled heads rather than empty.
 
+Every model also carries the base exchange's GHB (`GHBB`) and DRN (`DRNB`), one row per UZF cell,
+written by `tools/build_sagehen_base.py` at `DIS/TOP` with zero conductance; the coupler sets them each
+step. Only the `domain_sagehen9` configs name them. A lumped HRU's flux answers the mean head of its
+cells, so a per-cell correction is not its linearisation, and the `domain_sagehen1` and
+`domain_sagehen4` configs leave the exchange explicit, as lumped layouts never bounced. Every config
+holds drainage a week before UZF (`uzf_hold_days = 7`).
+
 Every MODFLOW model starts from the same `strt1.txt`: the heads `tools/spinup_sagehen9_heads.py`
 settles on the lumped calibration domain, a steady state then 20 coupled water years 2017. The
 native `ex-gwf-sagehen` heads sit near land surface, and the uplands drain from them for decades.
@@ -82,18 +89,20 @@ its aquifer and there is about 440 mm of snow on the ground.
 
 | mm over 72 h | lumped | distributed | + latflow | lumped, deeproot | distributed, deeproot |
 |---|---:|---:|---:|---:|---:|
-| rain + melt | 142.62 | 141.91 | 141.92 | 142.62 | 141.91 |
-| infiltration | 117.31 | 132.37 | 127.29 | 116.33 | 136.43 |
-| surface runoff | 25.31 | 9.54 | 14.63 | 26.29 | 5.48 |
-| soil drainage (negative: up from the aquifer) | 0.30 | −1.57 | 2.05 | −0.03 | −2.02 |
-| aquifer seepage (DRN) | 1.39 | 0.55 | 2.13 | 1.64 | 0.67 |
-| lateral export to the reaches | – | – | 1.74 | – | – |
-| `basin__TotalRunoff` | 26.73 | 10.11 | 18.50 | 27.96 | 6.16 |
-| `averageRoutedRunoff` | 21.05 | 6.71 | 13.86 | 23.17 | 4.93 |
-| `scalarTranspireLimAqfr` (mean) | – | – | – | 0.539 | 0.522 |
+| rain + melt | 142.62 | 141.91 | 141.91 | 142.62 | 141.90 |
+| infiltration | 117.27 | 134.58 | 128.32 | 114.00 | 139.43 |
+| surface runoff | 25.34 | 7.33 | 13.59 | 28.62 | 2.47 |
+| soil drainage (negative: up from the aquifer) | 0.35 | −1.96 | 0.84 | 0.24 | −2.48 |
+| aquifer seepage (DRN) | 1.34 | 0.01 | 0.83 | 1.71 | 0.05 |
+| lateral export to the reaches | – | – | 3.12 | – | – |
+| `basin__TotalRunoff` | 26.72 | 7.35 | 17.54 | 30.36 | 2.54 |
+| `averageRoutedRunoff` | 21.03 | 4.32 | 13.03 | 25.12 | 1.89 |
+| `scalarTranspireLimAqfr` (mean) | – | – | – | 0.541 | 0.522 |
 
 Drainage is small, so the runoff differences are structure. The lumped HRU turns 18% of the rain
-and melt into surface runoff against 7% distributed, on either MODFLOW model. The infiltration
+and melt into surface runoff against 5% distributed, on either MODFLOW model. The distributed seepage
+is nearly gone, 0.01 mm against 0.55 before the base exchange: the hourly bounce had been pushing
+water out through the drain. The infiltration
 closure is already evaluated per cell, so what remains is `surfRun_SE = homegrown_SE` taking the
 infiltrating area from how full the root zone is, which the lumped column holds as one state. ET is
 1.87 mm in every run, and aquifer transpiration is below 10⁻⁴ mm, since February is energy-limited.
@@ -110,20 +119,28 @@ Each SUMMA data step:
    (BMI output `soil_water__drainage_volume_flux`, flux `scalarSoilDrainage`)
    is regridded onto the MODFLOW 6 grid. Where a cell's water table is below its top, the soil-column
    base, a positive flux enters the UZF package's infiltration, as GSFLOW's gravity drainage enters
-   UZF1, held a day and then taken at a constant rate over the next so hourly pulses do not each
-   start a UZF wave; elsewhere it enters the RCH package `RECHARGE` array. The aquifer transpiration demand goes
+   UZF1, held `uzf_hold_days` and then taken at a constant rate over the next so hourly pulses do
+   not each start a UZF wave; elsewhere it enters the RCH package `RECHARGE` array. The aquifer transpiration demand goes
    into the EVT package `RATE` array.
-4. MODFLOW 6 advances one step (prepare / do / finalize_time_step). Leading steady-state
+4. with the base exchange named, the coupler sets its GHB stage to the last head where that head
+   was at or above the top, its DRN at the top where it was below, and both conductances to SUMMA's
+   base conductance (BMI output `soil_bottom_surface__hydraulic_conductance`), so MODFLOW solves
+   its correction to SUMMA's flux against its own new head.
+5. MODFLOW 6 advances one step (prepare / do / finalize_time_step). Leading steady-state
    stress periods are solved out first, using the RCH package's own recharge rather than
    SUMMA's.
-5. the new head field, each named boundary package's flow and UZF's rejected infiltration are read
-   back and aggregated per HRU, ready for step 1 of the next iteration — so the exchange is
-   **explicit, with a one-step lag**. Rejected infiltration returns to the base of the soil column
+6. the new head field, each named boundary package's flow, UZF's rejected infiltration and what the
+   base exchange moved are read back and aggregated per HRU, ready for step 1 of the next iteration —
+   so SUMMA sees MODFLOW **with a one-step lag**. Rejected infiltration and the base exchange return to the base of the soil column
    (BMI input `soil_water__rejected_recharge_volume_flux`, `scalarAquiferReject`); SUMMA reports its
    drainage net of it, and the coupler adds it back before regridding.
 
 Below the soil-column base SUMMA's lower boundary is free drainage into UZF; at or above it, the
-head-dependent `presHead` flux carries water both ways through RCH.
+head-dependent `presHead` flux carries water both ways through RCH. Over the first 10 cm below the
+base one gives way linearly to the other, so the flux is continuous in the water table. Without the
+base exchange, or with a jump there, cell-matched HRUs whose head sits at `DIS/TOP` reverse their
+drainage every step: a trace of water past the top lands in confined storage and reads as metres of
+head.
 
 The scatter happens after `prepare_time_step`, not before: `prepare_time_step` reloads a
 package's `PERIOD` block at the start of each stress period, which would overwrite it.
@@ -266,6 +283,9 @@ A Fortran namelist, conventionally `summa_modflow6.config` inside the case direc
       rch_package_name   = 'RCHA'    ! RCH package name, as in the GWF name file (upper case)
       uzf_package_name   = 'UZF'     ! UZF package below the soil column (upper case)
       uze_package_name   = ''        ! GWE UZE package, required with gwe_model_name
+      uzf_hold_days      = 1.0       ! days of drainage UZF takes at a time, at a constant rate
+      base_ghb_package_name = ''     ! GHB and DRN, one row per top cell, that MODFLOW solves the
+      base_drn_package_name = ''     !   base exchange through; set both or neither
       bflow_package_name = 'CHD'     ! head-dependent boundary package (CHD/DRN/RIV/GHB) whose
                                      !   simulated flow feeds back per HRU as scalarAquiferBaseflow
                                      !   ('' => skip the baseflow feedback)

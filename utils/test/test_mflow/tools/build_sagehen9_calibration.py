@@ -155,7 +155,7 @@ def main(layout, forcing_src, out_dir):
     b9.write_topology(out_dir, gru_id, down, length, slope, area=np.array([len(cs) for cs in gcells]) * b9.CELL_AREA)
     write_map(out_dir, layout, gcells, gru_of, land_slot)
     write_settings(settings, src_set)
-    write_modflow(out_dir, nSteps)
+    write_modflow(out_dir, nSteps, layout)
 
     print(f"{layout}: {nLand} land HRUs + {nGRU} stream HRUs in {nGRU} GRUs, {nSteps} forcing steps")
 
@@ -221,8 +221,14 @@ def write_settings(settings, src_set):
             f.write(f"{v} | 24\n")
 
 
-def write_modflow(out_dir, nSteps):
-    """ex-gwf-sagehen with one stress period of nSteps hours, saving its last step only."""
+def write_modflow(out_dir, nSteps, layout):
+    """ex-gwf-sagehen with one stress period of nSteps hours, saving its last step only.
+
+    Only the grid layout solves the base exchange in MODFLOW: a lumped HRU's flux answers its cells' mean
+    head, not each cell's, so a per-cell correction there is not its linearisation.
+    """
+    base = ("  base_ghb_package_name = 'GHBB'  ! the base exchange, solved by MODFLOW against its new head\n"
+            "  base_drn_package_name = 'DRNB'\n") if layout == "grid" else ""
     mf6 = os.path.join(out_dir, "mf6")
     shutil.copytree(b9.MF6, mf6, dirs_exist_ok=True)
     with open(os.path.join(mf6, "sagehen.tdis"), "w") as f:
@@ -256,6 +262,7 @@ END PERIOD
         f.write(f"""&coupler
   mf6_model_name     = 'SAGEHEN'
   rch_package_name   = 'RCHA'
+{base}  uzf_hold_days      = 7.0     ! a week of drainage per UZF wave, so deep cells keep few alive
   bnd_package_names  = 'CHD', 'DRN'
   bnd_package_roles  = 'baseflow', 'surface_discharge'
   map_file           = '{os.path.join(out_dir, "hru2cell_map.txt")}'

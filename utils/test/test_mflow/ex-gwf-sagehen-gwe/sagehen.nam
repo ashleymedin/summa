@@ -14,5 +14,7 @@ BEGIN PACKAGES
   RCH6   sagehen.rcha  RCHA
   SFR6   sagehen.sfr   SFR
   DRN6   sagehen.drn   DRN
+  GHB6   sagehen.ghbb  GHBB
+  DRN6   sagehen.drnb  DRNB
   OC6    sagehen.oc    oc
 END PACKAGES
