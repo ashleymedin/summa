@@ -15,6 +15,7 @@ This folder holds the coupler driver script, two MODFLOW 6 models, and eleven ca
 | `./run_sagehen9.sh` | `domain_sagehen9` | 3396 | `modLatflow` | one HRU per MODFLOW cell in 9 GRUs; HRU area equals cell area, so there is no aggregation or area error left to correct |
 | `./run_sagehen9_noLatflow.sh` | `domain_sagehen9` | 3396 | `modflow` | the same 3396 HRUs without lateral flow |
 | `./run_sagehen9_mizuroute.sh` | `domain_sagehen9` | 3396 | `modLatflow` | `run_sagehen9.sh` with the 9 reaches routed by mizuRoute; needs a build with both couplers |
+| `./run_sagehen9_wel.sh` | `domain_sagehen9` | 3396 | `modflow` | `run_sagehen9_noLatflow.sh` with one pumping well; `tools/check_sagehen_wel.py` shows its drawdown reach `lowerBoundHead` |
 | `./run_sagehen9_deeproot.sh` | `domain_sagehen9` | 3396 | `modflow` | `run_sagehen1_deeproot.sh`'s EVT mechanism over one HRU per cell |
 | `./run_sagehen1_wet.sh` | `domain_sagehen1` | 1 | `modflow` | the lumped half of `run_sagehen9_noLatflow.sh`: same event, decisions and MODFLOW model |
 | `./run_sagehen1_wet_deeproot.sh` | `domain_sagehen1` | 1 | `modflow` | the lumped half of `run_sagehen9_deeproot.sh` |
@@ -46,6 +47,13 @@ MODFLOW model. The first run of a case makes its spin-up, which takes about twen
 — the aquifer heads as `heads_<case>.bin` and SUMMA's state as `spinup_<case>_restart_2017020623_*.nc`
 — and is only remade once `heads_<case>.bin` is gone, so delete that folder after changing anything
 the spin-up depends on. `run_sagehen9_mizuroute.sh` restarts from `run_sagehen9.sh`'s spin-up.
+
+`run_sagehen9_wel.sh` runs `ex-gwf-sagehen-wel`, which is `ex-gwf-sagehen` by symbolic link bar its name
+file, its output control and a WEL package pumping 500 m³ a day from one valley cell. The coupler does not
+know the well is there: the drawdown reaches SUMMA through the head alone. Over the event the cell's water
+table falls 0.86 m below the soil-column base, `lowerBoundHead` follows it a step behind, and the HRU's
+drainage turns from rise to free drainage into UZF. Demand-driven pumping through AG has no SUMMA
+counterpart, since SUMMA has no irrigation demand.
 
 `run_sagehen9_mizuroute.sh` is the only case that also needs a TOML configuration file, which
 `coupler_commands.sh` takes with `-t` and passes to the coupler as a third argument. It
