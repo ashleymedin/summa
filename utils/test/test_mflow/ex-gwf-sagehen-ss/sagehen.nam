@@ -15,5 +15,7 @@ BEGIN PACKAGES
   CHD6   sagehen.chd   chd
   DRN6   sagehen.drn   DRN
   EVT6   sagehen.evta  EVTA
+  GHB6   sagehen.ghbb  GHBB
+  DRN6   sagehen.drnb  DRNB
   OC6    sagehen.oc    oc
 END PACKAGES

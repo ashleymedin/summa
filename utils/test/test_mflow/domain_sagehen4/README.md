@@ -48,10 +48,10 @@ so running the pair isolates what lateral flow contributes. They write `run1_lat
 
 Run totals over the 72 hours, `run1_latflow`:
 
-    hru 1 (receiver    ): inflow  9082.09 m3   outflow  716.49 m3
-    hru 2 (contributor ): inflow     0.00 m3   outflow 4568.20 m3
-    hru 3 (contributor ): inflow     0.00 m3   outflow 4513.89 m3
-    hru 4 (CONTROL twin): inflow     0.00 m3   outflow  709.22 m3   (ratio 1.0102)
+    hru 1 (receiver    ): inflow  9065.57 m3   outflow   718.36 m3
+    hru 2 (contributor ): inflow     0.00 m3   outflow  4538.26 m3
+    hru 3 (contributor ): inflow     0.00 m3   outflow  4527.31 m3
+    hru 4 (CONTROL twin): inflow     0.00 m3   outflow   711.08 m3   (ratio 1.0102)
 
 HRU 1's inflow is HRU 2 plus HRU 3 to the last digit, which is the cascade delivering, and
 HRU 1 outflows more than its twin because of what it received.
@@ -72,6 +72,7 @@ they differ for unrelated reasons. Only HRU 4 is a true control, which is why it
 HRU 1's cells and elevation rather than owning a private region.
 
 In `run1_noLatflow` every column outflow is zero, which is the expected contrast rather than
-a second cascade check. The coupled water budget reports 8329.3189472545564 m3 sent with
-lateral flow and 8330.4376580959633 m3 without. Either way 48% of it has entered UZF by the end
-and 24% is still held for UZF's next day, since UZF takes a day's drainage over the day after.
+a second cascade check. The coupled water budget reports 8329.1543357514001 m3 sent with
+lateral flow and 8330.2730191800401 m3 without. Either way 28% of it reaches MODFLOW through RCH
+and 72% is still held for UZF at the end, since UZF takes a week's drainage over the week after
+and no week completes in 72 hours.
