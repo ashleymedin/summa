@@ -62,6 +62,7 @@ module summabmi
   USE summa_mf6_exchange, only: mf6x_put_aquifer_baseflow
   USE summa_mf6_exchange, only: mf6x_get_drainage_temp
   USE summa_mf6_exchange, only: mf6x_get_base_nrg_flux
+  USE summa_mf6_exchange, only: mf6x_get_base_conductance
   USE summa_mf6_exchange, only: mf6x_put_aquifer_temp
   USE summa_init, only: summa_initialize                      ! used to allocate/initialize summa data structures
   USE summa_init, only: summa_initStreamNetwork               ! used to attach the stream domains to the river network
@@ -259,7 +260,7 @@ module summabmi
 #else
   integer, parameter :: input_item_count = 15
 #endif
-  integer, parameter :: output_item_count = 21
+  integer, parameter :: output_item_count = 22
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
   character (len=BMI_MAX_VAR_NAME), target,dimension(output_item_count) :: output_items
   ! Buffers behind summa_get_ptr_int/float.  The BMI contract is that the returned pointer
@@ -703,6 +704,7 @@ module summabmi
      output_items(19)= 'land_vegetation_water__aquifer_transpiration_volume_flux'
      output_items(20)= 'soil_water~drainage__temperature'   ! temperature of the drainage (recharge to MODFLOW 6 GWE)
      output_items(21)= 'soil_bottom_surface__conductive_energy_flux' ! conduction out the base of the soil column (to MODFLOW 6 GWE)
+     output_items(22)= 'soil_bottom_surface__hydraulic_conductance' ! base conductance per unit area, for MODFLOW 6's implicit exchange
      names => output_items
      bmi_status = BMI_SUCCESS
    end function summa_output_var_names
@@ -1126,6 +1128,7 @@ module summabmi
      case('soil_water__drainage_volume_flux')              ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case('soil_water~drainage__temperature')              ; units = 'K'         ; bmi_status = BMI_SUCCESS
      case('soil_bottom_surface__conductive_energy_flux')   ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
+     case('soil_bottom_surface__hydraulic_conductance')    ; units = 's-1'       ; bmi_status = BMI_SUCCESS
      case('land_vegetation_water__aquifer_transpiration_volume_flux') ; units = 'm s-1' ; bmi_status = BMI_SUCCESS
      case('land_vegetation_water__aquifer_transpiration_limit') ; units = '-'   ; bmi_status = BMI_SUCCESS
      case('soil_surface_water__aquifer_infiltration_limit')     ; units = '-'   ; bmi_status = BMI_SUCCESS
@@ -1593,6 +1596,11 @@ module summabmi
      if (name == 'soil_bottom_surface__conductive_energy_flux') then
        itarget_arr = -999
        call mf6x_get_base_nrg_flux(this%model%summa1_struc(n), target_arr)
+       return
+     end if
+     if (name == 'soil_bottom_surface__hydraulic_conductance') then
+       itarget_arr = -999
+       call mf6x_get_base_conductance(this%model%summa1_struc(n), target_arr)
        return
      end if
 

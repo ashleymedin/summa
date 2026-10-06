@@ -36,6 +36,8 @@ module mf6_coupling
   !     rch_package_name   = 'RCHA'    ! RCH package name (READASARRAYS), as in the GWF name file
   !     uzf_package_name   = 'UZF'     ! UZF package below the soil column, one landflag-1 cell per column
   !     uze_package_name   = ''        ! GWE UZE package carrying UZF's infiltration temperature
+  !     base_ghb_package_name = ''     ! GHB, one row per top cell, for the implicit base exchange
+  !     base_drn_package_name = ''     ! DRN, one row per top cell, for the implicit base exchange
   !     bflow_package_name = 'CHD'     ! shorthand for a one-entry role='baseflow' table below
   !     bnd_package_names  = 'CHD','DRN'                      ! up to MAXBND boundary packages
   !     bnd_package_roles  = 'baseflow','surface_discharge'    ! baseflow | surface_discharge | gw_et
@@ -58,6 +60,12 @@ module mf6_coupling
   ! UZF's ET, groundwater ET and seepage must be off: EVT takes groundwater ET and SUMMA's presHead
   ! flux is the discharge into the column.  Rejected infiltration returns to the column base, and
   ! is added back onto the next step's drainage, which SUMMA reports net of it.
+  !
+  ! With base_ghb_package_name and base_drn_package_name set, MODFLOW solves the base exchange's
+  ! response to its own new head: C (h_prev - h) through the GHB where the last head was at or above
+  ! the top, C (top - h) through the DRN where it was below, C being SUMMA's base conductance.  What
+  ! they move returns to the column base next step with the rejected recharge.  Without them a
+  ! confined-storage head above the top swings each step.
   !
   ! Roles are summed when several packages share one, and are how SUMMA consumes a returned flux:
   ! baseflow reaches routing, surface_discharge is added to surface runoff, gw_et is groundwater
@@ -191,6 +199,8 @@ module mf6_coupling
     character(len=256)  :: rch_package_name   = 'RCHA'
     character(len=256)  :: uzf_package_name   = 'UZF'   ! UZF package below the soil column
     character(len=256)  :: uze_package_name   = ''      ! GWE UZE package for UZF's infiltration temperature
+    character(len=256)  :: base_ghb_package_name = ''   ! GHB for the base exchange where the head is at or above the top
+    character(len=256)  :: base_drn_package_name = ''   ! DRN for the base exchange where the head is below the top
     character(len=256)  :: bflow_package_name = 'CHD'   ! back-compatible alias for a single role=baseflow entry
     character(len=256)  :: evt_package_name   = ''      ! EVT package driven with SUMMA's aquifer transpiration demand
     character(len=256)  :: gwe_model_name     = ''      ! GWE model carrying the aquifer temperature; blank = none
@@ -211,6 +221,7 @@ module mf6_coupling
     logical, public :: have_evt     = .false.  ! an EVT package is available to drive with SUMMA demand
     logical, public :: have_gwe     = .false.  ! a GWE model carries the aquifer temperature
     logical, public :: have_esl     = .false.  ! a GWE ESL package takes SUMMA's basal conduction
+    logical, public :: have_base    = .false.  ! MODFLOW solves the base exchange, so the driver sends SUMMA's base conductance
     logical, public :: restarted    = .false.  ! heads came from head_restart_read, so step 1 has a known water table
     logical, public :: writes_restart = .false. ! head_restart_write is set; the driver writes SUMMA's restart to match
 
@@ -238,6 +249,7 @@ module mf6_coupling
     double precision :: bud_back(3) = 0.d0  ! cumulative volume returned, by role (m3)
     double precision :: bud_uzf = 0.d0      ! cumulative volume of that taken by UZF (m3)
     double precision :: bud_rej = 0.d0      ! cumulative volume UZF rejected, returned to the soil column (m3)
+    double precision :: bud_base = 0.d0     ! cumulative volume the base exchange moved into the aquifer (m3)
     double precision :: bud_dt  = 0.d0      ! SUMMA data step (s)
     double precision :: bud_etdem = 0.d0    ! cumulative aquifer-transpiration demand sent (m3)
     double precision :: bud_heat_sent = 0.d0  ! cumulative heat SUMMA conducted out the soil base (J)
@@ -267,6 +279,18 @@ module mf6_coupling
     integer                 :: uzf_nbatch = 1             ! SUMMA steps in a UZF day
     integer                 :: uzf_kstep  = 0             ! steps into the current UZF day
     logical                 :: grid_reduced = .false.
+
+    ! ---- implicit base exchange: one GHB and one DRN row per top cell ----
+    real(c_double), pointer :: ghb_bhead(:) => null()     ! GHB stage                 <MODEL>/<GHB>/BHEAD (m)
+    real(c_double), pointer :: ghb_cond(:)  => null()     ! GHB conductance           <MODEL>/<GHB>/COND (m2 s-1)
+    real(c_double), pointer :: ghb_q(:)     => null()     ! GHB flow                  <MODEL>/<GHB>/SIMVALS (m3 s-1, + into aquifer)
+    integer(c_int), pointer :: ghb_node(:)  => null()     ! GHB rows' nodes           <MODEL>/<GHB>/NODELIST
+    real(c_double), pointer :: drn_elev(:)  => null()     ! DRN elevation             <MODEL>/<DRN>/ELEV (m)
+    real(c_double), pointer :: drn_cond(:)  => null()     ! DRN conductance           <MODEL>/<DRN>/COND (m2 s-1)
+    real(c_double), pointer :: drn_q(:)     => null()     ! DRN flow                  <MODEL>/<DRN>/SIMVALS (m3 s-1, + into aquifer)
+    integer(c_int), pointer :: drn_node(:)  => null()     ! DRN rows' nodes           <MODEL>/<DRN>/NODELIST
+    integer, allocatable    :: ghb_cell(:), drn_cell(:)   ! horizontal cell of each row, 0 if none
+    real(c_double), pointer :: cond_cell(:) => null()     ! base conductance per horizontal cell (s-1), owned here
 
     ! ---- head-dependent boundary packages fed back to SUMMA, by role ----
     integer              :: nbnd = 0
@@ -310,6 +334,9 @@ module mf6_coupling
     procedure, private :: scatter_drainage_to_rch => mf6_scatter_drainage_to_rch
     procedure, private :: init_uzf              => mf6_init_uzf
     procedure, private :: gather_reject_to_hru  => mf6_gather_reject_to_hru
+    procedure, private :: init_base             => mf6_init_base
+    procedure, private :: set_base_exchange     => mf6_set_base_exchange
+    procedure, private :: gather_base_to_hru    => mf6_gather_base_to_hru
     procedure, private :: scatter_hru_to_array  => mf6_scatter_hru_to_array
     procedure, private :: gather_head_to_hru    => mf6_gather_head_to_hru
     procedure, private :: gather_aquifer_to_hru => mf6_gather_aquifer_to_hru
@@ -524,6 +551,10 @@ contains
     call this%init_uzf(err, message)
     if (err /= 0) then; call this%leave_run_dir(); return; end if
 
+    ! -- GHB and DRN for the implicit base exchange
+    call this%init_base(err, message)
+    if (err /= 0) then; call this%leave_run_dir(); return; end if
+
     ! -- coupling time-step consistency --
     ! NB: MODFLOW's delt is only set once the first time step is prepared, so it is
     ! not meaningful yet right after initialize(); the delt == data_step check is
@@ -550,7 +581,7 @@ contains
     ! the coupled budget needs HRU areas to convert per-HRU fluxes to volumes
     this%budget = allocated(this%hru_area)
     this%bud_sent = 0.d0; this%bud_taken = 0.d0; this%bud_back = 0.d0; this%bud_etdem = 0.d0
-    this%bud_uzf = 0.d0; this%bud_rej = 0.d0
+    this%bud_uzf = 0.d0; this%bud_rej = 0.d0; this%bud_base = 0.d0
     this%bud_heat_sent = 0.d0; this%bud_heat_taken = 0.d0
 
     call this%leave_run_dir()
@@ -565,7 +596,7 @@ contains
   ! ==================================================================================
   subroutine mf6_step(this, istep, summa_data_step, drain_hru, head_hru, stor_hru, bflow_hru, err, message, &
                       surfdis_hru, gwet_demand_hru, gwet_hru, gwet_lim_hru, rtemp_hru, atemp_hru, bnrg_hru, infil_lim_hru, &
-                      rej_hru)
+                      rej_hru, cond_hru)
     class(mf6_coupler_type), intent(inout) :: this
     integer,                 intent(in)    :: istep             ! 1-based coupling step index
     double precision,        intent(in)    :: summa_data_step   ! length of a SUMMA data step (s)
@@ -586,6 +617,7 @@ contains
     real, optional,          intent(inout) :: infil_lim_hru(:)    ! per-HRU aquifer control on the infiltrating area (-), cell-wise mean
     real, optional,          intent(inout) :: rej_hru(:)          ! per-HRU rejected recharge (m s-1, + = into the column): in, what SUMMA
                                                                   !   took back this step; out, what UZF rejected for the next
+    real, optional,          intent(in)    :: cond_hru(:)         ! per-HRU base conductance (s-1), required with the base exchange
     integer        :: istat, c
     real(c_double) :: dt_mf6
     real, allocatable :: gross_hru(:)
@@ -651,7 +683,17 @@ contains
     ! 4d. SUMMA's conduction out the soil base -> GWE's ESL energy loading
     if (this%have_esl .and. present(bnrg_hru)) call this%scatter_nrg_to_esl(bnrg_hru, summa_data_step)
 
-    ! 4e. solve
+    ! 4e. the base exchange, about the head SUMMA has just seen
+    if (this%have_base) then
+      if (.not. present(cond_hru)) then
+        message = 'the base exchange needs SUMMA''s base conductance from the driver'; err = 20
+        call this%leave_run_dir(); return
+      end if
+      call this%set_base_exchange(cond_hru, err, message)
+      if (err /= 0) then; call this%leave_run_dir(); return; end if
+    end if
+
+    ! 4f. solve
     istat = mf6_do_time_step()
     istat = mf6_finalize_time_step()
 
@@ -676,6 +718,7 @@ contains
     if (this%feedback .and. present(rej_hru)) then
       call this%gather_reject_to_hru(rej_hru)
       if (this%budget) this%bud_rej = this%bud_rej + sum(this%hru_area * dble(rej_hru)) * summa_data_step
+      if (this%have_base) call this%gather_base_to_hru(rej_hru, summa_data_step)
     end if
 
     call this%leave_run_dir()
@@ -727,6 +770,12 @@ contains
     this%mf6_esl_rate => null()
     this%mf6_esl_node => null()
     this%uzf_sinf     => null()
+    this%ghb_bhead => null(); this%ghb_cond => null(); this%ghb_q => null(); this%ghb_node => null()
+    this%drn_elev  => null(); this%drn_cond => null(); this%drn_q => null(); this%drn_node => null()
+    if (associated(this%cond_cell)) deallocate(this%cond_cell)
+    if (allocated(this%ghb_cell)) deallocate(this%ghb_cell)
+    if (allocated(this%drn_cell)) deallocate(this%drn_cell)
+    this%have_base = .false.
     this%uzf_celtop   => null()
     this%uzf_area     => null()
     this%uzf_rejinf   => null()
@@ -822,7 +871,7 @@ contains
     character(len=*),        intent(out)   :: message
     integer :: fu, rc, ib, ir
     character(len=256) :: mf6_model_name, rch_package_name, bflow_package_name, map_file
-    character(len=256) :: uzf_package_name, uze_package_name
+    character(len=256) :: uzf_package_name, uze_package_name, base_ghb_package_name, base_drn_package_name
     character(len=256) :: evt_package_name, gwe_model_name, esl_package_name
     character(len=1024):: head_restart_read, head_restart_write
     character(len=256) :: bnd_package_names(MAXBND)
@@ -830,6 +879,7 @@ contains
     integer            :: mf6_epsg
     logical            :: feedback
     namelist /coupler/ mf6_model_name, rch_package_name, uzf_package_name, uze_package_name, &
+                       base_ghb_package_name, base_drn_package_name, &
                        bflow_package_name, evt_package_name, &
                        bnd_package_names, bnd_package_roles, map_file, mf6_epsg, feedback, &
                        head_restart_read, head_restart_write, gwe_model_name, esl_package_name
@@ -841,6 +891,8 @@ contains
     rch_package_name   = 'RCHA'
     uzf_package_name   = 'UZF'
     uze_package_name   = ''
+    base_ghb_package_name = ''
+    base_drn_package_name = ''
     bflow_package_name = 'CHD'
     evt_package_name   = ''
     gwe_model_name     = ''
@@ -870,6 +922,8 @@ contains
     this%rch_package_name   = rch_package_name
     this%uzf_package_name   = uzf_package_name
     this%uze_package_name   = uze_package_name
+    this%base_ghb_package_name = base_ghb_package_name
+    this%base_drn_package_name = base_drn_package_name
     this%bflow_package_name = bflow_package_name
     this%evt_package_name   = evt_package_name
     this%gwe_model_name     = gwe_model_name
@@ -884,6 +938,8 @@ contains
     call to_upper(this%rch_package_name)
     call to_upper(this%uzf_package_name)
     call to_upper(this%uze_package_name)
+    call to_upper(this%base_ghb_package_name)
+    call to_upper(this%base_drn_package_name)
     call to_upper(this%bflow_package_name)
     call to_upper(this%evt_package_name)
     call to_upper(this%gwe_model_name)
@@ -1108,6 +1164,146 @@ contains
       if (asum > 0.0_c_double) rej_hru(i) = real(qsum / asum)
     end do
   end subroutine mf6_gather_reject_to_hru
+
+  ! ==================================================================================
+  ! Find the base exchange's GHB and DRN.  Their rows' cells are mapped on the first step, once
+  ! the period block has filled NODELIST.
+  ! ==================================================================================
+  subroutine mf6_init_base(this, err, message)
+    class(mf6_coupler_type), intent(inout) :: this
+    integer,                 intent(out)   :: err
+    character(len=*),        intent(out)   :: message
+    character(len=512) :: ghb, drn
+
+    err = 0; message = ''
+    if (len_trim(this%base_ghb_package_name) == 0 .and. len_trim(this%base_drn_package_name) == 0) return
+    if (len_trim(this%base_ghb_package_name) == 0 .or. len_trim(this%base_drn_package_name) == 0) then
+      message = 'base_ghb_package_name and base_drn_package_name are set together'; err = 20; return
+    end if
+    if (.not. this%feedback) then
+      message = 'the base exchange returns flow to SUMMA, so it needs feedback = .true.'; err = 20; return
+    end if
+    ghb = trim(this%mf6_model_name)//'/'//trim(this%base_ghb_package_name)
+    drn = trim(this%mf6_model_name)//'/'//trim(this%base_drn_package_name)
+    if (.not. (mf6_try_ptr_double(trim(ghb)//'/BHEAD', this%ghb_bhead) .and. &
+               mf6_try_ptr_double(trim(ghb)//'/COND', this%ghb_cond) .and. &
+               mf6_try_ptr_double(trim(ghb)//'/SIMVALS', this%ghb_q) .and. &
+               mf6_try_ptr_int(trim(ghb)//'/NODELIST', this%ghb_node))) then
+      message = 'no GHB package '//trim(this%base_ghb_package_name)//' in GWF model '//trim(this%mf6_model_name)
+      err = 20; return
+    end if
+    if (.not. (mf6_try_ptr_double(trim(drn)//'/ELEV', this%drn_elev) .and. &
+               mf6_try_ptr_double(trim(drn)//'/COND', this%drn_cond) .and. &
+               mf6_try_ptr_double(trim(drn)//'/SIMVALS', this%drn_q) .and. &
+               mf6_try_ptr_int(trim(drn)//'/NODELIST', this%drn_node))) then
+      message = 'no DRN package '//trim(this%base_drn_package_name)//' in GWF model '//trim(this%mf6_model_name)
+      err = 20; return
+    end if
+    allocate(this%cond_cell(this%nrow*this%ncol))
+    this%have_base = .true.
+  end subroutine mf6_init_base
+
+  ! ==================================================================================
+  ! SUMMA's base conductance (s-1, per HRU) -> GHB and DRN rows, before MODFLOW solves.  A cell whose
+  ! last head is at or above its top exchanges C A (h_prev - h) through the GHB, one below it
+  ! C A (top - h) through the DRN once it rises past the top; the other row of the cell is off.
+  ! ==================================================================================
+  subroutine mf6_set_base_exchange(this, cond_hru, err, message)
+    class(mf6_coupler_type), intent(inout) :: this
+    real,                    intent(in)    :: cond_hru(:)
+    integer,                 intent(out)   :: err
+    character(len=*),        intent(out)   :: message
+    integer :: r, c, node
+    logical :: above
+
+    err = 0; message = ''
+    if (.not. allocated(this%ghb_cell)) then
+      call base_rows(this%ghb_node, this%ghb_cell, this%base_ghb_package_name)
+      if (err /= 0) return
+      call base_rows(this%drn_node, this%drn_cell, this%base_drn_package_name)
+      if (err /= 0) return
+    end if
+    call this%scatter_hru_to_array(cond_hru, this%cond_cell)
+
+    do r = 1, size(this%ghb_cell)
+      this%ghb_cond(r) = 0.0_c_double
+      c = this%ghb_cell(r)
+      if (c < 1) cycle
+      node = this%top_active_node(c)
+      above = this%mf6_head(node) >= this%mf6_top(node)
+      this%ghb_bhead(r) = merge(this%mf6_head(node), this%mf6_top(node), above)
+      if (above) this%ghb_cond(r) = this%cond_cell(c) * this%cell_area(c)
+    end do
+    do r = 1, size(this%drn_cell)
+      this%drn_cond(r) = 0.0_c_double
+      c = this%drn_cell(r)
+      if (c < 1) cycle
+      node = this%top_active_node(c)
+      this%drn_elev(r) = this%mf6_top(node)
+      if (this%mf6_head(node) < this%mf6_top(node)) this%drn_cond(r) = this%cond_cell(c) * this%cell_area(c)
+    end do
+
+  contains
+
+    ! horizontal cell of each row; every row must sit at its cell's top active node
+    subroutine base_rows(nodelist, cell, pkg)
+      integer(c_int),       intent(in)  :: nodelist(:)
+      integer, allocatable, intent(out) :: cell(:)
+      character(len=*),     intent(in)  :: pkg
+      integer, allocatable :: cell_of_node(:)
+      integer :: k, cc
+
+      allocate(cell_of_node(size(this%mf6_head))); cell_of_node = 0
+      do cc = 1, this%nrow*this%ncol
+        if (this%top_active_node(cc) >= 1) cell_of_node(this%top_active_node(cc)) = cc
+      end do
+      allocate(cell(size(nodelist))); cell = 0
+      do k = 1, size(nodelist)
+        if (nodelist(k) < 1) cycle
+        if (nodelist(k) > size(cell_of_node)) cycle
+        cell(k) = cell_of_node(nodelist(k))
+        if (cell(k) < 1) then
+          write(message,'(a,i0,a)') 'base-exchange package '//trim(pkg)//' row ', k, &
+                ' is not at the top active node of its cell'
+          err = 20; return
+        end if
+      end do
+    end subroutine base_rows
+  end subroutine mf6_set_base_exchange
+
+  ! ==================================================================================
+  ! What the base exchange moved into the aquifer (m3 s-1, per row) -> per-HRU flux returned to the
+  ! column base (m s-1, + = into the column), added onto rej_hru and weighted as gather_reject_to_hru.
+  ! ==================================================================================
+  subroutine mf6_gather_base_to_hru(this, rej_hru, dt)
+    class(mf6_coupler_type), intent(inout) :: this
+    real,                    intent(inout) :: rej_hru(:)
+    double precision,        intent(in)    :: dt
+    real(c_double), allocatable :: qcell(:)
+    real(c_double) :: qsum, asum
+    integer :: i, k, c, r
+
+    allocate(qcell(this%nrow*this%ncol)); qcell = 0.0_c_double
+    do r = 1, size(this%ghb_cell)
+      if (this%ghb_cell(r) > 0) qcell(this%ghb_cell(r)) = qcell(this%ghb_cell(r)) + this%ghb_q(r)
+    end do
+    do r = 1, size(this%drn_cell)
+      if (this%drn_cell(r) > 0) qcell(this%drn_cell(r)) = qcell(this%drn_cell(r)) + this%drn_q(r)
+    end do
+    if (this%budget) this%bud_base = this%bud_base + sum(qcell) * dt
+
+    do i = 1, this%nHRU
+      qsum = 0.0_c_double; asum = 0.0_c_double
+      do k = this%map_ptr(i), this%map_ptr(i+1) - 1
+        c = this%map_cell(k)
+        if (c < 1 .or. c > this%nrow*this%ncol) cycle
+        qsum = qsum + real(this%map_wgt(k), c_double) * qcell(c)
+        asum = asum + real(this%map_wgt(k), c_double) * this%cell_area(c)
+      end do
+      if (asum > 0.0_c_double) rej_hru(i) = rej_hru(i) - real(qsum / asum)
+    end do
+    deallocate(qcell)
+  end subroutine mf6_gather_base_to_hru
 
   ! ==================================================================================
   ! The general version: a per-HRU flux (m s-1) onto a READASARRAYS per-horizontal-cell
@@ -1892,6 +2088,7 @@ contains
       write(*,'(a,g0)')   '  held for UZF, undelivered: ', held
       write(*,'(a,g0)')   '  UZF rejected, returned   : ', this%bud_rej
     end if
+    if (this%have_base) write(*,'(a,g0)') '  base exchange into MODFLOW, returned from the column: ', this%bud_base
     write(*,'(a,g0,a,f0.3,a)') '  mapping residual         : ', resid, '  (', pct, '% of sent)'
     if (this%have_bflow)   write(*,'(a,g0)') '  returned as baseflow     : ', this%bud_back(ROLE_BASEFLOW)
     if (this%have_surfdis) write(*,'(a,g0)') '  returned at land surface : ', this%bud_back(ROLE_SURFACE_DISCH)
