@@ -81,6 +81,7 @@ module mf6_coupling
   !
   ! map_file format: one "iHRU cell weight" triple per line, cell being the row-major horizontal
   ! index (irow-1)*ncol + icol, weights normalised per HRU, blank lines and '#' ignored.
+  ! Weights proportional to the intersected area conserve recharge volume on any domain.
   !
   ! libmf6 reads mfsim.nam from the process working directory and writes its output there, so each
   ! concurrent instance is given its own run_dir and this module enters and leaves it around every
@@ -323,6 +324,7 @@ module mf6_coupling
     procedure, private :: check_model           => mf6_check_model
     procedure, private :: check_hru_elevation   => mf6_check_hru_elevation
     procedure, private :: check_hru_area        => mf6_check_hru_area
+    procedure, private :: share_area            => mf6_share_area
     procedure, private :: is_steady_state       => mf6_is_steady_state
     procedure, private :: head_restart_in       => mf6_head_restart_read
     procedure, private :: head_restart_out      => mf6_head_restart_write
@@ -1026,8 +1028,8 @@ contains
   ! ==================================================================================
   ! SUMMA drainage (m s-1, per HRU)  ->  MODFLOW RECHARGE array, then UZF (m s-1, per top cell).
   ! Each HRU's flux is spread over its mapped cells by weight; a cell that receives
-  ! from several HRUs gets the area-weighted mean flux (so recharge volume is conserved
-  ! when the HRU areas equal the covered cell areas).  A positive flux on a cell whose last
+  ! from several HRUs gets their mean flux weighted by the area each holds of it, so recharge
+  ! volume is conserved when the HRUs cover their cells.  A positive flux on a cell whose last
   ! head is below its UZF top moves from RCH into that cell's UZF store; every uzf_hold_days the store
   ! becomes UZF's constant infiltration over the next, or RCH's while the water table is at the
   ! top.  It is written into UZF's period input, which do_time_step's advance hands to the UZF
@@ -1320,6 +1322,7 @@ contains
     real,                    intent(in)    :: flux_hru(:)
     real(c_double), pointer, intent(inout) :: arr(:)
     real(c_double), allocatable :: num(:), den(:)
+    real(c_double) :: a
     integer :: i, k, c
 
     if (.not. associated(arr)) return
@@ -1331,8 +1334,9 @@ contains
       do k = this%map_ptr(i), this%map_ptr(i+1) - 1
         c = this%map_cell(k)
         if (c < 1 .or. c > this%nrow*this%ncol) cycle
-        num(c) = num(c) + real(this%map_wgt(k), c_double) * this%cell_area(c) * real(flux_hru(i), c_double)
-        den(c) = den(c) + real(this%map_wgt(k), c_double) * this%cell_area(c)
+        a = this%share_area(i, k)
+        num(c) = num(c) + a * real(flux_hru(i), c_double)
+        den(c) = den(c) + a
       end do
     end do
 
@@ -1346,6 +1350,20 @@ contains
     end do
     deallocate(num, den)
   end subroutine mf6_scatter_hru_to_array
+
+  ! ==================================================================================
+  ! The area HRU i holds of map entry k's cell (m2): its per-HRU weight times the HRU's area,
+  ! so area-intersection weights give the intersected area. Without HRU areas, weight times cell area.
+  ! ==================================================================================
+  real(c_double) function mf6_share_area(this, i, k)
+    class(mf6_coupler_type), intent(in) :: this
+    integer,                 intent(in) :: i, k
+    if (allocated(this%hru_area)) then
+      mf6_share_area = real(this%map_wgt(k), c_double) * this%hru_area(i)
+    else
+      mf6_share_area = real(this%map_wgt(k), c_double) * this%cell_area(this%map_cell(k))
+    end if
+  end function mf6_share_area
 
   ! ==================================================================================
   ! MODFLOW head (m, per node)  ->  SUMMA prescribed lower-BC matric head (m, per HRU).
@@ -1978,8 +1996,7 @@ contains
 
   ! ==================================================================================
   ! Warn where an HRU's area disagrees with its effective mapped cell area,
-  ! sum_k (w_ik / sum_j w_jk) A_k, since the scatter conserves recharge rate and not volume.
-  ! A cell shared between HRUs is apportioned by weight share, the same denominator the scatter uses.
+  ! sum_k (a_ik / sum_j a_jk) A_k with a_ik = w_ik A_i, the share the scatter uses.
   ! ==================================================================================
   subroutine mf6_check_hru_area(this)
     class(mf6_coupler_type), intent(inout) :: this
@@ -1996,19 +2013,19 @@ contains
       do k = this%map_ptr(i), this%map_ptr(i+1) - 1
         c = this%map_cell(k)
         if (c < 1 .or. c > this%nrow*this%ncol) cycle
-        wcell(c) = wcell(c) + real(this%map_wgt(k), c_double)
+        wcell(c) = wcell(c) + this%share_area(i, k)
       end do
     end do
 
     nbad = 0; worst = 0.0_c_double; iworst = 0
     do i = 1, this%nHRU
-      ! effective mapped area: sum_k (w_ik / sum_j w_jk) A_k
+      ! effective mapped area: sum_k (a_ik / sum_j a_jk) A_k
             amap = 0.0_c_double
       do k = this%map_ptr(i), this%map_ptr(i+1) - 1
         c = this%map_cell(k)
         if (c < 1 .or. c > this%nrow*this%ncol) cycle
         if (wcell(c) <= 0.0_c_double) cycle
-        amap = amap + (real(this%map_wgt(k), c_double) / wcell(c)) * this%cell_area(c)
+        amap = amap + (this%share_area(i, k) / wcell(c)) * this%cell_area(c)
       end do
       if (this%hru_area(i) <= 0.0d0 .or. amap <= 0.0_c_double) cycle
       rel = abs(amap - this%hru_area(i)) / this%hru_area(i)
