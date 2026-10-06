@@ -589,7 +589,7 @@ def write_summa(name, h, nGRU, period):
     want = ["averageRoutedRunoff", "basin__TotalRunoff", "scalarTotalET", "scalarRainPlusMelt", "scalarSurfaceRunoff",
             "scalarInfiltration", "scalarSoilDrainage", "scalarSoilBaseflow", "scalarAquiferBaseflow",
             "scalarAquiferSeepage", "scalarTotalSoilWat"]
-    open(os.path.join(settings, "outputControl.txt"), "w").writelines(f"{v:<22}| 24\n" for v in want)
+    open(os.path.join(settings, "outputControl.txt"), "w").writelines(f"{v:<22}| 24 | mean\n" for v in want)
 
     stamp = spin_end.replace("-", "").replace(" ", "")[:10]
     for tag in ("latflow", "noLatflow"):
