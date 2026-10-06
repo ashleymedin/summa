@@ -41,7 +41,7 @@ infRateMax                      GreenAmpt       ! (29) choice of infiltration ra
 surfRun_SE                      homegrown_SE    ! (30) choice of saturation excess (SE) surface runoff parameterization
 read_force                      readPerStep     ! (31) method used to read forcing data
 write_buff                      writePerStep    ! (32) method used to write model output
-deepTherml                      airTempGW       ! (33) choice of deep thermal state below the soil column
+deepTherml                      bedrockLyrs     ! (33) choice of deep thermal state below the soil column
 hyporhTdyn                      proxy           ! (34) hyporheic exchange in a stream domain
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
