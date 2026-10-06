@@ -88,6 +88,7 @@ contains
  character(LEN=256)              :: cmessage               ! error message of downwind routine
  integer(i4b)                    :: iLayer                 ! index of model layer
  integer(i4b)                    :: iSoil                  ! index of soil layer
+ integer(i4b)                    :: ixThCondLayer          ! thermal conductivity option for this layer: bedrock always mixes its constituents
  real(rkind)                     :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
  real(rkind)                     :: lambda_liq             ! thermal conductivity of the liquid: molecular, or the mixing value in a lake (W m-1 K-1)
  real(rkind)                     :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
@@ -122,6 +123,8 @@ contains
  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in): number of snow layers
  nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),                    & ! intent(in): number of lake layers
  nLakeFrz                => indx_data%var(iLookINDEX%nLakeFrz)%dat(1),                 & ! intent(in): number of frozen (ice cover) lake layers at the top of the lake
+ nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),                    & ! intent(in): number of soil layers, bedrock included
+ nBedrock                => indx_data%var(iLookINDEX%nBedrock)%dat(1),                 & ! intent(in): number of thermal-only bedrock layers at the base of the soil column
  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1),                  & ! intent(in): total number of layers
  layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (iname_soil or iname_snow)
  mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in): height at the mid-point of each layer (m)
@@ -153,10 +156,12 @@ contains
 
    ! get the soil layer
    if(iLayer>nSnow+nLake) iSoil = iLayer-nSnow-nLake
+   ixThCondLayer = ixThCondSoil
+   if(layerType(iLayer)==iname_soil .and. iSoil>nSoil-nBedrock) ixThCondLayer = mixConstit ! bedrock takes its own conductivity, thCond_bedrock
 
    ! compute the thermal conductivity of dry and wet soils (W m-1)
    ! NOTE: this is actually constant over the simulation, and included here for clarity
-   if(ixThCondSoil == funcSoilWet .and. layerType(iLayer)==iname_soil)then
+   if(ixThCondLayer == funcSoilWet .and. layerType(iLayer)==iname_soil)then
      bulkden_soil   = iden_soil(iSoil)*( 1._rkind - theta_sat(iSoil) )
      lambda_drysoil = (0.135_rkind*bulkden_soil + 64.7_rkind) / (iden_soil(iSoil) - 0.947_rkind*bulkden_soil)
      lambda_wetsoil = (8.80_rkind*frac_sand(iSoil) + 2.92_rkind*frac_clay(iSoil)) / (frac_sand(iSoil) + frac_clay(iSoil))
@@ -177,7 +182,7 @@ contains
    case(iname_soil)
 
     ! select option for thermal conductivity of soil
-    select case(ixThCondSoil)
+    select case(ixThCondLayer)
 
       ! ** function of soil wetness
       case(funcSoilWet)
@@ -340,6 +345,7 @@ subroutine thermConductivity(&
   integer(i4b)                         :: ixTop                    ! top layer in subroutine call
   integer(i4b)                         :: ixBot                    ! bottom layer in subroutine call
   integer(i4b)                         :: iSoil                    ! index of soil layer
+  integer(i4b)                         :: ixThCondLayer            ! thermal conductivity option for this layer: bedrock always mixes its constituents
   real(rkind)                          :: TCn                      ! thermal conductivity below the layer interface (W m-1 K-1)
   real(rkind)                          :: lambda_liq               ! thermal conductivity of the liquid: molecular, or the mixing value in a lake (W m-1 K-1)
   real(rkind)                          :: TCp                      ! thermal conductivity above the layer interface (W m-1 K-1)
@@ -386,6 +392,8 @@ subroutine thermConductivity(&
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in):  [dp]    number of snow layers
     nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),                    & ! intent(in):  [dp]    number of lake layers
     nLakeFrz                => indx_data%var(iLookINDEX%nLakeFrz)%dat(1),                 & ! intent(in):  [i4b]   number of frozen (ice cover) lake layers at the top of the lake
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),                    & ! intent(in):  [i4b]   number of soil layers, bedrock included
+    nBedrock                => indx_data%var(iLookINDEX%nBedrock)%dat(1),                 & ! intent(in):  [i4b]   number of thermal-only bedrock layers at the base of the soil column
     nSnLaSoGlNrg            => indx_data%var(iLookINDEX%nSnLaSoGlNrg)%dat(1),             & ! intent(in):  [i4b]   number of energy state variables in the layer domains
     layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in):  [dp(:)] layer type (iname_soil or iname_snow)
     ixLayerState            => indx_data%var(iLookINDEX%ixLayerState)%dat,                & ! intent(in):  [i4b(:)]list of indices for all model layers
@@ -441,10 +449,12 @@ subroutine thermConductivity(&
 
       ! get the soil layer
       if(iLayer>nSnow+nLake) iSoil = iLayer-nSnow-nLake
+      ixThCondLayer = ixThCondSoil
+      if(layerType(iLayer)==iname_soil .and. iSoil>nSoil-nBedrock) ixThCondLayer = mixConstit ! bedrock takes its own conductivity, thCond_bedrock
 
       ! compute the thermal conductivity of dry and wet soils (W m-1)
       ! NOTE: this is actually constant over the simulation, and included here for clarity
-      if(ixThCondSoil == funcSoilWet .and. layerType(iLayer)==iname_soil)then
+      if(ixThCondLayer == funcSoilWet .and. layerType(iLayer)==iname_soil)then
         bulkden_soil   = iden_soil(iSoil)*( 1._rkind - theta_sat(iSoil) )
         lambda_drysoil = (0.135_rkind*bulkden_soil + 64.7_rkind) / (iden_soil(iSoil) - 0.947_rkind*bulkden_soil)
         lambda_wetsoil = (8.80_rkind*frac_sand(iSoil) + 2.92_rkind*frac_clay(iSoil)) / (frac_sand(iSoil) + frac_clay(iSoil))
@@ -479,7 +489,7 @@ subroutine thermConductivity(&
           dVolFracIce_dTk = -dVolFracLiq_dTk !often can and will simplify one of these terms out
 
           ! select option for thermal conductivity of soil
-          select case(ixThCondSoil)
+          select case(ixThCondLayer)
 
             ! ** function of soil wetness
             case(funcSoilWet)
