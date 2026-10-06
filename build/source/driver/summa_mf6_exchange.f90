@@ -86,6 +86,7 @@ module summa_mf6_exchange
   public :: mf6x_root_zone_depth
   public :: mf6x_get_drainage_temp
   public :: mf6x_get_base_nrg_flux
+  public :: mf6x_get_base_conductance
   public :: mf6x_put_aquifer_temp
 
 contains
@@ -566,6 +567,49 @@ contains
       end do
     end associate
   end subroutine mf6x_get_base_nrg_flux
+
+  ! **************************************************************************************************
+  ! Conductance of the column base per unit area (s-1): presHead's slope in lowerBoundHead, the saturated
+  ! base conductivity where the column drains and the rise's geometric mean where it rises, over half the
+  ! bottom layer, taken at a head no lower than the base.  MODFLOW uses it to solve the base exchange
+  ! implicitly.  A stream reach has none.
+  ! **************************************************************************************************
+  subroutine mf6x_get_base_conductance(summa_struct, cond)
+    type(summa1_type_dec), intent(in)  :: summa_struct
+    real,                  intent(out) :: cond(:)
+    real(rkind), parameter :: dropSmooth = 1.e-4_rkind  ! as soilLiqFlux's smooth positive part (m)
+    integer(i4b) :: iGRU, jHRU, iDOM, i, nSnow, nLake, nSoil
+    real(rkind)  :: csum, asum, areaDOM, kSat, kUp, pathLength, headDrop, dPos
+    associate(progStruct => summa_struct%progStruct, &
+              diagStruct => summa_struct%diagStruct, &
+              fluxStruct => summa_struct%fluxStruct, &
+              mparStruct => summa_struct%mparStruct, &
+              indxStruct => summa_struct%indxStruct)
+      do iGRU = 1, summa_struct%nGRU_local
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = gru_struc(iGRU)%hruInfo(jHRU)%hru_ix
+          csum = 0._rkind; asum = 0._rkind
+          do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
+            areaDOM = progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
+            asum = asum + areaDOM
+            if(fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1) <= realMissing) cycle
+            nSnow = indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat(1)
+            nLake = indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nLake)%dat(1)
+            nSoil = indxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1)
+            if(nSoil < 1) cycle
+            kSat = fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%iLayerSatHydCond)%dat(nSoil)
+            kUp  = sqrt(kSat*max(fluxStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookFLUX%mLayerHydCond)%dat(nSoil), 0._rkind))
+            pathLength = 0.5_rkind*progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+nSoil)
+            headDrop = diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%mLayerMatricHeadLiq)%dat(nSoil) + pathLength &
+                     - max(mparStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPARAM%lowerBoundHead)%dat(1), 0._rkind)
+            dPos = 0.5_rkind*(1._rkind + headDrop/sqrt(headDrop**2 + dropSmooth**2))
+            csum = csum + areaDOM*(kSat*dPos + kUp*(1._rkind - dPos))/pathLength
+          end do
+          cond(i) = real(merge(csum/asum, 0._rkind, asum > 0._rkind))
+        end do
+      end do
+    end associate
+  end subroutine mf6x_get_base_conductance
 
   ! **************************************************************************************************
   ! Aquifer temperature from the coupled MODFLOW 6 GWE model ("scalarAquiferTemp", K); a value <= 0

@@ -137,6 +137,7 @@ program summa_modflow6
   real, allocatable      :: rtemp_hru(:)     ! per-HRU drainage temperature (K)                           -> GWE recharge temperature
   real, allocatable      :: atemp_hru(:)     ! per-HRU aquifer temperature at the water table (K, <= 0 unknown) -> scalarAquiferTemp
   real, allocatable      :: bnrg_hru(:)      ! per-HRU conduction out the soil base (W m-2, + = down)     -> GWE ESL loading
+  real, allocatable      :: cond_hru(:)      ! per-HRU base conductance (s-1)                             -> base exchange GHB/DRN
   logical                :: gwe_feedback     ! deepTherml = aquiferTemp: GWE sets SUMMA's aquifer temperature
   logical                :: atemp_known      ! atemp_hru holds a GWE temperature, from a restart or a step
   double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:)  ! HRU centroid lon/lat and surface elevation
@@ -204,10 +205,10 @@ contains
     ! the coupler either way, and it simply leaves them alone when there is no feedback
     allocate(drain_hru(nHRU), head_hru(nHRU), bflow_hru(nHRU), stor_hru(nHRU), surfdis_hru(nHRU), &
              gwet_dem_hru(nHRU), gwet_hru(nHRU), gwet_lim_hru(nHRU), rtemp_hru(nHRU), atemp_hru(nHRU), &
-             bnrg_hru(nHRU), infil_lim_hru(nHRU), rej_hru(nHRU))
+             bnrg_hru(nHRU), infil_lim_hru(nHRU), rej_hru(nHRU), cond_hru(nHRU))
     bflow_hru = 0.0; stor_hru = 0.0; surfdis_hru = 0.0; gwet_dem_hru = 0.0; gwet_hru = 0.0; gwet_lim_hru = 0.0
     infil_lim_hru = 1.0; rej_hru = 0.0
-    rtemp_hru = 0.0; atemp_hru = 0.0; bnrg_hru = 0.0
+    rtemp_hru = 0.0; atemp_hru = 0.0; bnrg_hru = 0.0; cond_hru = 0.0
     allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU), root_reach(nHRU), root_zone(nHRU))
     istat = summa%get_grid_x(0, hru_x)   ! HRU longitude  (deg or projected x, must match MODFLOW grid CRS)
     istat = summa%get_grid_y(0, hru_y)   ! HRU latitude   (deg or projected y)
@@ -278,11 +279,12 @@ contains
       if (coupler%have_evt) istat = summa%get_value('land_vegetation_water__aquifer_transpiration_volume_flux', gwet_dem_hru)
       if (coupler%have_gwe) istat = summa%get_value('soil_water~drainage__temperature', rtemp_hru)
       if (coupler%have_esl) istat = summa%get_value('soil_bottom_surface__conductive_energy_flux', bnrg_hru)
+      if (coupler%have_base) istat = summa%get_value('soil_bottom_surface__hydraulic_conductance', cond_hru)
       call coupler%step(modelTimeStep, dble(data_step), &
                         drain_hru, head_hru, stor_hru, bflow_hru, err, message, &
                         surfdis_hru=surfdis_hru, gwet_demand_hru=gwet_dem_hru, gwet_hru=gwet_hru, &
                         gwet_lim_hru=gwet_lim_hru, rtemp_hru=rtemp_hru, atemp_hru=atemp_hru, &
-                        bnrg_hru=bnrg_hru, infil_lim_hru=infil_lim_hru, rej_hru=rej_hru)
+                        bnrg_hru=bnrg_hru, infil_lim_hru=infil_lim_hru, rej_hru=rej_hru, cond_hru=cond_hru)
       if (err /= 0) then; write(*,'(a)') 'summa_modflow6: '//trim(message); error stop 1; end if
       atemp_known = coupler%have_gwe .and. coupler%feedback
     end do

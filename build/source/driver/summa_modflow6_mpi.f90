@@ -84,7 +84,7 @@ program summa_modflow6_mpi
 
   ! ---- the MODFLOW 6 side, live on rank 0 only ----
   type(mf6_coupler_type) :: coupler
-  logical                :: feedback = .true., have_sy = .false., have_bflow = .false., restarted = .false.
+  logical                :: feedback = .true., have_sy = .false., have_bflow = .false., have_base = .false., restarted = .false.
   integer                :: err
   character(len=1024)    :: message
 
@@ -101,6 +101,7 @@ program summa_modflow6_mpi
   real, allocatable          :: head_hru(:)      ! per-HRU prescribed head      (m, matric head at soil base)
   real, allocatable          :: bflow_hru(:)     ! per-HRU aquifer baseflow     (m s-1, + = out of aquifer)  -> scalarAquiferBaseflow
   real, allocatable          :: rej_hru(:)       ! per-HRU recharge UZF rejected (m s-1, + = into the column) -> scalarAquiferReject
+  real, allocatable          :: cond_hru(:)      ! per-HRU base conductance (s-1)                             -> base exchange GHB/DRN
   real, allocatable          :: stor_hru(:)      ! per-HRU relative aquifer storage (m of water)              -> scalarAquiferStorage
   double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:)  ! HRU centroid lon/lat and surface elevation
   double precision, allocatable :: soil_thk(:)   ! per-HRU SUMMA soil-column thickness (m), read from SUMMA
@@ -108,7 +109,7 @@ program summa_modflow6_mpi
 
   ! ---- this rank's local slice (every rank allocates these; sized nHRU_local) ----
   real, allocatable          :: drain_hru_local(:), head_hru_local(:), bflow_hru_local(:), stor_hru_local(:)
-  real, allocatable          :: rej_hru_local(:)
+  real, allocatable          :: rej_hru_local(:), cond_hru_local(:)
   double precision, allocatable :: hru_x_local(:), hru_y_local(:), hru_z_local(:), soil_thk_local(:)
   double precision, allocatable :: hru_area_local(:)
 
@@ -176,8 +177,8 @@ contains
     ! -- this rank's local HRU count and geometry (BMI grid 0 = HRU points, local to this rank) --
     istat = summa%get_grid_size(0, nHRU_local)
     allocate(drain_hru_local(nHRU_local), head_hru_local(nHRU_local))
-    allocate(bflow_hru_local(nHRU_local), stor_hru_local(nHRU_local), rej_hru_local(nHRU_local))
-    bflow_hru_local = 0.0; stor_hru_local = 0.0; rej_hru_local = 0.0
+    allocate(bflow_hru_local(nHRU_local), stor_hru_local(nHRU_local), rej_hru_local(nHRU_local), cond_hru_local(nHRU_local))
+    bflow_hru_local = 0.0; stor_hru_local = 0.0; rej_hru_local = 0.0; cond_hru_local = 0.0
     allocate(hru_x_local(nHRU_local), hru_y_local(nHRU_local), hru_z_local(nHRU_local))
     istat = summa%get_grid_x(0, hru_x_local)   ! HRU longitude  (deg or projected x, must match MODFLOW grid CRS)
     istat = summa%get_grid_y(0, hru_y_local)   ! HRU latitude   (deg or projected y)
@@ -198,14 +199,14 @@ contains
       do i = 2, nRanks
         hru_displs(i) = hru_displs(i-1) + hru_counts(i-1)
       end do
-      allocate(drain_hru(nHRU), head_hru(nHRU), bflow_hru(nHRU), stor_hru(nHRU), rej_hru(nHRU))
-      rej_hru = 0.0
+      allocate(drain_hru(nHRU), head_hru(nHRU), bflow_hru(nHRU), stor_hru(nHRU), rej_hru(nHRU), cond_hru(nHRU))
+      rej_hru = 0.0; cond_hru = 0.0
       allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU))
       head_hru = 0.0; bflow_hru = 0.0; stor_hru = 0.0
     else
       ! placeholders: never dereferenced off rank 0, but must be allocated to legally pass as the
       ! (rank-0-significant) recvbuf/sendbuf argument of the Gatherv/Scatterv calls below
-      allocate(drain_hru(1), head_hru(1), bflow_hru(1), stor_hru(1), rej_hru(1))
+      allocate(drain_hru(1), head_hru(1), bflow_hru(1), stor_hru(1), rej_hru(1), cond_hru(1))
       allocate(hru_x(1), hru_y(1), hru_z(1), soil_thk(1), hru_area(1))
     end if
     call gatherv_dp(hru_x_local, hru_x)
@@ -228,6 +229,7 @@ contains
       feedback   = coupler%feedback
       have_sy    = coupler%have_sy
       have_bflow = coupler%have_bflow
+      have_base  = coupler%have_base
       restarted  = coupler%restarted
       call coupler%restart_state(head_hru, stor_hru)
 
@@ -241,6 +243,7 @@ contains
     call MPI_Bcast(feedback,   1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
     call MPI_Bcast(have_sy,    1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
     call MPI_Bcast(have_bflow, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
+    call MPI_Bcast(have_base,  1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
     call MPI_Bcast(restarted,  1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
   end subroutine initialize_coupler
 
@@ -277,9 +280,14 @@ contains
       !      array and drives MODFLOW 6 with it, reading the new water table back
       istat = summa%get_value('soil_water__drainage_volume_flux', drain_hru_local)
       call gatherv_real(drain_hru_local, drain_hru)
+      if (have_base) then
+        istat = summa%get_value('soil_bottom_surface__hydraulic_conductance', cond_hru_local)
+        call gatherv_real(cond_hru_local, cond_hru)
+      end if
       if (myrank == 0) then
         call coupler%step(modelTimeStep, dble(data_step), &
-                          drain_hru, head_hru, stor_hru, bflow_hru, err, message, rej_hru=rej_hru)
+                          drain_hru, head_hru, stor_hru, bflow_hru, err, message, rej_hru=rej_hru, &
+                          cond_hru=cond_hru)
         if (err /= 0) then
           write(*,'(a)') 'summa_modflow6_mpi: '//trim(message)
           call MPI_Abort(MPI_COMM_WORLD, 1, mpi_ierr)

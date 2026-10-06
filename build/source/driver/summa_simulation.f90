@@ -61,6 +61,7 @@ USE summa_mf6_exchange, only: mf6x_put_lower_bound_head
 USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
 USE summa_mf6_exchange, only: mf6x_put_aquifer_baseflow
 USE summa_mf6_exchange, only: mf6x_put_aquifer_reject
+USE summa_mf6_exchange, only: mf6x_get_base_conductance
 #endif
 
 #ifdef OPENWQ_ACTIVE
@@ -754,6 +755,7 @@ contains
     real, allocatable                          :: stor_hru(:)   ! per-HRU aquifer storage (m), MODFLOW -> SUMMA
     real, allocatable                          :: bflow_hru(:)  ! per-HRU aquifer baseflow (m s-1), MODFLOW -> SUMMA
     real, allocatable                          :: rej_hru(:)    ! per-HRU recharge UZF rejected (m s-1), MODFLOW -> SUMMA
+    real, allocatable                          :: cond_hru(:)   ! per-HRU base conductance (s-1), SUMMA -> MODFLOW
     integer(i4b)                               :: errFinal      ! error code of the MODFLOW 6 shutdown
 #endif
 
@@ -769,7 +771,7 @@ contains
                          drain_hru, head_hru, stor_hru, bflow_hru,     &
                          err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      allocate(rej_hru(size(drain_hru)), source=0.0)
+      allocate(rej_hru(size(drain_hru)), cond_hru(size(drain_hru)), source=0.0)
     endif
 #endif
 
@@ -856,9 +858,10 @@ contains
       ! back ready for the next iteration
       if(coupled)then
         call mf6x_get_drainage(summa_struct, drain_hru)
+        if(coupler%have_base) call mf6x_get_base_conductance(summa_struct, cond_hru)
         call coupler%step(modelTimeStep, dble(data_step),           &
                           drain_hru, head_hru, stor_hru, bflow_hru, &
-                          err, cmessage, rej_hru=rej_hru)
+                          err, cmessage, rej_hru=rej_hru, cond_hru=cond_hru)
         if(err/=0)then
           message=trim(message)//trim(cmessage)
           if(present(physics_failed)) physics_failed=.true.
