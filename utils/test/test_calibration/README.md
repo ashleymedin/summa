@@ -363,8 +363,9 @@ in a synthetic well (`lowerBoundHead` RMSE, m). NSGA-II scores water year 2018 a
 spin-up.
 
 Sagehen has no observation well, so the test makes one up. It sits on the lower valley side two cells
-from the channel above the gauge (row 41, column 75, in GRU 7), where the water table is about 14 m
-down. It rises 0.7 m with the 2017 snowmelt and falls 1.2 m through dry water year 2018; the valley floor
+from the channel above the gauge (row 41, column 75, in GRU 7), where the water table is about 15 m
+down, below 11 m of UZF. The 2017 snowmelt reaches it in October, 0.65 m above its May low, and it falls
+0.5 m through dry water year 2018; the valley floor
 is held at land surface by the drains. Its record is the head there in a
 reference coupled run at the default parameters, written by
 `utils/test/test_mflow/tools/make_sagehen_synthetic_well.py` as a saved USGS daily-values response
@@ -390,13 +391,13 @@ make_sagehen_synthetic_well.py <run>/sagehen.hds "2016-10-01 00:00" sagehen/obse
 The domain is built at run time by `utils/test/test_mflow/tools/build_sagehen9_calibration.py` from the
 9 D8 subcatchments of `ex-gwf-sagehen`, each with a stream HRU for its reach, and the bundled basin-mean
 forcing in `sagehen/forcing/`. `lumped` gives each GRU one land HRU mapped onto all its cells (18 HRUs,
-about 6 minutes a simulated year); `grid` is `domain_sagehen9`, one land HRU per cell (3396 HRUs, hours a
+about 10 minutes for water year 2017 and an hour for 2018, when UZF carries the most waves); `grid` is `domain_sagehen9`, one land HRU per cell (3396 HRUs, hours a
 trial). The MODFLOW model is copied with a TDIS as long as the forcing. It needs
 `bin/summa_modflow6_opt_sundials_mizuroute.exe` and a python3 with netCDF4 and pyproj.
 
-At the defaults, 6 x 3 on 7 ranks, it takes about 13 minutes, and every trial runs. The front runs from
-KGE 0.61 at 2.69 degC RMSE to KGE -0.13 at 2.18 degC, over `frozenPrecipMultip`, `tempCritRain`,
-`k_macropore` and `routingGammaScale`; the well misses its record by 0.032 to 0.048 m.
+At 4 x 2 on 5 ranks it takes about 3 hours 20 minutes, and every trial runs. The front runs from
+KGE -0.22 at 2.27 degC RMSE to KGE -1.14 at 2.22 degC, over `frozenPrecipMultip`, `tempCritRain`,
+`k_macropore` and `routingGammaScale`; the well misses its record by 0.18 to 0.28 m.
 
 ## `test_calibration_wolverine.sh`
 
