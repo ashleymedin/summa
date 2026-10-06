@@ -153,27 +153,43 @@ contains
   ! glacier and lake parameters
   if (parFallback(iLookPARAM%albedoFrznWatVisible)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%albedoFrznWatVisible)%default_val = 0.6_rkind
+    parFallback(iLookPARAM%albedoFrznWatVisible)%lower_limit = 0.3_rkind
+    parFallback(iLookPARAM%albedoFrznWatVisible)%upper_limit = 0.9_rkind
   end if
   if (parFallback(iLookPARAM%albedoFrznWatNearIR)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%albedoFrznWatNearIR)%default_val = 0.4_rkind
+    parFallback(iLookPARAM%albedoFrznWatNearIR)%lower_limit = 0.1_rkind
+    parFallback(iLookPARAM%albedoFrznWatNearIR)%upper_limit = 0.7_rkind
   end if
   if (parFallback(iLookPARAM%albedoOpenWatVisible)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%albedoOpenWatVisible)%default_val = 0.06_rkind
+    parFallback(iLookPARAM%albedoOpenWatVisible)%lower_limit = 0.03_rkind
+    parFallback(iLookPARAM%albedoOpenWatVisible)%upper_limit = 0.15_rkind
   end if
   if (parFallback(iLookPARAM%albedoOpenWatNearIR)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%albedoOpenWatNearIR)%default_val = 0.06_rkind
+    parFallback(iLookPARAM%albedoOpenWatNearIR)%lower_limit = 0.03_rkind
+    parFallback(iLookPARAM%albedoOpenWatNearIR)%upper_limit = 0.15_rkind
   end if
   if (parFallback(iLookPARAM%z0Water)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%z0Water)%default_val = 0.0005_rkind
+    parFallback(iLookPARAM%z0Water)%lower_limit = 0.0001_rkind
+    parFallback(iLookPARAM%z0Water)%upper_limit = 0.01_rkind
   end if
   if (parFallback(iLookPARAM%z0Ice)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%z0Ice)%default_val = 0.0010_rkind
+    parFallback(iLookPARAM%z0Ice)%lower_limit = 0.0001_rkind
+    parFallback(iLookPARAM%z0Ice)%upper_limit = 0.05_rkind
   end if
   if (parFallback(iLookPARAM%glacierWindFactor)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%glacierWindFactor)%default_val = 1._rkind ! 
+    parFallback(iLookPARAM%glacierWindFactor)%lower_limit = 1._rkind
+    parFallback(iLookPARAM%glacierWindFactor)%upper_limit = 3._rkind
   end if
   if (parFallback(iLookPARAM%glacierTempReduction)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%glacierTempReduction)%default_val = 0._rkind
+    parFallback(iLookPARAM%glacierTempReduction)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%glacierTempReduction)%upper_limit = 6.5_rkind
   end if
   ! stream and lake column parameters
   if (parFallback(iLookPARAM%streamMinDepth)%default_val < 0.99_rkind*realMissing) then
@@ -199,8 +215,8 @@ contains
   ! averaging window of the air temperature the groundwater follows, only used with deepTherml = airTempGW
   if (parFallback(iLookPARAM%gwTempWindow)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%gwTempWindow)%default_val = 7._rkind ! middle of the 2-14 day range of Wade et al. (2024)
-    parFallback(iLookPARAM%gwTempWindow)%lower_limit = 1._rkind
-    parFallback(iLookPARAM%gwTempWindow)%upper_limit = 60._rkind
+    parFallback(iLookPARAM%gwTempWindow)%lower_limit = 2._rkind
+    parFallback(iLookPARAM%gwTempWindow)%upper_limit = 14._rkind
   end if
   ! hyporheic exchange in a stream domain, only used with hyporhTdyn = proxy
   ! NOTE: Wade et al. (2024) tune both, per stream order, over these ranges; the defaults are only a starting point
@@ -229,26 +245,40 @@ contains
   end if
  else
   ! glacier parameters
-  if (parFallback(iLookBPAR%glacStor_kIce)%default_val < 0.99_rkind*realMissing) then ! 5-29
-   parFallback(iLookBPAR%glacStor_kIce)%default_val = 15._rkind*secprhour! convert from hours to seconds
+  if (parFallback(iLookBPAR%glacStor_kIce)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%glacStor_kIce)%default_val = 15._rkind*secprhour! convert from hours to seconds
+    parFallback(iLookBPAR%glacStor_kIce)%lower_limit = 5._rkind*secprhour
+    parFallback(iLookBPAR%glacStor_kIce)%upper_limit = 29._rkind*secprhour - 1._rkind
   end if
-  if (parFallback(iLookBPAR%glacStor_kSnow)%default_val < 0.99_rkind*realMissing) then ! 30-149
-   parFallback(iLookBPAR%glacStor_kSnow)%default_val = 90._rkind*secprhour ! convert from hours to seconds
+  if (parFallback(iLookBPAR%glacStor_kSnow)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%glacStor_kSnow)%default_val = 90._rkind*secprhour ! convert from hours to seconds
+    parFallback(iLookBPAR%glacStor_kSnow)%lower_limit = 30._rkind*secprhour
+    parFallback(iLookBPAR%glacStor_kSnow)%upper_limit = 149._rkind*secprhour - 1._rkind
   end if
-  if (parFallback(iLookBPAR%glacStor_kFirn)%default_val < 0.99_rkind*realMissing) then ! 150-1000
+  if (parFallback(iLookBPAR%glacStor_kFirn)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%glacStor_kFirn)%default_val = 575._rkind*secprhour ! convert from hours to seconds
+    parFallback(iLookBPAR%glacStor_kFirn)%lower_limit = 150._rkind*secprhour
+    parFallback(iLookBPAR%glacStor_kFirn)%upper_limit = 1000._rkind*secprhour - 1._rkind
   endif
   if (parFallback(iLookBPAR%debrisConc)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%debrisConc)%default_val = 5.0_rkind ! 0.1 to 6.4 kg/m3 following Anderson and Anderson (2018)
+    parFallback(iLookBPAR%debrisConc)%lower_limit = 0._rkind
+    parFallback(iLookBPAR%debrisConc)%upper_limit = 10._rkind
   endif
   if (parFallback(iLookBPAR%wallErosionRate)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%wallErosionRate)%default_val = 8.0_rkind ! 1 to 15 mm yr-1 following Anderson and Anderson (2016)
+    parFallback(iLookBPAR%wallErosionRate)%default_val = 8.0_rkind ! in mm yr-1 following Anderson and Anderson (2016)
+    parFallback(iLookBPAR%wallErosionRate)%lower_limit = 0._rkind
+    parFallback(iLookBPAR%wallErosionRate)%upper_limit = 15._rkind
   endif
   if (parFallback(iLookBPAR%debrisCritStress)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%debrisCritStress)%default_val = 80000 ! 20000-100000 Pa follow Mayer and Licciulli (2021)
+    parFallback(iLookBPAR%debrisCritStress)%default_val = 80000._rkind ! in Pa follow Mayer and Licciulli (2021)
+    parFallback(iLookBPAR%debrisCritStress)%lower_limit = 20000._rkind
+    parFallback(iLookBPAR%debrisCritStress)%upper_limit = 100000._rkind
   endif
   if (parFallback(iLookBPAR%latMoraineWidth)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%latMoraineWidth)%default_val = 200._rkind ! from looking at Alaska glaciers (m)
+    parFallback(iLookBPAR%latMoraineWidth)%lower_limit = 0._rkind
+    parFallback(iLookBPAR%latMoraineWidth)%upper_limit = 500._rkind
   endif
   ! temperature of the groundwater reaching the channel, only used with deepTherml = airTempGW
   if (parFallback(iLookBPAR%C_ATGW)%default_val < 0.99_rkind*realMissing) then
@@ -262,7 +292,7 @@ contains
   if (parFallback(iLookBPAR%streamWidthMultip)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%streamWidthMultip)%default_val = 1._rkind
     parFallback(iLookBPAR%streamWidthMultip)%lower_limit = 0.5_rkind
-    parFallback(iLookBPAR%streamWidthMultip)%upper_limit = 3._rkind
+    parFallback(iLookBPAR%streamWidthMultip)%upper_limit = 2._rkind
   endif
  end if
 
