@@ -22,7 +22,7 @@ THTR = 0.1002            # upstream uzf_ts.dat extwc
 EPS = 4.0                # Brooks-Corey epsilon
 SURFDEP = 0.1            # m
 RECH_MEAN = 0.116 / 3.15576e7   # m s-1, the mean recharge spinup_sagehen9_heads.py settles the heads under
-NTRAIL, NWAVESETS = 3, 150   # 3 trailing waves give the upstream 15's flux to 1e-4 at a fifth of the cost
+NTRAIL, NWAVESETS = 3, 1000   # 3 trailing waves give the upstream 15's flux to 1e-4 at a fifth of the cost; daily input to deep cells keeps hundreds of sets alive
 
 
 def load(model_dir, name):
