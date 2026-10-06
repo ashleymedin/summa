@@ -1,0 +1,11 @@
+averageRoutedRunoff   | 24
+basin__TotalRunoff    | 24
+scalarTotalET         | 24
+scalarRainPlusMelt    | 24
+scalarSurfaceRunoff   | 24
+scalarInfiltration    | 24
+scalarSoilDrainage    | 24
+scalarSoilBaseflow    | 24
+scalarAquiferBaseflow | 24
+scalarAquiferSeepage  | 24
+scalarTotalSoilWat    | 24
