@@ -4,7 +4,7 @@
 Sagehen has no observation well: the one USGS well in the basin has no water levels, and Niswonger &
 Prudic calibrated ex-gwf-sagehen to discharge alone.  So the well is made up.  It sits on the lower valley side
 two cells from the channel above the outlet gauge (row 41, column 75, 1-based, in GRU 7), where the
-water table is about 14 m down and moves with the seasons; the valley floor below it is held at land
+water table is about 15 m down and moves with the seasons; the valley floor below it is held at land
 surface by the drains.  Its record is the head of a reference coupled run there, sampled the way a
 USGS recorder reports it: depth to water below land surface (72019) in ft to 0.01 ft, the mean over each
 Pacific-standard day.  The calibration that scores it therefore knows the true answer, the parameters
