@@ -593,7 +593,7 @@ def write_summa(name, h, nGRU, period):
 
     stamp = spin_end.replace("-", "").replace(" ", "")[:10]
     for tag in ("latflow", "noLatflow"):
-        restart = f"spinup_{tag}_restart_{stamp}_G1-{nGRU}.nc"
+        restart = f"spinup_{tag}_restart_{stamp}_G{1:0{len(str(nGRU))}d}-{nGRU}.nc"   # SUMMA pads the first GRU to the last one's width
         for spin in (False, True):
             fm = f"""controlVersion       'SUMMA_FILE_MANAGER_V3.0.0' ! file manager version
 simStartTime         '{spin_start if spin else sim_start}' !
