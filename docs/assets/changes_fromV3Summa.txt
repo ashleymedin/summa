@@ -281,6 +281,7 @@ AFTER tag of v4.0.0-exp-Sundials
       5) The infiltration compression closure is evaluated per MODFLOW cell (scalarInfilLimAqfr), commit a741b32c Oct 1, 2026
       6) A stream domain's soil base is zero-flux; its bed exchanges through the reach package, commit 23c86cb2 Oct 5, 2026
       7) UZF takes the drainage a day at a time; its rejected recharge returns to the column base as scalarAquiferReject, commit 235a7717 Oct 6, 2026
+      8) The scatter weighs each HRU's share of a cell by its area, so an area-intersection map_file conserves recharge volume, commit 5923c4de Oct 6, 2026
       9) Optional implicit base exchange: base_ghb_package_name/base_drn_package_name, returned with the rejected recharge, commit 53499790 Oct 6, 2026
       10) Base flux is continuous in the water table, presHead giving way to free drainage over 10 cm below the base, commit 4510ad32 Oct 6, 2026
       11) uzf_hold_days sets how many days of drainage UZF takes at a time, default 1, commit 349fb50e Oct 6, 2026
