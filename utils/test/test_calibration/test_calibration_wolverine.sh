@@ -5,9 +5,10 @@
 # NSGA-II on daily discharge (KGE) and water temperature (RMSE, degC) at USGS 15236900,
 # the outlet of the one reach, and the glacier-wide seasonal mass balance (RMSE), 2017-2019
 # after a 2016 spin-up, over eight parameters that move snow accumulation, melt and glacier
-# runoff; and streamWidthMultip, which sets the reach's surface area. The groundwater reaching the
-# channel leaves at the temperature of the bedrock base (deepTherml = bedrockLyrs), so no parameter
-# sets it. The script checks the front the way test_calibration_gulkana.sh does and prints it.
+# runoff; and aquiferBaseflowRate and aquiferScaleFactor, on log scales, which set how much
+# groundwater reaches the reach and how long the aquifer holds it. The groundwater leaves at the
+# temperature of the bedrock base (deepTherml = bedrockLyrs), so no parameter sets its temperature.
+# The script checks the front the way test_calibration_gulkana.sh does and prints it.
 #
 # The budget is tiny, so this exercises the machinery; it does not calibrate the glacier.
 # Needs an executable built with -DUSE_MPI=ON -DUSE_MIZUROUTE=ON.
@@ -137,10 +138,17 @@ param_list = [
     "glacStor_kIce",
     "glacStor_kSnow",
     "glacStor_kFirn",
-    "streamWidthMultip"
+    "aquiferBaseflowRate",
+    "aquiferScaleFactor"
 ]
 
 write_aligned = false
+
+
+[calibration.parameter_transformations]
+
+aquiferBaseflowRate = "log"
+aquiferScaleFactor  = "log"
 
 
 [calibration.nsga2]
