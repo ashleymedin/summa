@@ -414,10 +414,10 @@ daily-mean target cannot see, and halving `hypLag` leaves the RMSE unchanged.
 ```
 
 It needs `bin/summa_sundials_mizuroute_opt.exe`. At the defaults it takes about 10 minutes, and every
-trial runs. The front runs from KGE 0.86 at 0.69 degC and 523 mm, through KGE 0.82 at 0.77 degC and
-407 mm, to 0.52 degC at KGE 0.62 and 1,525 mm. Glacier runoff enters the reach at freezing; the water
-warms from the groundwater of the unglaciated third of the basin, near the bedrock's 2 °C, and from
-the heat friction dissipates down the reach.
+trial runs. The front runs from KGE 0.87 at 0.75 degC and 531 mm, through KGE 0.83 at 0.82 degC and
+407 mm, to 0.62 degC at KGE 0.35 and 1,421 mm. Glacier runoff enters the reach at freezing; the water
+warms from the groundwater of the unglaciated third of the basin, which leaves at the bedrock's
+starting temperature, and from the heat friction dissipates down the reach.
 `wolverine/README.md` says how the domain and observations were built.
 
 ## `multi_case_example/` -- multi-case calibration
