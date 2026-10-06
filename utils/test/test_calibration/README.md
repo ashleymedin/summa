@@ -166,7 +166,9 @@ metric     = "rmse"
 - `annual` uses minima only: the minimum near the observed date less the minimum near a year earlier.
 - A balance whose search reaches outside the simulation, or whose turning point is not clear, is left
   out, so the first year of a run scores nothing.
-- Score the mass balance or GRACE alongside discharge, not both: they measure the same storage, one
+- A glacier basin always scores discharge with the mass balance or GRACE, and a stream-temperature
+  target is added to those, never in place of them: discharge alone lets a wrong melt rate hide in
+  storage. Score one of the mass balance and GRACE, not both: they measure the same storage, one
   over the glacier and one over a ~300 km mascon, and on Gulkana they pull the parameters apart.
 - `basin__GlacierMassChange` is the glacier domains' total mass change over the glacier area, which is
   what a glacier-wide balance is per unit of.
