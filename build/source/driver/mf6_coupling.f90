@@ -36,6 +36,7 @@ module mf6_coupling
   !     rch_package_name   = 'RCHA'    ! RCH package name (READASARRAYS), as in the GWF name file
   !     uzf_package_name   = 'UZF'     ! UZF package below the soil column, one landflag-1 cell per column
   !     uze_package_name   = ''        ! GWE UZE package carrying UZF's infiltration temperature
+  !     uzf_hold_days      = 1.0       ! days of drainage UZF takes at a time, at a constant rate
   !     base_ghb_package_name = ''     ! GHB, one row per top cell, for the implicit base exchange
   !     base_drn_package_name = ''     ! DRN, one row per top cell, for the implicit base exchange
   !     bflow_package_name = 'CHD'     ! shorthand for a one-entry role='baseflow' table below
@@ -54,7 +55,7 @@ module mf6_coupling
   ! DIS/TOP must be the base of SUMMA's soil column, as in GSFLOW, so the two models share no pore
   ! space: SUMMA owns the saturated zone within the column and MODFLOW everything below.
   ! Where a cell's water table is below its UZF top, positive drainage enters UZF, as GSFLOW's
-  ! gravity drainage enters UZF1, a day's worth at a time at a constant rate over the next day, so
+  ! gravity drainage enters UZF1, uzf_hold_days' worth at a time at a constant rate over the next, so
   ! hourly pulses do not each start a wave; elsewhere it enters RCH.  Neither that store nor UZF's
   ! water content is in the head restart, so a restarted UZF starts from THTI with an empty store.
   ! UZF's ET, groundwater ET and seepage must be off: EVT takes groundwater ET and SUMMA's presHead
@@ -199,6 +200,7 @@ module mf6_coupling
     character(len=256)  :: rch_package_name   = 'RCHA'
     character(len=256)  :: uzf_package_name   = 'UZF'   ! UZF package below the soil column
     character(len=256)  :: uze_package_name   = ''      ! GWE UZE package for UZF's infiltration temperature
+    double precision    :: uzf_hold_days      = 1.d0    ! days of drainage UZF takes at a time
     character(len=256)  :: base_ghb_package_name = ''   ! GHB for the base exchange where the head is at or above the top
     character(len=256)  :: base_drn_package_name = ''   ! DRN for the base exchange where the head is below the top
     character(len=256)  :: bflow_package_name = 'CHD'   ! back-compatible alias for a single role=baseflow entry
@@ -274,10 +276,10 @@ module mf6_coupling
     real(c_double), pointer :: uzf_rejinf(:) => null()    ! UZF rejected infiltration <MODEL>/<UZF>/REJINF (m3 s-1, per UZF cell)
     real(c_double), pointer :: uze_temp(:) => null()      ! UZE infiltration temperature <GWE>/<UZE>/TEMPINFL (degC, per UZF cell)
     integer, allocatable    :: uzf_of_cell(:)             ! landflag-1 UZF cell of each horizontal cell, 0 if none
-    real(c_double), allocatable :: uzf_held(:)            ! drainage held for UZF's next day (m, per UZF cell)
+    real(c_double), allocatable :: uzf_held(:)            ! drainage held for UZF's next hold (m, per UZF cell)
     real(c_double), allocatable :: uzf_rate(:)            ! infiltration UZF takes over the current day (m s-1, per UZF cell)
-    integer                 :: uzf_nbatch = 1             ! SUMMA steps in a UZF day
-    integer                 :: uzf_kstep  = 0             ! steps into the current UZF day
+    integer                 :: uzf_nbatch = 1             ! SUMMA steps in a UZF hold
+    integer                 :: uzf_kstep  = 0             ! steps into the current UZF hold
     logical                 :: grid_reduced = .false.
 
     ! ---- implicit base exchange: one GHB and one DRN row per top cell ----
@@ -661,7 +663,7 @@ contains
     ! 4. SUMMA soil drainage -> MODFLOW 6 UZF and RCH, gross of the recharge SUMMA has just taken back
     gross_hru = drain_hru
     if (present(rej_hru)) gross_hru = drain_hru + rej_hru
-    if (istep == 1) this%uzf_nbatch = max(1, nint(86400.d0/summa_data_step))
+    if (istep == 1) this%uzf_nbatch = max(1, nint(this%uzf_hold_days*86400.d0/summa_data_step))
     this%bud_dt = summa_data_step
     call this%scatter_drainage_to_rch(gross_hru, summa_data_step)
 
@@ -872,6 +874,7 @@ contains
     integer :: fu, rc, ib, ir
     character(len=256) :: mf6_model_name, rch_package_name, bflow_package_name, map_file
     character(len=256) :: uzf_package_name, uze_package_name, base_ghb_package_name, base_drn_package_name
+    double precision   :: uzf_hold_days
     character(len=256) :: evt_package_name, gwe_model_name, esl_package_name
     character(len=1024):: head_restart_read, head_restart_write
     character(len=256) :: bnd_package_names(MAXBND)
@@ -879,7 +882,7 @@ contains
     integer            :: mf6_epsg
     logical            :: feedback
     namelist /coupler/ mf6_model_name, rch_package_name, uzf_package_name, uze_package_name, &
-                       base_ghb_package_name, base_drn_package_name, &
+                       base_ghb_package_name, base_drn_package_name, uzf_hold_days, &
                        bflow_package_name, evt_package_name, &
                        bnd_package_names, bnd_package_roles, map_file, mf6_epsg, feedback, &
                        head_restart_read, head_restart_write, gwe_model_name, esl_package_name
@@ -893,6 +896,7 @@ contains
     uze_package_name   = ''
     base_ghb_package_name = ''
     base_drn_package_name = ''
+    uzf_hold_days      = 1.d0
     bflow_package_name = 'CHD'
     evt_package_name   = ''
     gwe_model_name     = ''
@@ -924,6 +928,7 @@ contains
     this%uze_package_name   = uze_package_name
     this%base_ghb_package_name = base_ghb_package_name
     this%base_drn_package_name = base_drn_package_name
+    this%uzf_hold_days      = uzf_hold_days
     this%bflow_package_name = bflow_package_name
     this%evt_package_name   = evt_package_name
     this%gwe_model_name     = gwe_model_name
@@ -1023,7 +1028,7 @@ contains
   ! Each HRU's flux is spread over its mapped cells by weight; a cell that receives
   ! from several HRUs gets the area-weighted mean flux (so recharge volume is conserved
   ! when the HRU areas equal the covered cell areas).  A positive flux on a cell whose last
-  ! head is below its UZF top moves from RCH into that cell's UZF store; each day the store
+  ! head is below its UZF top moves from RCH into that cell's UZF store; every uzf_hold_days the store
   ! becomes UZF's constant infiltration over the next, or RCH's while the water table is at the
   ! top.  It is written into UZF's period input, which do_time_step's advance hands to the UZF
   ! cells, so this must follow prepare_time_step.
@@ -1041,7 +1046,7 @@ contains
       if (iuz < 1) cycle
       node = this%top_active_node(c)
       if (node < 1) cycle
-      ! a water table at the top takes the day's rate straight, rather than through UZF rejecting it
+      ! a water table at the top takes the hold's rate straight, rather than through UZF rejecting it
       if (this%mf6_head(node) >= this%uzf_celtop(iuz)) then
         this%uzf_sinf(iuz) = 0.0_c_double
         this%mf6_rch(c)    = this%mf6_rch(c) + this%uzf_rate(iuz) * this%uzf_area(iuz) / this%cell_area(c)
@@ -2072,7 +2077,7 @@ contains
 
     if (.not. this%budget) return
 
-    ! the day's store plus what the current day's rate has still to deliver
+    ! the hold's store plus what the current hold's rate has still to deliver
     held = 0.d0
     if (allocated(this%uzf_held)) held = sum(this%uzf_area * (this%uzf_held + &
       this%uzf_rate * this%bud_dt * (this%uzf_nbatch - this%uzf_kstep)))
