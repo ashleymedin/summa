@@ -6,7 +6,7 @@ outFilePrefix        'run1_noLatflow' !
 settingsPath         '../domain_littleriver/settings/SUMMA/' ! relative to MODFLOW_CASE
 forcingPath          '../domain_littleriver/forcing/SUMMA_input/' !
 outputPath           '../domain_littleriver/simulations/run_1/SUMMA/' !
-initConditionFile    '../../simulations/spinup/spinup_noLatflow_restart_2013013123_G1-21.nc' ! Relative to settingsPath
+initConditionFile    '../../simulations/spinup/spinup_noLatflow_restart_2013013123_G01-21.nc' ! Relative to settingsPath
 attributeFile        'attributes.nc' ! Relative to settingsPath
 trialParamFile       'trialParams.nc' ! Relative to settingsPath
 forcingListFile      'forcingFileList.txt' ! Relative to settingsPath
