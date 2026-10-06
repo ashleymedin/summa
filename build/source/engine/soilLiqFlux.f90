@@ -1977,6 +1977,8 @@ subroutine qDrainFlux(in_qDrainFlux,io_qDrainFlux,out_qDrainFlux)
   real(rkind)                      :: upHydCond               ! conductivity for rise across the base (m s-1)
   real(rkind)                      :: dUp_dMatric             ! derivative of upHydCond w.r.t. node matric head (s-1)
   real(rkind)                      :: dUp_dTemp               ! derivative of upHydCond w.r.t. node temperature (m s-1 K-1)
+  real(rkind),parameter            :: baseBlend=0.1_rkind     ! depth below the base over which free drainage takes over (m)
+  real(rkind)                      :: wBase                   ! weight on the head-driven flux below the base (-)
   integer(i4b)                     :: bc_lower_use            ! mutable copy of lower boundary-condition index
   ! error control
   logical(lgt)                     :: return_flag             ! flag for return statements
@@ -2071,31 +2073,29 @@ contains
    message => out_qDrainFlux % message  &                     ! error message
   &)
 
-   baseHydCond = hydCond_psi(lowerBoundHead,bottomSatHydCond,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac
-
-   ! a coupled water table below the column base: free drainage into the unsaturated zone below, as GSFLOW's soil zone
-   ! drains to UZF, less the recharge that zone rejected last step
-   if((ix_groundwatr==modflowCpl .or. ix_groundwatr==modLatflow) .and. lowerBoundHead < 0._rkind)then
-     bottomHydCond     = nodeHydCond
-     scalarDrainage    = nodeHydCond - scalarAquiferReject
-     dq_dHydStateUnsat = dHydCond_dMatric
-     dq_dNrgStateUnsat = dHydCond_dTemp
    ! a coupled water table at or above the base: drainage at the boundary conductivity, but rise into the column at the
-   ! geometric mean of that and the bottom layer's own, which limits flow into dry soil
-   elseif(ix_groundwatr==modflowCpl .or. ix_groundwatr==modLatflow)then
+   ! geometric mean of that and the bottom layer's own, which limits flow into dry soil.  Below the base it gives way
+   ! linearly over baseBlend to free drainage into the unsaturated zone, as GSFLOW's soil zone drains to UZF, so the
+   ! flux is continuous in the water table.  Both are less the recharge that zone rejected last step.
+   if(ix_groundwatr==modflowCpl .or. ix_groundwatr==modLatflow)then
+     baseHydCond = hydCond_psi(max(lowerBoundHead, 0._rkind),bottomSatHydCond,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac
      pathLength = nodeDepth*0.5_rkind
-     headDrop   = nodeMatricHeadLiq - lowerBoundHead + pathLength
+     headDrop   = nodeMatricHeadLiq - max(lowerBoundHead, 0._rkind) + pathLength
      posDrop    = 0.5_rkind*(headDrop + sqrt(headDrop**2_i4b + dropSmooth**2_i4b)) ! smooth positive part (m)
      dPosDrop   = 0.5_rkind*(1._rkind + headDrop/sqrt(headDrop**2_i4b + dropSmooth**2_i4b))
      upHydCond  = sqrt(baseHydCond*max(nodeHydCond, tiny(1._rkind)))
      dUp_dMatric = 0.5_rkind*upHydCond*dHydCond_dMatric/max(nodeHydCond, tiny(1._rkind))
      dUp_dTemp   = 0.5_rkind*upHydCond*dHydCond_dTemp/max(nodeHydCond, tiny(1._rkind))
-     bottomHydCond     = baseHydCond
-     scalarDrainage    = (baseHydCond*posDrop + upHydCond*(headDrop - posDrop))/pathLength - scalarAquiferReject
-     dq_dHydStateUnsat = (baseHydCond*dPosDrop + upHydCond*(1._rkind - dPosDrop) + dUp_dMatric*(headDrop - posDrop))/pathLength
-     dq_dNrgStateUnsat = ((baseHydCond*dPosDrop + upHydCond*(1._rkind - dPosDrop))*node_dPsiLiq_dTemp &
-                       &  + dUp_dTemp*(headDrop - posDrop))/pathLength
+     wBase      = max(0._rkind, 1._rkind + min(lowerBoundHead, 0._rkind)/baseBlend) ! weight on the head-driven flux (-)
+     bottomHydCond     = wBase*baseHydCond + (1._rkind - wBase)*nodeHydCond
+     scalarDrainage    = wBase*(baseHydCond*posDrop + upHydCond*(headDrop - posDrop))/pathLength &
+                       & + (1._rkind - wBase)*nodeHydCond - scalarAquiferReject
+     dq_dHydStateUnsat = wBase*(baseHydCond*dPosDrop + upHydCond*(1._rkind - dPosDrop) &
+                       &  + dUp_dMatric*(headDrop - posDrop))/pathLength + (1._rkind - wBase)*dHydCond_dMatric
+     dq_dNrgStateUnsat = wBase*((baseHydCond*dPosDrop + upHydCond*(1._rkind - dPosDrop))*node_dPsiLiq_dTemp &
+                       &  + dUp_dTemp*(headDrop - posDrop))/pathLength + (1._rkind - wBase)*dHydCond_dTemp
    else
+     baseHydCond = hydCond_psi(lowerBoundHead,bottomSatHydCond,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac
      ! compute flux
      bottomHydCond = baseHydCond
      cflux = -bottomHydCond*(lowerBoundHead  - nodeMatricHeadLiq) / (nodeDepth*0.5_rkind)
