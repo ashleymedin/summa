@@ -227,12 +227,12 @@ rateWindUnloading         |      1.56d+5 |       1.0d+5 |       3.0d+5
 ! ====================================================================
 ! glacier parameters
 ! ====================================================================
-albedoFrznWatVisible      |       0.6000 |       0.7000 |       0.9500
-albedoFrznWatNearIR       |       0.4000 |       0.5000 |       0.7500
-albedoOpenWatVisible      |       0.0600 |       0.7000 |       0.9500
-albedoOpenWatNearIR       |       0.0600 |       0.5000 |       0.7500
-z0Water                   |       0.0005 |       0.0010 |      10.0000
-z0Ice                     |       0.0010 |       0.0010 |      10.0000
+albedoFrznWatVisible      |       0.6000 |       0.3000 |       0.9000
+albedoFrznWatNearIR       |       0.4000 |       0.1000 |       0.7000
+albedoOpenWatVisible      |       0.0600 |       0.0300 |       0.1500
+albedoOpenWatNearIR       |       0.0600 |       0.0300 |       0.1500
+z0Water                   |       0.0005 |       0.0001 |       0.0100
+z0Ice                     |       0.0010 |       0.0001 |       0.0500
 glacierWindFactor         |       1.0000 |       1.0000 |       3.0000
 glacierTempReduction      |       0.0000 |       0.0000 |       6.5000
 gwTempWindow              |       7.0000 |       2.0000 |      14.0000
