@@ -221,6 +221,14 @@ def write_settings(settings, src_set):
             f.write(f"{v} | 24\n")
 
 
+def write_zone_file(array_file, zone_file):
+    """Zones of a text array by its distinct values, 1 the smallest; 0 where the value is 0 (inactive)."""
+    a = np.loadtxt(array_file)
+    classes = np.unique(a[a > 0])
+    z = np.where(a > 0, np.searchsorted(classes, a) + 1, 0)
+    np.savetxt(zone_file, z, fmt="%d")
+
+
 def write_modflow(out_dir, nSteps, layout):
     """ex-gwf-sagehen with one stress period of nSteps hours, saving its last step only.
 
@@ -246,6 +254,8 @@ BEGIN PERIODDATA
    {nSteps * 3600.0:.1f}   {nSteps}    1.0
 END PERIODDATA
 """)
+    write_zone_file(os.path.join(mf6, "kh1.txt"), os.path.join(mf6, "kzone1.txt"))
+    write_zone_file(os.path.join(mf6, "sy1.txt"), os.path.join(mf6, "syzone1.txt"))
     with open(os.path.join(mf6, "sagehen.oc"), "w") as f:
         f.write("""# Output control - the last step only; a calibration trial is judged on SUMMA's output.
 BEGIN OPTIONS

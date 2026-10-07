@@ -8,7 +8,8 @@
 # forcing (Oct 2016 - Sep 2018) in sagehen/forcing. NSGA-II scores water year 2018 after a
 # water-year-2017 spin-up: discharge KGE and T_reach RMSE (degC) at reach 9, the outlet, and
 # lowerBoundHead RMSE (m) as a departure from its mean at the HRU of the synthetic well, whose
-# record is a reference run's head (make_sagehen_synthetic_well.py).
+# record is a reference run's head (make_sagehen_synthetic_well.py).  MODFLOW's K, Sy and UZF VKS
+# are searched with the SUMMA parameters, as multipliers on the model's input files.
 #
 #   lumped  one land HRU per GRU (18 HRUs), mapped onto its GRU's cells; the default
 #   grid    one land HRU per MODFLOW cell (3396 HRUs), hours per trial
@@ -164,6 +165,34 @@ write_aligned = false
 
 k_macropore       = "log"
 routingGammaScale = "log"
+K_mult            = "log"
+uzf_vks_mult      = "log"
+
+
+# MODFLOW parameters: multipliers on the input files of [modflow] run_dir, rewritten for each trial;
+# a zone_file and zone limit one to a zone, e.g. zone_file = "kzone1.txt", zone = 4
+[[calibration.modflow_parameter]]
+
+name  = "K_mult"
+files = ["kh1.txt", "kv1.txt"]
+lower = 0.2
+upper = 5.0
+
+[[calibration.modflow_parameter]]
+
+name  = "Sy_mult"
+files = "sy1.txt"
+lower = 0.5
+upper = 1.5
+
+[[calibration.modflow_parameter]]
+
+name   = "uzf_vks_mult"
+files  = "sagehen.uzf"
+block  = "PACKAGEDATA"
+column = 8
+lower  = 0.1
+upper  = 10.0
 
 
 [calibration.nsga2]
@@ -252,6 +281,20 @@ check(bool(np.all((ran[1] > 0.0) & (ran[1] < 10.0))), "temperature RMSE is betwe
 check(ran.shape[1] > 1 and bool(np.ptp(ran[1]) > 0.0), "temperature RMSE changes with the parameters")
 # the well's record is the model's own head, so a trial misses it by no more than the water table moves
 check(bool(np.all((ran[2] >= 0.0) & (ran[2] < 5.0))), "well level RMSE is between 0 and 5 m")
+
+# the MODFLOW multipliers are searched within their bounds, and a worker's model holds its last trial's K
+for name, lo, hi in [("K_mult", 0.2, 5.0), ("Sy_mult", 0.5, 1.5), ("uzf_vks_mult", 0.1, 10.0)]:
+    v = np.asarray(d[name][:])
+    check(bool(np.all((v >= lo) & (v <= hi)) and np.ptp(v) > 0.0), f"{name} varies within [{lo}, {hi}]")
+kh = np.loadtxt(os.path.join(work, "domain", "mf6", "kh1.txt")).ravel()
+rank = np.asarray(d["worker_rank"][:])
+t = np.asarray(d["completion_time"][:]).reshape(rank.size, -1).astype(np.int64)   # y m d utc h min s ms
+done = ((((((t[:, 0] * 13 + t[:, 1]) * 32 + t[:, 2]) * 24 + t[:, 4]) * 60 + t[:, 5]) * 60 + t[:, 6]) * 1000 + t[:, 7])
+for r in np.unique(rank):
+    last = np.where(rank == r)[0][np.argmax(done[rank == r])]
+    run = np.array(open(os.path.join(work, "output", f"modflow_rank{r:04d}", "kh1.txt")).read().split(), float)
+    ratio = run[kh > 0] / kh[kh > 0]
+    check(bool(np.allclose(ratio, d["K_mult"][last], rtol=1e-12)), f"rank {r}'s kh1.txt is its last trial's K x {d['K_mult'][last]:.4f}")
 
 front = np.asarray(d["pareto_front"][:]) == 1
 print()

@@ -300,6 +300,42 @@ SUMMA's own aquifer follows the same rule. With `aquiferIni = emptyStart` the aq
 emptied on the cold start only: the spinup's restart file records that a start has already
 happened, so each sample keeps the spun-up aquifer rather than emptying it again.
 
+### MODFLOW parameters
+
+MODFLOW's own parameters are searched with SUMMA's, each as a multiplier on numbers in the model's
+plain-text input files. Each trial rewrites the files it names in its rank's `modflow_rank####`,
+always from `run_dir`, before MODFLOW starts; MODFLOW itself is not changed.
+
+```toml
+# K and K33 of zone 4 only: a zone file is an integer array of the same shape
+[[calibration.modflow_parameter]]
+name      = "K_zone4"
+files     = ["kh1.txt", "kv1.txt"]   # OPEN/CLOSE array files, relative to run_dir
+zone_file = "kzone1.txt"
+zone      = 4
+lower     = 0.2
+upper     = 5.0
+
+# UZF's VKS, column 8 of every PACKAGEDATA row
+[[calibration.modflow_parameter]]
+name   = "uzf_vks_mult"
+files  = "sagehen.uzf"
+block  = "PACKAGEDATA"   # leave out for an OPEN/CLOSE list file holding rows only
+column = 8
+lower  = 0.1
+upper  = 10.0
+```
+
+An array parameter scales every value of its files, or those of the cells in its zone. A list
+parameter scales one column of the data rows. Several parameters may scale one file, and where they
+overlap their multipliers multiply. A file is scaled as an array or as a list, not both. Its
+multiplier is searched like any parameter, so `[calibration.parameter_transformations]` can put it on
+a log scale. The trials file and a failed trial's `rerun.sh` carry it by name. A missing file, zone
+or column is refused at start-up.
+
+The spinup runs at the model's own values, so every trial starts from heads spun up with the default
+K and Sy, as it starts from SUMMA's default-parameter spinup.
+
 **This needs mizuRoute as well**, for the same reason every other calibration does: the
 objective compares routed streamflow against gauge observations. A coupled calibration build
 is therefore `-DUSE_MPI=ON -DUSE_MIZUROUTE=ON -DUSE_MODFLOW6=ON`.
@@ -360,7 +396,9 @@ with a soil water balance error.
 A coupled SUMMA / MODFLOW 6 / mizuRoute calibration on Sagehen Creek, scoring discharge (KGE) and
 stream temperature (`T_reach` RMSE, degC) at USGS 10343500, the outlet of reach 9, and the water level
 in a synthetic well (`lowerBoundHead` RMSE, m). NSGA-II scores water year 2018 after a water-year-2017
-spin-up.
+spin-up. It searches MODFLOW's K (with K33), Sy and UZF VKS alongside the SUMMA parameters, and
+checks that each worker's model holds its last trial's K. The builder writes `kzone1.txt` (7 zones)
+and `syzone1.txt` (3) from the model's own value classes, for zone multipliers.
 
 Sagehen has no observation well, so the test makes one up. It sits on the lower valley side two cells
 from the channel above the gauge (row 41, column 75, in GRU 7), where the water table is about 15 m
