@@ -195,6 +195,7 @@ set(DRIVER
     ${DRIVER_DIR}/summa_spinup.f90
     ${DRIVER_DIR}/summa_mf6_exchange.f90
     ${DRIVER_DIR}/mf6_parameters.f90
+    ${DRIVER_DIR}/mf6_observations.f90
     CACHE INTERNAL "DRIVER")
 set(DRIVER_TOML
     ${DRIVER_DIR}/summa_config.f90

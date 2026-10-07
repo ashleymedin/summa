@@ -520,6 +520,11 @@ contains
       call get_value(target_table, 'obs_units', cvalue, stat=istat)
       if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%obs_units = trim(cvalue)
 
+      ! the MODFLOW 6 observation a modflow_obs target scores
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'obs_name', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%obs_name = trim(cvalue)
+
       ! the spatial unit the simulated variable is scored over, named by its id: one of gru, hru or
       ! reach, and the whole domain when the target names none
       call parse_target_spatial_unit(target_table, config%calib%targets(i), ierr, message)

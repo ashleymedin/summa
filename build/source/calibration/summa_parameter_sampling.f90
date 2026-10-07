@@ -612,10 +612,14 @@ contains
   ! **************************************************************************************************
   subroutine check_search_settings(config,err,message)
     USE summa_simulation, only: n_calibration_targets
+    USE mf6_observations, only: is_mf6_obs, find_mf6_obs
     implicit none
     type(config_info), intent(in)  :: config
     integer(i4b),      intent(out) :: err
     character(*),      intent(out) :: message
+    character(len=:), allocatable  :: csv_file
+    character(len=1024)            :: cmessage
+    integer(i4b)                   :: iTarget
 
     err=0
     message='check_search_settings/'
@@ -651,6 +655,33 @@ contains
         message=trim(message)//'unknown calibration.algorithm "'//trim(config%calib%algorithm)//'"; use dds or nsga2'
         err=20; return
     end select
+
+    ! a MODFLOW observation must be one the coupled model writes, at the cell its OBS6 file names
+    if(.not.allocated(config%calib%targets)) return
+    do iTarget=1,size(config%calib%targets)
+      associate(calTarget => config%calib%targets(iTarget))
+      if(.not.is_mf6_obs(calTarget%variable)) cycle
+      if(.not.config%use_modflow)then
+        message=trim(message)//'calibration target "'//trim(calTarget%name)//'" scores a MODFLOW observation, '// &
+                'which needs simulation.use_modflow'
+        err=20; return
+      endif
+      if(trim(calTarget%spatial_unit) /= 'domain')then
+        message=trim(message)//'calibration target "'//trim(calTarget%name)//'" names a '// &
+                trim(calTarget%spatial_unit)//'; a MODFLOW observation''s cell is set in its OBS6 file'
+        err=20; return
+      endif
+      if(len_trim(calTarget%obs_name) == 0)then
+        message=trim(message)//'calibration target "'//trim(calTarget%name)//'" needs obs_name'
+        err=20; return
+      endif
+      call find_mf6_obs(trim(config%modflow_run_dir), trim(calTarget%obs_name), csv_file, err, cmessage)
+      if(err/=0)then
+        message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+        return
+      endif
+      end associate
+    enddo
 
   end subroutine check_search_settings
 
