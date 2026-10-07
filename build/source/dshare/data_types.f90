@@ -107,6 +107,7 @@ MODULE data_types
   real(rkind)                    :: weight = 1.0_rkind      ! weight given to this target when the objectives
                                                             !  are scalarized for a single-objective search
   character(len=64)              :: obs_units = ''          ! units of the observations, overriding the file's
+  character(len=64)              :: obs_name = ''           ! MODFLOW 6 OBS6 observation a modflow_obs target scores
   ! Putting the simulated and observed series on the same footing.  A satellite storage product, for
   ! instance, reports a departure in millimetres from a multi-year mean, while the model carries the
   ! rate storage is changing at, so that target accumulates and references a baseline.

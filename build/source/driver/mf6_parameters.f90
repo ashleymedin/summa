@@ -41,6 +41,7 @@ module mf6_parameters
 
   public :: check_mf6_parameters
   public :: write_mf6_parameters
+  public :: get_line, split_line, upper
 
   integer(i4b), parameter :: maxLine = 65536   ! longest input line read
 

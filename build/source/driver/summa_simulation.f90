@@ -323,6 +323,7 @@ contains
     use simulated_series,        only: is_routed_streamflow
     use simulated_series,        only: spatial_unit_index
     use simulated_series,        only: ix_unit_domain, ix_unit_gru, ix_unit_reach
+    use mf6_observations,        only: is_mf6_obs
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     ! dummy arguments
     type(config_info),           intent(inout) :: config
@@ -451,6 +452,7 @@ contains
         err=20; exit trial
       endif
       if(is_routed_streamflow(calTarget%variable) .and. targetUnit(iTarget) == ix_unit_domain) cycle
+      if(is_mf6_obs(calTarget%variable)) cycle
       if(find_series(seriesName(1:nSeries),seriesUnit(1:nSeries),seriesUnitId(1:nSeries), &
                      calTarget%variable,targetUnit(iTarget),calTarget%spatial_id) == integerMissing)then
         nSeries=nSeries+1
@@ -489,6 +491,13 @@ contains
       if(is_routed_streamflow(calTarget%variable) .and. targetUnit(iTarget) == ix_unit_domain)then
         valSim=flowSim
         valSimUnits=flowSimUnits
+      else if(is_mf6_obs(calTarget%variable))then
+        call mf6_obs_series(summa1_struc(n), trim(calTarget%obs_name), valSim, err, cmessage)
+        if(err/=0)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+          exit trial
+        endif
+        valSimUnits='m'
       else
         iSeries=find_simulated_series(series,calTarget%variable,targetUnit(iTarget),calTarget%spatial_id)
         if(iSeries == integerMissing)then
@@ -728,6 +737,50 @@ contains
     endif
 
   end subroutine split_mf6_parameters
+
+  ! **************************************************************************************************
+  ! A MODFLOW 6 observation at every model time step, from the CSV in this rank's MODFLOW directory:
+  ! its last numtim rows, one per data step after any leading steady-state steps.
+  ! **************************************************************************************************
+  subroutine mf6_obs_series(summa_struct, obs_name, values, err, message)
+    USE globalData,       only: numtim
+    USE globalData,       only: data_step
+    USE summaFileManager, only: OUTPUT_PATH
+    USE mf6_observations, only: find_mf6_obs, read_mf6_obs
+    type(summa1_type_dec),    intent(in)  :: summa_struct
+    character(*),             intent(in)  :: obs_name
+    real(rkind), allocatable, intent(out) :: values(:)
+    integer(i4b),             intent(out) :: err
+    character(*),             intent(out) :: message
+    character(len=:), allocatable :: csv_file
+    real(rkind),      allocatable :: times(:), rows(:)
+    character(len=4)              :: rankString
+    real(rkind)                   :: span
+    integer(i4b)                  :: nRow
+    character(len=1024)           :: cmessage
+
+    err=0
+    message='mf6_obs_series/'
+
+    call find_mf6_obs(trim(summa_struct%config%modflow_run_dir), obs_name, csv_file, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    write(rankString,'(I4.4)') summa_struct%instance_parallel%rank
+    call read_mf6_obs(trim(OUTPUT_PATH)//'modflow_rank'//rankString//'/'//csv_file, obs_name, times, rows, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    nRow=size(rows)
+    if(nRow < numtim)then
+      write(message,'(a,i0,a,i0,a)') trim(message)//trim(csv_file)//' holds ',nRow,' rows for ',numtim,' model time steps'
+      err=20; return
+    endif
+    span=times(nRow)-times(nRow-numtim+1)
+    if(abs(span-(numtim-1)*data_step) > 1.e-6_rkind*max(span,data_step))then
+      message=trim(message)//trim(csv_file)//' does not hold one row per data step in seconds'
+      err=20; return
+    endif
+    values=rows(nRow-numtim+1:nRow)
+
+  end subroutine mf6_obs_series
 
   ! **************************************************************************************************
   ! Resolve the reach of every series scored on one, against the mizuRoute river network.
