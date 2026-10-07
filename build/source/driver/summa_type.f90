@@ -218,6 +218,8 @@ type, public :: summa1_type_dec
     ! generic runoff coupling data
     type(q_coupling), allocatable    :: coupling(:)                ! x(:)%id, x(:)%qsim
     type(stream_network)             :: stream_net                 ! per-reach hydraulics and temperatures for the stream domains
+    ! this run's MODFLOW 6 parameters, one multiplier per config%calib%mf6_params
+    real(rkind), allocatable         :: mf6_multiplier(:)
 #ifdef MIZUROUTE_ACTIVE
     type(mizuroute_domain)           :: mizu_domain                ! mizuroute domain data
 #endif
