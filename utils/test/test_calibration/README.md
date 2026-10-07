@@ -166,7 +166,9 @@ metric     = "rmse"
 - `annual` uses minima only: the minimum near the observed date less the minimum near a year earlier.
 - A balance whose search reaches outside the simulation, or whose turning point is not clear, is left
   out, so the first year of a run scores nothing.
-- Score the mass balance or GRACE alongside discharge, not both: they measure the same storage, one
+- A glacier basin always scores discharge with the mass balance or GRACE, and a stream-temperature
+  target is added to those, never in place of them: discharge alone lets a wrong melt rate hide in
+  storage. Score one of the mass balance and GRACE, not both: they measure the same storage, one
   over the glacier and one over a ~300 km mascon, and on Gulkana they pull the parameters apart.
 - `basin__GlacierMassChange` is the glacier domains' total mass change over the glacier area, which is
   what a glacier-wide balance is per unit of.
@@ -404,9 +406,13 @@ at USGS 15236900, and the glacier-wide seasonal mass balance (RMSE), on the bund
 domain: three glacier land HRUs and a stream HRU for the one reach. It spins up over 2016 and scores
 2017–2019, over `frozenPrecipMultip`, `tempCritRain`, `albedoMax`, `glacierWindFactor`,
 `glacierTempReduction`, the three glacier storage constants `glacStor_kIce`, `glacStor_kSnow` and
-`glacStor_kFirn`, and `streamWidthMultip` (0.5–3), the reach's surface area. Under
-`deepTherml = bedrockLyrs` the groundwater reaching the channel leaves at the bedrock base, which no
-parameter sets; with `deepTherml = airTempGW` the search would take `C_ATGW` and `gwTempWindow` instead.
+`glacStor_kFirn`, and `aquiferBaseflowRate` and `aquiferScaleFactor`, searched on log scales, which set
+how much groundwater reaches the reach and how long the aquifer holds it. `aquiferBaseflowRate` has a
+lower bound of 10⁻⁸ m s⁻¹ in `wolverine/` so it can be searched on a log scale. Under
+`deepTherml = bedrockLyrs` the groundwater leaves at the bedrock base, whose temperature no parameter
+sets; with `deepTherml = airTempGW` the search would add `C_ATGW` and `gwTempWindow`. The stream width
+is left at the gauge's: searching `streamWidthMultip` instead gives about the same temperature and a
+worse mass balance.
 `hypFrac` and `hypLag` are left at their defaults: the hyporheic proxy damps the daily swing, which a
 daily-mean target cannot see, and halving `hypLag` leaves the RMSE unchanged.
 
@@ -415,8 +421,9 @@ daily-mean target cannot see, and halving `hypLag` leaves the RMSE unchanged.
 ```
 
 It needs `bin/summa_sundials_mizuroute_opt.exe`. At the defaults it takes about 10 minutes, and every
-trial runs. The front runs from KGE 0.87 at 0.75 degC and 531 mm, through KGE 0.83 at 0.82 degC and
-407 mm, to 0.62 degC at KGE 0.35 and 1,421 mm. Glacier runoff enters the reach at freezing; the water
+trial runs. The front runs from KGE 0.88 at 0.78 degC and 602 mm, through KGE 0.81 at 0.84 degC and
+248 mm, to 0.71 degC at KGE 0.67 and 1,557 mm. Every trial runs 0.5–1 degC cold from July to
+September. Glacier runoff enters the reach at freezing; the water
 warms from the groundwater of the unglaciated third of the basin, which leaves at the bedrock's
 starting temperature, and from the heat friction dissipates down the reach.
 `wolverine/README.md` says how the domain and observations were built.
