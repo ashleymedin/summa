@@ -23,7 +23,7 @@ program summa_modflow6_mpi
   ! *** Thin BMI coupler: SUMMA land model  <-->  MODFLOW 6 groundwater model, MPI variant ***
   ! ****************************************************************************************
   !
-  ! Same coupling as summa_modflow6.f90 (see there for the full exchange description and required
+  ! Same coupling and exchange as summa_modflow6.f90 (see there for the exchange and the required
   ! model decisions, and mf6_coupling.f90 for the MODFLOW side itself), with SUMMA's GRUs split
   ! across MPI ranks the way summa_driver_mpi.f90 splits them for the plain (non-coupled) MPI
   ! build.  MODFLOW 6 itself stays a serial singleton on rank 0: this libmf6 build has no
@@ -36,7 +36,7 @@ program summa_modflow6_mpi
   !
   ! Every rank runs its own SUMMA instance over its local GRU subset.  Each coupled step, ranks
   ! gather their local soil drainage to rank 0 (MPI_Gatherv), rank 0 alone drives MODFLOW 6 through
-  ! mf6_coupling and then scatters the resulting head/storage/baseflow feedback back out
+  ! mf6_coupling and then scatters the resulting feedback back out
   ! (MPI_Scatterv).  Everything MODFLOW-side lives in mf6_coupling, shared with the serial coupler
   ! and with the calibration driver, so this file is only the SUMMA side and the rank bookkeeping.
   !
@@ -85,6 +85,9 @@ program summa_modflow6_mpi
   ! ---- the MODFLOW 6 side, live on rank 0 only ----
   type(mf6_coupler_type) :: coupler
   logical                :: feedback = .true., have_sy = .false., have_bflow = .false., have_base = .false., restarted = .false.
+  logical                :: have_surfdis = .false., have_gwet = .false., have_evt = .false., have_gwe = .false., have_esl = .false.
+  logical                :: gwe_feedback     ! deepTherml = aquiferTemp: GWE sets SUMMA's aquifer temperature
+  logical                :: atemp_known      ! atemp_hru holds a GWE temperature, from a restart or a step
   integer                :: err
   character(len=1024)    :: message
 
@@ -103,15 +106,27 @@ program summa_modflow6_mpi
   real, allocatable          :: rej_hru(:)       ! per-HRU recharge UZF rejected (m s-1, + = into the column) -> scalarAquiferReject
   real, allocatable          :: cond_hru(:)      ! per-HRU base conductance (s-1)                             -> base exchange GHB/DRN
   real, allocatable          :: stor_hru(:)      ! per-HRU relative aquifer storage (m of water)              -> scalarAquiferStorage
+  real, allocatable          :: surfdis_hru(:)   ! per-HRU groundwater discharge at land surface (m s-1) -> surface runoff
+  real, allocatable          :: gwet_dem_hru(:)  ! per-HRU aquifer transpiration DEMAND from SUMMA (m s-1) -> MODFLOW EVT
+  real, allocatable          :: gwet_hru(:)      ! per-HRU groundwater ET actually taken by MODFLOW (m s-1)
+  real, allocatable          :: gwet_lim_hru(:)  ! per-HRU aquifer transpiration limiting factor (-), cell-wise mean
+  real, allocatable          :: infil_lim_hru(:) ! per-HRU aquifer control on the infiltrating area (-), cell-wise mean
+  real, allocatable          :: rtemp_hru(:)     ! per-HRU drainage temperature (K)                           -> GWE recharge temperature
+  real, allocatable          :: atemp_hru(:)     ! per-HRU aquifer temperature at the water table (K, <= 0 unknown) -> scalarAquiferTemp
+  real, allocatable          :: bnrg_hru(:)      ! per-HRU conduction out the soil base (W m-2, + = down)     -> GWE ESL loading
   double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:)  ! HRU centroid lon/lat and surface elevation
   double precision, allocatable :: soil_thk(:)   ! per-HRU SUMMA soil-column thickness (m), read from SUMMA
   double precision, allocatable :: hru_area(:)   ! per-HRU plan area (m2), for the area check and coupled budget
+  double precision, allocatable :: root_reach(:) ! per-HRU root reach below the soil column (m)
+  double precision, allocatable :: root_zone(:)  ! per-HRU depth of SUMMA's infiltration-closure zone (m)
 
   ! ---- this rank's local slice (every rank allocates these; sized nHRU_local) ----
   real, allocatable          :: drain_hru_local(:), head_hru_local(:), bflow_hru_local(:), stor_hru_local(:)
   real, allocatable          :: rej_hru_local(:), cond_hru_local(:)
+  real, allocatable          :: surfdis_hru_local(:), gwet_dem_hru_local(:), gwet_hru_local(:), gwet_lim_hru_local(:)
+  real, allocatable          :: infil_lim_hru_local(:), rtemp_hru_local(:), atemp_hru_local(:), bnrg_hru_local(:)
   double precision, allocatable :: hru_x_local(:), hru_y_local(:), hru_z_local(:), soil_thk_local(:)
-  double precision, allocatable :: hru_area_local(:)
+  double precision, allocatable :: hru_area_local(:), root_reach_local(:), root_zone_local(:)
 
   ! ---- rank-0 bookkeeping for MPI_Gatherv/MPI_Scatterv (counts/displs are per-HRU-variable, in
   !      rank order; valid because summa_work_balance's balance_even gives every rank a contiguous
@@ -169,16 +184,18 @@ contains
       write(*,*) 'summa_modflow6_mpi: SUMMA model decision bcLowrSoiH must be "presHead" for the coupler'
       call MPI_Abort(MPI_COMM_WORLD, 1, mpi_ierr)
     end if
-    if (model_decisions(iLookDECISIONS%deepTherml)%iDecision == aquiferTempState) then
-      write(*,*) 'summa_modflow6_mpi: deepTherml = aquiferTemp needs GWE, which only summa_modflow6 exchanges'
-      call MPI_Abort(MPI_COMM_WORLD, 1, mpi_ierr)
-    end if
+    gwe_feedback = model_decisions(iLookDECISIONS%deepTherml)%iDecision == aquiferTempState
 
     ! -- this rank's local HRU count and geometry (BMI grid 0 = HRU points, local to this rank) --
     istat = summa%get_grid_size(0, nHRU_local)
     allocate(drain_hru_local(nHRU_local), head_hru_local(nHRU_local))
     allocate(bflow_hru_local(nHRU_local), stor_hru_local(nHRU_local), rej_hru_local(nHRU_local), cond_hru_local(nHRU_local))
     bflow_hru_local = 0.0; stor_hru_local = 0.0; rej_hru_local = 0.0; cond_hru_local = 0.0
+    allocate(surfdis_hru_local(nHRU_local), gwet_dem_hru_local(nHRU_local), gwet_hru_local(nHRU_local), &
+             gwet_lim_hru_local(nHRU_local), infil_lim_hru_local(nHRU_local), rtemp_hru_local(nHRU_local), &
+             atemp_hru_local(nHRU_local), bnrg_hru_local(nHRU_local))
+    surfdis_hru_local = 0.0; gwet_dem_hru_local = 0.0; gwet_hru_local = 0.0; gwet_lim_hru_local = 0.0
+    infil_lim_hru_local = 1.0; rtemp_hru_local = 0.0; atemp_hru_local = 0.0; bnrg_hru_local = 0.0
     allocate(hru_x_local(nHRU_local), hru_y_local(nHRU_local), hru_z_local(nHRU_local))
     istat = summa%get_grid_x(0, hru_x_local)   ! HRU longitude  (deg or projected x, must match MODFLOW grid CRS)
     istat = summa%get_grid_y(0, hru_y_local)   ! HRU latitude   (deg or projected y)
@@ -187,6 +204,9 @@ contains
     istat = summa%get_soil_thickness(soil_thk_local)  ! SUMMA soil-column depth per HRU (m)
     allocate(hru_area_local(nHRU_local))
     istat = summa%get_hru_area(hru_area_local)        ! HRU plan area (m2)
+    allocate(root_reach_local(nHRU_local), root_zone_local(nHRU_local))
+    istat = summa%get_root_reach(root_reach_local)      ! how far roots reach below the soil column (m)
+    istat = summa%get_root_zone_depth(root_zone_local)  ! depth of the zone whose pressure closes infiltration (m)
     head_hru_local = 0.0
 
     ! -- gather local HRU counts to build the rank-order partition (see hru_counts/hru_displs above),
@@ -201,19 +221,27 @@ contains
       end do
       allocate(drain_hru(nHRU), head_hru(nHRU), bflow_hru(nHRU), stor_hru(nHRU), rej_hru(nHRU), cond_hru(nHRU))
       rej_hru = 0.0; cond_hru = 0.0
-      allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU))
+      allocate(surfdis_hru(nHRU), gwet_dem_hru(nHRU), gwet_hru(nHRU), gwet_lim_hru(nHRU), infil_lim_hru(nHRU), &
+               rtemp_hru(nHRU), atemp_hru(nHRU), bnrg_hru(nHRU))
+      surfdis_hru = 0.0; gwet_dem_hru = 0.0; gwet_hru = 0.0; gwet_lim_hru = 0.0; infil_lim_hru = 1.0
+      rtemp_hru = 0.0; atemp_hru = -1.0; bnrg_hru = 0.0
+      allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU), root_reach(nHRU), root_zone(nHRU))
       head_hru = 0.0; bflow_hru = 0.0; stor_hru = 0.0
     else
       ! placeholders: never dereferenced off rank 0, but must be allocated to legally pass as the
       ! (rank-0-significant) recvbuf/sendbuf argument of the Gatherv/Scatterv calls below
       allocate(drain_hru(1), head_hru(1), bflow_hru(1), stor_hru(1), rej_hru(1), cond_hru(1))
-      allocate(hru_x(1), hru_y(1), hru_z(1), soil_thk(1), hru_area(1))
+      allocate(surfdis_hru(1), gwet_dem_hru(1), gwet_hru(1), gwet_lim_hru(1), infil_lim_hru(1), &
+               rtemp_hru(1), atemp_hru(1), bnrg_hru(1))
+      allocate(hru_x(1), hru_y(1), hru_z(1), soil_thk(1), hru_area(1), root_reach(1), root_zone(1))
     end if
     call gatherv_dp(hru_x_local, hru_x)
     call gatherv_dp(hru_y_local, hru_y)
     call gatherv_dp(hru_z_local, hru_z)
     call gatherv_dp(soil_thk_local, soil_thk)
     call gatherv_dp(hru_area_local, hru_area)
+    call gatherv_dp(root_reach_local, root_reach)
+    call gatherv_dp(root_zone_local, root_zone)
 
     ! ================================================================================
     ! MODFLOW 6 runs on rank 0 alone; the other ranks' SUMMA instances are driven
@@ -221,7 +249,8 @@ contains
     ! ================================================================================
     if (myrank == 0) then
       call coupler%init(trim(config_file), '.', nHRU, hru_x, hru_y, hru_z, soil_thk, &
-                        numtim, dble(data_step), err, message, hru_area=hru_area)
+                        numtim, dble(data_step), err, message, hru_area=hru_area, root_reach=root_reach, &
+                        root_zone=root_zone)
       if (err /= 0) then
         write(*,'(a)') 'summa_modflow6_mpi: '//trim(message)
         call MPI_Abort(MPI_COMM_WORLD, 1, mpi_ierr)
@@ -231,7 +260,20 @@ contains
       have_bflow = coupler%have_bflow
       have_base  = coupler%have_base
       restarted  = coupler%restarted
-      call coupler%restart_state(head_hru, stor_hru)
+      have_surfdis = coupler%have_surfdis
+      have_gwet    = coupler%have_gwet
+      have_evt     = coupler%have_evt
+      have_gwe     = coupler%have_gwe
+      have_esl     = coupler%have_esl
+      if (gwe_feedback .and. .not. have_gwe) then
+        write(*,'(a)') 'summa_modflow6_mpi: deepTherml = aquiferTemp needs a MODFLOW 6 GWE model; set gwe_model_name in '// &
+          trim(config_file)
+        call MPI_Abort(MPI_COMM_WORLD, 1, mpi_ierr)
+      end if
+      if (have_gwe .and. .not. gwe_feedback) write(*,'(a)') 'summa_modflow6_mpi: NOTE - GWE receives '// &
+        'the recharge temperature, but deepTherml = none so SUMMA keeps the soil-base temperature for groundwater'
+      call coupler%restart_state(head_hru, stor_hru, gwet_lim_hru, atemp_hru, infil_lim_hru)
+      atemp_known = any(atemp_hru > 0.0)
 
       call coupler%grid_shape(nlay, nrow, ncol)
       write(*,'(a,i0,a,i0,a,i0,a,i0,a,i0,a)') 'summa_modflow6_mpi: coupling ', nHRU, ' SUMMA HRUs across ', &
@@ -245,6 +287,12 @@ contains
     call MPI_Bcast(have_bflow, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
     call MPI_Bcast(have_base,  1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
     call MPI_Bcast(restarted,  1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
+    call MPI_Bcast(have_surfdis, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
+    call MPI_Bcast(have_gwet,    1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
+    call MPI_Bcast(have_evt,     1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
+    call MPI_Bcast(have_gwe,     1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
+    call MPI_Bcast(have_esl,     1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
+    call MPI_Bcast(atemp_known,  1, MPI_LOGICAL, 0, MPI_COMM_WORLD, mpi_ierr)
   end subroutine initialize_coupler
 
   ! ==================================================================================
@@ -265,8 +313,26 @@ contains
           call scatterv_real(bflow_hru, bflow_hru_local)
           istat = summa%set_value('land_surface_water__baseflow_volume_flux', bflow_hru_local)
         end if
+        if (have_surfdis) then
+          call scatterv_real(surfdis_hru, surfdis_hru_local)
+          istat = summa%set_value('land_surface_water__domain_outflow_volume_flux', surfdis_hru_local)
+        end if
+        if (have_gwet) then
+          call scatterv_real(gwet_hru, gwet_hru_local)
+          istat = summa%set_value('land_vegetation_water__aquifer_transpiration_volume_flux', gwet_hru_local)
+        end if
+        if (have_evt) then
+          call scatterv_real(gwet_lim_hru, gwet_lim_hru_local)
+          istat = summa%set_value('land_vegetation_water__aquifer_transpiration_limit', gwet_lim_hru_local)
+        end if
+        call scatterv_real(infil_lim_hru, infil_lim_hru_local)
+        istat = summa%set_value('soil_surface_water__aquifer_infiltration_limit', infil_lim_hru_local)
         call scatterv_real(rej_hru, rej_hru_local)
         istat = summa%set_value('soil_water__rejected_recharge_volume_flux', rej_hru_local)
+      end if
+      if (gwe_feedback .and. atemp_known) then
+        call scatterv_real(atemp_hru, atemp_hru_local)
+        istat = summa%set_value('aquifer_water__temperature', atemp_hru_local)
       end if
 
       ! 2. advance SUMMA one data step on every rank (reads forcing, runs physics, writes output)
@@ -284,15 +350,30 @@ contains
         istat = summa%get_value('soil_bottom_surface__hydraulic_conductance', cond_hru_local)
         call gatherv_real(cond_hru_local, cond_hru)
       end if
+      if (have_evt) then
+        istat = summa%get_value('land_vegetation_water__aquifer_transpiration_volume_flux', gwet_dem_hru_local)
+        call gatherv_real(gwet_dem_hru_local, gwet_dem_hru)
+      end if
+      if (have_gwe) then
+        istat = summa%get_value('soil_water~drainage__temperature', rtemp_hru_local)
+        call gatherv_real(rtemp_hru_local, rtemp_hru)
+      end if
+      if (have_esl) then
+        istat = summa%get_value('soil_bottom_surface__conductive_energy_flux', bnrg_hru_local)
+        call gatherv_real(bnrg_hru_local, bnrg_hru)
+      end if
       if (myrank == 0) then
         call coupler%step(modelTimeStep, dble(data_step), &
-                          drain_hru, head_hru, stor_hru, bflow_hru, err, message, rej_hru=rej_hru, &
-                          cond_hru=cond_hru)
+                          drain_hru, head_hru, stor_hru, bflow_hru, err, message, &
+                          surfdis_hru=surfdis_hru, gwet_demand_hru=gwet_dem_hru, gwet_hru=gwet_hru, &
+                          gwet_lim_hru=gwet_lim_hru, rtemp_hru=rtemp_hru, atemp_hru=atemp_hru, &
+                          bnrg_hru=bnrg_hru, infil_lim_hru=infil_lim_hru, rej_hru=rej_hru, cond_hru=cond_hru)
         if (err /= 0) then
           write(*,'(a)') 'summa_modflow6_mpi: '//trim(message)
           call MPI_Abort(MPI_COMM_WORLD, 1, mpi_ierr)
         end if
       end if
+      atemp_known = have_gwe .and. feedback
     end do
   end subroutine run_coupler
 

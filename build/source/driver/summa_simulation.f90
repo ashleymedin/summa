@@ -57,12 +57,20 @@ USE summa_mf6_exchange, only: mf6x_hru_count
 USE summa_mf6_exchange, only: mf6x_hru_longitude, mf6x_hru_latitude, mf6x_hru_elevation
 USE summa_mf6_exchange, only: mf6x_soil_thickness
 USE summa_mf6_exchange, only: mf6x_hru_area
+USE summa_mf6_exchange, only: mf6x_root_reach, mf6x_root_zone_depth
 USE summa_mf6_exchange, only: mf6x_get_drainage
 USE summa_mf6_exchange, only: mf6x_put_lower_bound_head
 USE summa_mf6_exchange, only: mf6x_put_aquifer_storage
 USE summa_mf6_exchange, only: mf6x_put_aquifer_baseflow
+USE summa_mf6_exchange, only: mf6x_put_surface_discharge
+USE summa_mf6_exchange, only: mf6x_get_aquifer_transpire, mf6x_put_aquifer_transpire
+USE summa_mf6_exchange, only: mf6x_put_transpire_lim_aqfr
+USE summa_mf6_exchange, only: mf6x_put_infil_lim_aqfr
 USE summa_mf6_exchange, only: mf6x_put_aquifer_reject
+USE summa_mf6_exchange, only: mf6x_get_drainage_temp
+USE summa_mf6_exchange, only: mf6x_get_base_nrg_flux
 USE summa_mf6_exchange, only: mf6x_get_base_conductance
+USE summa_mf6_exchange, only: mf6x_put_aquifer_temp
 #endif
 
 #ifdef OPENWQ_ACTIVE
@@ -864,6 +872,16 @@ contains
     real, allocatable                          :: bflow_hru(:)  ! per-HRU aquifer baseflow (m s-1), MODFLOW -> SUMMA
     real, allocatable                          :: rej_hru(:)    ! per-HRU recharge UZF rejected (m s-1), MODFLOW -> SUMMA
     real, allocatable                          :: cond_hru(:)   ! per-HRU base conductance (s-1), SUMMA -> MODFLOW
+    real, allocatable                          :: surfdis_hru(:)   ! per-HRU groundwater discharge at the surface (m s-1), MODFLOW -> SUMMA
+    real, allocatable                          :: gwet_dem_hru(:)  ! per-HRU aquifer transpiration demand (m s-1), SUMMA -> MODFLOW
+    real, allocatable                          :: gwet_hru(:)      ! per-HRU groundwater ET MODFLOW took (m s-1), MODFLOW -> SUMMA
+    real, allocatable                          :: gwet_lim_hru(:)  ! per-HRU aquifer transpiration limiting factor (-), MODFLOW -> SUMMA
+    real, allocatable                          :: infil_lim_hru(:) ! per-HRU aquifer control on the infiltrating area (-), MODFLOW -> SUMMA
+    real, allocatable                          :: rtemp_hru(:)     ! per-HRU drainage temperature (K), SUMMA -> GWE
+    real, allocatable                          :: atemp_hru(:)     ! per-HRU aquifer temperature (K, <= 0 unknown), GWE -> SUMMA
+    real, allocatable                          :: bnrg_hru(:)      ! per-HRU conduction out the soil base (W m-2), SUMMA -> GWE
+    logical(lgt)                               :: gwe_feedback  ! deepTherml = aquiferTemp: GWE sets SUMMA's aquifer temperature
+    logical(lgt)                               :: atemp_known   ! atemp_hru holds a GWE temperature
     integer(i4b)                               :: errFinal      ! error code of the MODFLOW 6 shutdown
 #endif
 
@@ -877,9 +895,13 @@ contains
     if(coupled)then
       call start_modflow(summa_struct, coupler,                        &
                          drain_hru, head_hru, stor_hru, bflow_hru,     &
-                         err, cmessage)
+                         gwet_lim_hru, infil_lim_hru, atemp_hru,       &
+                         gwe_feedback, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      allocate(rej_hru(size(drain_hru)), cond_hru(size(drain_hru)), source=0.0)
+      allocate(rej_hru(size(drain_hru)), cond_hru(size(drain_hru)), surfdis_hru(size(drain_hru)), &
+               gwet_dem_hru(size(drain_hru)), gwet_hru(size(drain_hru)), rtemp_hru(size(drain_hru)), &
+               bnrg_hru(size(drain_hru)), source=0.0)
+      atemp_known = any(atemp_hru > 0.0)
     endif
 #endif
 
@@ -900,11 +922,16 @@ contains
       if(coupled)then
         if(coupler%feedback .and. (modelTimeStep > 1 .or. coupler%restarted))then
           call mf6x_put_lower_bound_head(summa_struct, head_hru)
-          if(coupler%have_sy)    call mf6x_put_aquifer_storage(summa_struct, stor_hru)
-          if(coupler%have_bflow) call mf6x_put_aquifer_baseflow(summa_struct, bflow_hru)
+          if(coupler%have_sy)      call mf6x_put_aquifer_storage(summa_struct, stor_hru)
+          if(coupler%have_bflow)   call mf6x_put_aquifer_baseflow(summa_struct, bflow_hru)
+          if(coupler%have_surfdis) call mf6x_put_surface_discharge(summa_struct, surfdis_hru)
+          if(coupler%have_gwet)    call mf6x_put_aquifer_transpire(summa_struct, gwet_hru)
+          if(coupler%have_evt)     call mf6x_put_transpire_lim_aqfr(summa_struct, gwet_lim_hru)
+          call mf6x_put_infil_lim_aqfr(summa_struct, infil_lim_hru)
         endif
         ! every step, so a sample never starts from the last one's rejected recharge
         call mf6x_put_aquifer_reject(summa_struct, rej_hru)
+        if(gwe_feedback .and. atemp_known) call mf6x_put_aquifer_temp(summa_struct, atemp_hru)
       endif
 #endif
 
@@ -966,15 +993,22 @@ contains
       ! back ready for the next iteration
       if(coupled)then
         call mf6x_get_drainage(summa_struct, drain_hru)
+        if(coupler%have_evt)  call mf6x_get_aquifer_transpire(summa_struct, gwet_dem_hru)
+        if(coupler%have_gwe)  call mf6x_get_drainage_temp(summa_struct, rtemp_hru)
+        if(coupler%have_esl)  call mf6x_get_base_nrg_flux(summa_struct, bnrg_hru)
         if(coupler%have_base) call mf6x_get_base_conductance(summa_struct, cond_hru)
         call coupler%step(modelTimeStep, dble(data_step),           &
                           drain_hru, head_hru, stor_hru, bflow_hru, &
-                          err, cmessage, rej_hru=rej_hru, cond_hru=cond_hru)
+                          err, cmessage,                            &
+                          surfdis_hru=surfdis_hru, gwet_demand_hru=gwet_dem_hru, gwet_hru=gwet_hru, &
+                          gwet_lim_hru=gwet_lim_hru, rtemp_hru=rtemp_hru, atemp_hru=atemp_hru,     &
+                          bnrg_hru=bnrg_hru, infil_lim_hru=infil_lim_hru, rej_hru=rej_hru, cond_hru=cond_hru)
         if(err/=0)then
           message=trim(message)//trim(cmessage)
           if(present(physics_failed)) physics_failed=.true.
           exit
         endif
+        atemp_known = coupler%have_gwe .and. coupler%feedback
       endif
 #endif
 
@@ -1002,7 +1036,8 @@ contains
   ! driver runs one instance per MPI rank at the same time.  The directory is populated from the
   ! configured model directory on the first sample and reused by the rest.
   ! **************************************************************************************************
-  subroutine start_modflow(summa_struct, coupler, drain_hru, head_hru, stor_hru, bflow_hru, err, message)
+  subroutine start_modflow(summa_struct, coupler, drain_hru, head_hru, stor_hru, bflow_hru, &
+                           gwet_lim_hru, infil_lim_hru, atemp_hru, gwe_feedback, err, message)
     USE globalData,       only: numtim               ! number of SUMMA data steps
     USE globalData,       only: data_step            ! length of a SUMMA data step (s)
     USE globalData,       only: model_decisions      ! SUMMA model decision structure
@@ -1016,11 +1051,14 @@ contains
     type(summa1_type_dec),  intent(inout) :: summa_struct
     type(mf6_coupler_type), intent(inout) :: coupler
     real, allocatable,      intent(out)   :: drain_hru(:), head_hru(:), stor_hru(:), bflow_hru(:)
+    real, allocatable,      intent(out)   :: gwet_lim_hru(:), infil_lim_hru(:), atemp_hru(:)
+    logical(lgt),           intent(out)   :: gwe_feedback   ! deepTherml = aquiferTemp: GWE sets the aquifer temperature
     integer(i4b),           intent(out)   :: err
     character(*),           intent(out)   :: message
     ! locals
     integer(i4b)                  :: nHRU
     double precision, allocatable :: hru_x(:), hru_y(:), hru_z(:), soil_thk(:), hru_area(:)
+    double precision, allocatable :: root_reach(:), root_zone(:)
     character(len=256)            :: run_dir
     character(len=512)            :: head_file   ! per-rank spun-up MODFLOW head field (coupled restart)
     character(len=4)              :: rankString
@@ -1036,10 +1074,6 @@ contains
                              'when simulation.use_modflow is set'
       err=20; return
     endif
-    if(model_decisions(iLookDECISIONS%deepTherml)%iDecision == aquiferTempState)then
-      message=trim(message)//'deepTherml = aquiferTemp needs GWE, which only summa_modflow6 exchanges'
-      err=20; return
-    endif
     if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= prescribedHead)then
       message=trim(message)//'SUMMA model decision bcLowrSoiH must be "presHead" '// &
                              'when simulation.use_modflow is set'
@@ -1050,12 +1084,17 @@ contains
     nHRU = mf6x_hru_count()
     allocate(drain_hru(nHRU), head_hru(nHRU), stor_hru(nHRU), bflow_hru(nHRU))
     head_hru = 0.0; stor_hru = 0.0; bflow_hru = 0.0
-    allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU))
+    allocate(gwet_lim_hru(nHRU), source=0.0)
+    allocate(infil_lim_hru(nHRU), source=1.0)
+    allocate(atemp_hru(nHRU), source=-1.0)
+    allocate(hru_x(nHRU), hru_y(nHRU), hru_z(nHRU), soil_thk(nHRU), hru_area(nHRU), root_reach(nHRU), root_zone(nHRU))
     call mf6x_hru_longitude(summa_struct, hru_x)
     call mf6x_hru_latitude(summa_struct, hru_y)
     call mf6x_hru_elevation(summa_struct, hru_z)
     call mf6x_soil_thickness(summa_struct, soil_thk)
     call mf6x_hru_area(summa_struct, hru_area)
+    call mf6x_root_reach(summa_struct, root_reach)
+    call mf6x_root_zone_depth(summa_struct, root_zone)
 
     ! this instance's own MODFLOW directory (one per rank; sequential samples on a rank share it)
     write(rankString,'(I4.4)') summa_struct%instance_parallel%rank
@@ -1077,17 +1116,25 @@ contains
       call coupler%init(trim(summa_struct%config%modflow_config), trim(run_dir), &
                         nHRU, hru_x, hru_y, hru_z, soil_thk,                     &
                         numtim, dble(data_step), err, cmessage, hru_area=hru_area, &
-                        restart_write=trim(head_file))
+                        root_reach=root_reach, root_zone=root_zone, restart_write=trim(head_file))
     else
       call coupler%init(trim(summa_struct%config%modflow_config), trim(run_dir), &
                         nHRU, hru_x, hru_y, hru_z, soil_thk,                     &
                         numtim, dble(data_step), err, cmessage, hru_area=hru_area, &
-                        restart_read=trim(head_file))
+                        root_reach=root_reach, root_zone=root_zone, restart_read=trim(head_file))
     endif
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! a restarted sample starts from the spun-up water table, not lowerBoundHead
-    call coupler%restart_state(head_hru, stor_hru)
+    ! deepTherml = aquiferTemp takes the aquifer temperature from GWE, so there must be one
+    gwe_feedback = model_decisions(iLookDECISIONS%deepTherml)%iDecision == aquiferTempState
+    if(gwe_feedback .and. .not. coupler%have_gwe)then
+      message=trim(message)//'deepTherml = aquiferTemp needs a MODFLOW 6 GWE model; set gwe_model_name in '// &
+                             trim(summa_struct%config%modflow_config)
+      err=20; return
+    endif
+
+    ! a restarted sample starts from the spun-up aquifer state, not lowerBoundHead
+    call coupler%restart_state(head_hru, stor_hru, gwet_lim_hru, atemp_hru, infil_lim_hru)
 
   end subroutine start_modflow
 #endif
