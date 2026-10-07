@@ -5,6 +5,7 @@ module summa_parameter_spec
 
   USE parameter_search, only: parameter_spec
   USE parameter_search, only: decode_gap_chains
+  USE mf6_parameters,   only: check_mf6_parameters
 
   implicit none
   private
@@ -29,6 +30,8 @@ contains
   ! any spatially varying values read from a trial parameter file.
   !
   ! Spatially varying calibration parameters and spatial regularization are not currently supported.
+  ! MODFLOW 6 parameters ([[calibration.modflow_parameter]]) follow the SUMMA ones, each a sampled
+  ! multiplier on the model's input files with a trial_value of one.
   ! **************************************************************************************************
   subroutine get_summa_parameter_spec(config, spec, err, message)
     implicit none
@@ -38,31 +41,48 @@ contains
     character(*),         intent(out) :: message
     character(len=64), allocatable :: param_names(:)
     logical(lgt),      allocatable :: sampled(:)
+    logical(lgt),      allocatable :: isMf6(:)
     integer(i4b) :: i
     integer(i4b) :: j
     integer(i4b) :: ix
     integer(i4b) :: nParam
     integer(i4b) :: nMax
     integer(i4b) :: nConstraint
-    character(len=256) :: cmessage
+    integer(i4b) :: nSumma
+    integer(i4b) :: nMf6
+    character(len=1024) :: cmessage
 
     err = 0
     message = 'get_summa_parameter_spec/'
 
-    ! calibration parameter list is required
-    if(.not.allocated(config%calib%param_list))then
+    ! calibration parameter list is required, unless MODFLOW parameters alone are searched
+    nMf6 = 0
+    if(allocated(config%calib%mf6_params)) nMf6 = size(config%calib%mf6_params)
+    if(.not.allocated(config%calib%param_list) .and. nMf6 == 0)then
       message=trim(message)//'calibration parameter list is not defined'
       err=20; return
     endif
-    if(size(config%calib%param_list) == 0)then
+    nSumma = 0
+    if(allocated(config%calib%param_list)) nSumma = size(config%calib%param_list)
+    if(nSumma + nMf6 == 0)then
       message=trim(message)//'calibration parameter list is empty'
       err=20; return
+    endif
+
+    ! MODFLOW parameters need the coupled model, whose input files they scale
+    if(nMf6 > 0)then
+      if(.not.config%use_modflow)then
+        message=trim(message)//'[[calibration.modflow_parameter]] needs simulation.use_modflow'
+        err=20; return
+      endif
+      call check_mf6_parameters(config%calib%mf6_params, trim(config%modflow_run_dir), err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     ! -----------------------------------------------------------------------------------------------
     ! Determine maximum possible number of unique parameters.
     ! -----------------------------------------------------------------------------------------------
-    nMax = size(config%calib%param_list)
+    nMax = nSumma + nMf6
     if(allocated(config%calib%ordered))then
       do i=1,size(config%calib%ordered)
         if(.not.allocated(config%calib%ordered(i)%parameters))then
@@ -72,19 +92,20 @@ contains
         nMax = nMax + size(config%calib%ordered(i)%parameters)
       enddo
     endif
-    allocate(param_names(nMax),sampled(nMax),stat=err)
+    allocate(param_names(nMax),sampled(nMax),isMf6(nMax),stat=err)
     if(err/=0)then
       message=trim(message)//'unable to allocate SUMMA parameter registry'
       return
     endif
     param_names = ''
     sampled     = .false.
+    isMf6       = .false.
     nParam      = 0
 
     ! -----------------------------------------------------------------------------------------------
     ! Add sampled calibration parameters.
     ! -----------------------------------------------------------------------------------------------
-    do i=1,size(config%calib%param_list)
+    do i=1,nSumma
       ix = find_parameter(trim(config%calib%param_list(i)), param_names(1:nParam))
       if(ix > 0)then
         message=trim(message)//'duplicate calibration parameter: '// trim(config%calib%param_list(i))
@@ -93,6 +114,22 @@ contains
       nParam = nParam + 1
       param_names(nParam) = trim(config%calib%param_list(i))
       sampled(nParam)     = .true.
+    enddo
+    do i=1,nMf6
+      ix = find_parameter(trim(config%calib%mf6_params(i)%name), param_names(1:nParam))
+      if(ix > 0)then
+        message=trim(message)//'duplicate calibration parameter: '// trim(config%calib%mf6_params(i)%name)
+        err=20; return
+      endif
+      if(is_summa_parameter(trim(config%calib%mf6_params(i)%name)))then
+        message=trim(message)//'MODFLOW parameter "'//trim(config%calib%mf6_params(i)%name)// &
+                '" has the name of a SUMMA parameter'
+        err=20; return
+      endif
+      nParam = nParam + 1
+      param_names(nParam) = trim(config%calib%mf6_params(i)%name)
+      sampled(nParam)     = .true.
+      isMf6(nParam)       = .true.
     enddo
 
     ! -----------------------------------------------------------------------------------------------
@@ -125,6 +162,20 @@ contains
     do i=1,nParam
       spec%params(i)%name    = trim(param_names(i))
       spec%params(i)%sampled = sampled(i)
+      spec%params(i)%transformation = 'none'
+      if(isMf6(i))then
+        ix = i - nSumma
+        spec%params(i)%trial_value = 1._rkind
+        spec%params(i)%lower       = config%calib%mf6_params(ix)%lower
+        spec%params(i)%upper       = config%calib%mf6_params(ix)%upper
+        spec%params(i)%units       = '-'
+        spec%params(i)%long_name   = 'multiplier on MODFLOW input '//trim(config%calib%mf6_params(ix)%files(1))
+        if(spec%params(i)%lower > spec%params(i)%upper)then
+          message=trim(message)//'invalid bounds for parameter: '//trim(param_names(i))
+          err=20; return
+        endif
+        cycle
+      endif
       call get_summa_parameter_info(trim(param_names(i)),                &
                                     spec%params(i)%trial_value,          &
                                     spec%params(i)%lower,                &
@@ -133,9 +184,6 @@ contains
                                     spec%params(i)%long_name,            &
                                     err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      ! default parameter transformation
-      spec%params(i)%transformation = 'none'
     enddo
 
     ! -----------------------------------------------------------------------------------------------
@@ -315,6 +363,16 @@ contains
   
   end subroutine get_summa_parameter_info
   
+  ! **************************************************************************************************
+  ! True for the name of a SUMMA local or basin parameter.
+  ! **************************************************************************************************
+  logical(lgt) function is_summa_parameter(param_name)
+    USE get_ixname_module, only: get_ixParam,get_ixBpar
+    implicit none
+    character(*), intent(in) :: param_name
+    is_summa_parameter = get_ixParam(param_name) > 0 .or. get_ixBpar(param_name) > 0
+  end function is_summa_parameter
+
   ! **************************************************************************************************
   ! Find a parameter in a parameter-name vector.
   !

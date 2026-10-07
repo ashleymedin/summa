@@ -208,6 +208,14 @@ contains
           cycle
         endif
 
+        ! ----- MODFLOW 6 parameters are parsed as a complete array of tables -----
+        if(trim(sections(i)%key) == "calibration" .and. &
+           trim(keys(j)%key)     == "modflow_parameter")then
+          call parse_mf6_parameters(subtable, config, err, cmessage)
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+          cycle
+        endif
+
         ! select section
         select case (trim(sections(i)%key))
 
@@ -546,6 +554,104 @@ contains
     enddo
 
   end subroutine parse_calibration_targets
+
+  ! **************************************************************************************************
+  ! Reads the [[calibration.modflow_parameter]] array of tables: multipliers on the MODFLOW 6 model's
+  ! input files, searched with the SUMMA parameters.  name, files, lower and upper are required.
+  ! **************************************************************************************************
+  subroutine parse_mf6_parameters(subtable, config, ierr, message)
+    use tomlf_all, only: toml_table, toml_array, get_value, len
+    implicit none
+
+    type(toml_table), pointer, intent(in)    :: subtable
+    type(config_info),         intent(inout) :: config
+    integer(i4b),              intent(out)   :: ierr
+    character(*),              intent(out)   :: message
+    type(toml_array), pointer     :: params
+    type(toml_array), pointer     :: files
+    type(toml_table), pointer     :: param_table
+    character(len=:), allocatable :: cvalue
+    character(len=64), allocatable :: words(:)
+    integer(i4b) :: i
+    integer(i4b) :: istat
+    integer(i4b) :: nparams
+    character(len=256) :: cmessage
+
+    ierr = 0
+    message = 'parse_mf6_parameters/'
+
+    call get_value(subtable, 'modflow_parameter', params, requested=.false., stat=istat)
+    if(.not.associated(params)) return
+    nparams = len(params)
+
+    if(allocated(config%calib%mf6_params)) deallocate(config%calib%mf6_params)
+    allocate(config%calib%mf6_params(nparams), stat=ierr)
+    if(ierr/=0)then
+      message=trim(message)//'unable to allocate the MODFLOW parameters'
+      return
+    endif
+
+    do i=1,nparams
+      associate(p => config%calib%mf6_params(i))
+
+      call get_value(params, i, param_table, stat=istat)
+      if(istat/=0 .or. .not.associated(param_table))then
+        write(message,'(A,I0)') trim(message)//'unable to read MODFLOW parameter, i = ',i
+        ierr=20; return
+      endif
+
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(param_table, 'name', cvalue, stat=istat)
+      if(istat/=0 .or. .not.allocated(cvalue))then
+        write(message,'(A,I0)') trim(message)//'name not defined for MODFLOW parameter, i = ',i
+        ierr=20; return
+      endif
+      p%name = trim(cvalue)
+
+      ! files: one name or a list of them
+      nullify(files)
+      call get_value(param_table, 'files', files, requested=.false., stat=istat)
+      if(associated(files))then
+        call parse_word_list(files, words, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        allocate(p%files(size(words)))
+        p%files = words
+      else
+        if(allocated(cvalue)) deallocate(cvalue)
+        call get_value(param_table, 'files', cvalue, stat=istat)
+        if(istat/=0 .or. .not.allocated(cvalue))then
+          message=trim(message)//'files not defined for MODFLOW parameter "'//trim(p%name)//'"'
+          ierr=20; return
+        endif
+        allocate(p%files(1))
+        p%files(1) = trim(cvalue)
+      endif
+
+      call get_value(param_table, 'lower', p%lower, stat=istat)
+      if(istat/=0)then
+        message=trim(message)//'lower not defined for MODFLOW parameter "'//trim(p%name)//'"'
+        ierr=20; return
+      endif
+      call get_value(param_table, 'upper', p%upper, stat=istat)
+      if(istat/=0)then
+        message=trim(message)//'upper not defined for MODFLOW parameter "'//trim(p%name)//'"'
+        ierr=20; return
+      endif
+
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(param_table, 'zone_file', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue)) p%zone_file = trim(cvalue)
+      call get_value(param_table, 'zone', p%zone, stat=istat)
+
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(param_table, 'block', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue)) p%block = trim(cvalue)
+      call get_value(param_table, 'column', p%column, stat=istat)
+
+      end associate
+    enddo
+
+  end subroutine parse_mf6_parameters
 
   ! **************************************************************************************************
   ! Read the spatial unit a calibration target scores its simulated variable over.

@@ -52,6 +52,7 @@ USE finalize_mizuroute_module, only: finalize_mizuroute
 ! MODFLOW side that the standalone couplers use, and summa_mf6_exchange the same SUMMA side.
 USE mf6_coupling,       only: mf6_coupler_type
 USE mf6_coupling,       only: mf6_prepare_run_dir
+USE mf6_parameters,     only: write_mf6_parameters
 USE summa_mf6_exchange, only: mf6x_hru_count
 USE summa_mf6_exchange, only: mf6x_hru_longitude, mf6x_hru_latitude, mf6x_hru_elevation
 USE summa_mf6_exchange, only: mf6x_soil_thickness
@@ -645,6 +646,8 @@ contains
     integer(i4b)           , intent(out)      :: err
     character(*)           , intent(out)      :: message
     character(len=256) :: cmessage
+    character(len=64), allocatable :: summaName(:)
+    real(rkind),       allocatable :: summaValue(:)
 
     err = 0
     message = 'initialize_summa/'
@@ -653,8 +656,11 @@ contains
     call summa_initialize(config, summa_struct, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+    ! MODFLOW parameters go to the coupler, the rest to SUMMA
+    call split_mf6_parameters(summa_struct, param_name, param_value, summaName, summaValue)
+
     ! initialize parameter data structures
-    call summa_paramSetup(summa_struct, param_name, param_value, err, cmessage)
+    call summa_paramSetup(summa_struct, summaName, summaValue, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! read restart data and reset model state
@@ -673,6 +679,55 @@ contains
     endif
 
   end subroutine initialize_summa
+
+  ! **************************************************************************************************
+  ! Take the MODFLOW 6 parameters out of a run's parameter overrides (the caller's, or else the
+  ! command line's), keeping their multipliers in summa_struct%mf6_multiplier, one if not given.
+  ! **************************************************************************************************
+  subroutine split_mf6_parameters(summa_struct, param_name, param_value, summaName, summaValue)
+    type(summa1_type_dec),          intent(inout) :: summa_struct
+    character(*),                   intent(in)    :: param_name(:)
+    real(rkind),                    intent(in)    :: param_value(:)
+    character(len=64), allocatable, intent(out)   :: summaName(:)
+    real(rkind),       allocatable, intent(out)   :: summaValue(:)
+    character(len=64), allocatable :: names(:)
+    real(rkind),       allocatable :: values(:)
+    logical(lgt),      allocatable :: isMf6(:)
+    logical(lgt) :: fromCli
+    integer(i4b) :: i, ix
+
+    summaName  = param_name
+    summaValue = param_value
+    if(.not.allocated(summa_struct%config%calib%mf6_params)) return
+    if(size(summa_struct%config%calib%mf6_params) == 0) return
+
+    ! summa_paramSetup takes the command line's overrides when the caller gives none
+    fromCli = size(param_name) == 0 .and. allocated(summa_struct%config%param_name)
+    if(fromCli)then
+      names  = summa_struct%config%param_name
+      values = summa_struct%config%param_value
+    else
+      names  = param_name
+      values = param_value
+    endif
+
+    allocate(summa_struct%mf6_multiplier(size(summa_struct%config%calib%mf6_params)))
+    summa_struct%mf6_multiplier = 1._rkind
+    allocate(isMf6(size(names)))
+    do i=1,size(names)
+      ix = findloc(summa_struct%config%calib%mf6_params(:)%name, trim(names(i)), dim=1)
+      isMf6(i) = ix > 0
+      if(isMf6(i)) summa_struct%mf6_multiplier(ix) = values(i)
+    enddo
+
+    summaName  = pack(names,  .not.isMf6)
+    summaValue = pack(values, .not.isMf6)
+    if(fromCli)then
+      summa_struct%config%param_name  = summaName
+      summa_struct%config%param_value = summaValue
+    endif
+
+  end subroutine split_mf6_parameters
 
   ! **************************************************************************************************
   ! Resolve the reach of every series scored on one, against the mizuRoute river network.
@@ -954,6 +1009,13 @@ contains
     run_dir = trim(OUTPUT_PATH)//'modflow_rank'//rankString
     call mf6_prepare_run_dir(trim(summa_struct%config%modflow_run_dir), trim(run_dir), err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! this run's MODFLOW parameters, rewritten from the model directory every run so none carries over
+    if(allocated(summa_struct%mf6_multiplier))then
+      call write_mf6_parameters(summa_struct%config%calib%mf6_params, summa_struct%mf6_multiplier, &
+                                trim(summa_struct%config%modflow_run_dir), trim(run_dir), err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
 
     ! per-rank coupled restart: the shared spin-up writes the aquifer head field, samples read it
     head_file = trim(OUTPUT_PATH)//'modflow_spinup_heads_rank'//rankString//'.bin'

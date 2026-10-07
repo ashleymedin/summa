@@ -118,6 +118,21 @@ MODULE data_types
  end type target_info
 
  ! -----------------------------------------------------------------------------------------------------------
+ ! A MODFLOW 6 parameter: a multiplier on numbers in the model's own input files (see mf6_parameters.f90).
+ ! With column = 0 it scales array files, all of each or the cells of one zone; otherwise that column of
+ ! the list rows in block (or in the whole file when block is blank).
+ type,public  :: mf6_param_info
+  character(len=64)               :: name = ''           ! parameter name, as the search and the output know it
+  character(len=256), allocatable :: files(:)            ! input files scaled, relative to the MODFLOW run_dir
+  character(len=256)              :: zone_file = ''      ! integer array of the files' shape; blank = every cell
+  integer(i4b)                    :: zone = -1           ! the zone scaled
+  character(len=64)               :: block = ''          ! list block whose rows are scaled
+  integer(i4b)                    :: column = 0          ! column scaled in those rows (1-based)
+  real(rkind)                     :: lower = 1._rkind    ! lower bound of the multiplier
+  real(rkind)                     :: upper = 1._rkind    ! upper bound of the multiplier
+ end type mf6_param_info
+
+ ! -----------------------------------------------------------------------------------------------------------
  ! NSGA-II settings (Deb et al., 2002).  The sample budget is population_size times the number of
  ! generations, the first of which is the random initial population.
  type,public  :: nsga2_info
@@ -140,6 +155,7 @@ MODULE data_types
   type(param_transform_info), allocatable :: param_transform(:)  ! parameter transformations
   type(ordered_constraint),   allocatable :: ordered(:)          ! ordered parameter constraints
   type(target_info),          allocatable :: targets(:)          ! calibration targets, one per objective
+  type(mf6_param_info),       allocatable :: mf6_params(:)       ! MODFLOW 6 parameters searched with SUMMA's
   integer(i4b)                   :: n_samples = 5000    ! number of parameter samples to evaluate
   character(len=16)              :: algorithm = 'dds'   ! dds (on the scalarized targets) or nsga2 (on each)
   type(nsga2_info)               :: nsga2               ! NSGA-II settings
