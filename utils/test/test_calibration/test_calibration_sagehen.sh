@@ -7,8 +7,8 @@
 # built by utils/test/test_mflow/tools/build_sagehen9_calibration.py from the bundled basin-mean
 # forcing (Oct 2016 - Sep 2018) in sagehen/forcing. NSGA-II scores water year 2018 after a
 # water-year-2017 spin-up: discharge KGE and T_reach RMSE (degC) at reach 9, the outlet, and
-# lowerBoundHead RMSE (m) as a departure from its mean at the HRU of the synthetic well, whose
-# record is a reference run's head (make_sagehen_synthetic_well.py).  MODFLOW's K, Sy and UZF VKS
+# head RMSE (m) as a departure from its mean at the synthetic well's cell, read from MODFLOW's OBS6
+# output, whose record is a reference run's head (make_sagehen_synthetic_well.py).  MODFLOW's K, Sy and UZF VKS
 # are searched with the SUMMA parameters, as multipliers on the model's input files.
 #
 #   lumped  one land HRU per GRU (18 HRUs), mapped onto its GRU's cells; the default
@@ -32,8 +32,6 @@ N_RANKS=${4:-7}
 N_SAMPLES=$((POPULATION * GENERATIONS))
 WORK="${TEST_DIR}/sagehen_${LAYOUT}_run"
 PYTHON=${PYTHON:-python3}
-# the land HRU holding the synthetic well's cell, row 41 column 75: GRU 7's, or the cell's own
-if [ "${LAYOUT}" = "grid" ]; then WELL_HRU=4175; else WELL_HRU=7; fi
 
 SUMMA_EXE="${SUMMA_ROOT}/bin/summa_modflow6_opt_sundials_mizuroute.exe"
 if [ ! -x "${SUMMA_EXE}" ]; then
@@ -224,12 +222,13 @@ vname_obs = "t_obs"
 metric    = "rmse"
 
 
-# water level in the synthetic well, as departures from the water-year means, since its datum is not the model's
+# water level in the synthetic well, the head at its cell (sagehen.obs), as departures from the
+# water-year means, since its datum is not the model's
 [[calibration.target]]
 
 name           = "well_level"
-variable       = "lowerBoundHead"
-hru            = ${WELL_HRU}
+variable       = "modflow_obs"
+obs_name       = "well1"
 obs_path       = "${DATA}/observations/"
 obs_file       = "SYNTHETIC-SAGEHEN-1_daily_level.nc"
 vname_obs      = "h_obs"
