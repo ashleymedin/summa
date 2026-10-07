@@ -8,8 +8,9 @@ Two layouts of the same GRUs, stream HRUs, reaches and MODFLOW model:
            the GRU with equal weight (9 land HRUs)
 
 The forcing is a directory of single-HRU basin-mean monthly files, tiled to every HRU.
-The MODFLOW model is ex-gwf-sagehen, copied with a TDIS long enough for the forcing, and
-saving heads and budgets at its last step only.
+The MODFLOW model is ex-gwf-sagehen, copied with a TDIS long enough for the forcing, saving
+heads and budgets at its last step only, and an OBS6 file writing the synthetic well's head
+every step as observation well1.
 
 Usage:
     build_sagehen9_calibration.py <grid|lumped> <basin-mean forcing dir> <output domain dir>
@@ -23,6 +24,7 @@ import numpy as np
 from netCDF4 import Dataset
 
 import build_sagehen9 as b9
+from make_sagehen_synthetic_well import ROW as WELL_ROW, COL as WELL_COL
 
 LATFLOW_DECISIONS = b9.LATFLOW_DECISIONS
 
@@ -229,6 +231,19 @@ def write_zone_file(array_file, zone_file):
     np.savetxt(zone_file, z, fmt="%d")
 
 
+def write_obs(mf6):
+    """An OBS6 file with the synthetic well's head, listed in the GWF name file."""
+    with open(os.path.join(mf6, "sagehen.obs"), "w") as f:
+        f.write(f"""# Observations - the head at the synthetic well, every step, for the calibration's well1 target.
+BEGIN CONTINUOUS FILEOUT sagehen.obs.csv
+  well1  HEAD  1 {WELL_ROW} {WELL_COL}
+END CONTINUOUS
+""")
+    nam = os.path.join(mf6, "sagehen.nam")
+    text = open(nam).read().replace("END PACKAGES", "  OBS6   sagehen.obs   obs\nEND PACKAGES")
+    open(nam, "w").write(text)
+
+
 def write_modflow(out_dir, nSteps, layout):
     """ex-gwf-sagehen with one stress period of nSteps hours, saving its last step only.
 
@@ -254,6 +269,7 @@ BEGIN PERIODDATA
    {nSteps * 3600.0:.1f}   {nSteps}    1.0
 END PERIODDATA
 """)
+    write_obs(mf6)
     write_zone_file(os.path.join(mf6, "kh1.txt"), os.path.join(mf6, "kzone1.txt"))
     write_zone_file(os.path.join(mf6, "sy1.txt"), os.path.join(mf6, "syzone1.txt"))
     with open(os.path.join(mf6, "sagehen.oc"), "w") as f:

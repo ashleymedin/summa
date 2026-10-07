@@ -395,7 +395,7 @@ with a soil water balance error.
 
 A coupled SUMMA / MODFLOW 6 / mizuRoute calibration on Sagehen Creek, scoring discharge (KGE) and
 stream temperature (`T_reach` RMSE, degC) at USGS 10343500, the outlet of reach 9, and the water level
-in a synthetic well (`lowerBoundHead` RMSE, m). NSGA-II scores water year 2018 after a water-year-2017
+in a synthetic well (head RMSE, m, at its cell). NSGA-II scores water year 2018 after a water-year-2017
 spin-up. It searches MODFLOW's K (with K33), Sy and UZF VKS alongside the SUMMA parameters, and
 checks that each worker's model holds its last trial's K. The builder writes `kzone1.txt` (7 zones)
 and `syzone1.txt` (3) from the model's own value classes, for zone multipliers.
@@ -409,8 +409,9 @@ reference coupled run at the default parameters, written by
 `utils/test/test_mflow/tools/make_sagehen_synthetic_well.py` as a saved USGS daily-values response
 (`sagehen/observations/SYNTHETIC-SAGEHEN-1_daily_values.json`). `acquire_groundwater_level.py --features`
 turns that into the observation file exactly as it would a real well's. The target scores departures
-from the water-year mean, since a well's datum is not the model's; on the `lumped` layout it is GRU 7's
-land HRU, averaged over 103 cells, that is compared against one cell's head.
+from the water-year mean, since a well's datum is not the model's. The builder's `sagehen.obs` names the
+cell as OBS6 observation `well1`, and the target (`variable = "modflow_obs"`, `obs_name = "well1"`) reads
+its head from the CSV MODFLOW writes in each trial's directory.
 
 To remake the record, run the lumped domain once for water years 2017-2018 from its settled
 `strt1.txt`, with the coupler and the MODFLOW OC saving `HEAD FREQUENCY 6`, then
@@ -433,9 +434,9 @@ minutes a water year, UZF taking a week's drainage at a time); `grid` is `domain
 trial). The MODFLOW model is copied with a TDIS as long as the forcing. It needs
 `bin/summa_modflow6_opt_sundials_mizuroute.exe` and a python3 with netCDF4 and pyproj.
 
-At 4 x 2 on 5 ranks it takes about 20 minutes, and every trial runs. The front runs from
-KGE -0.22 at 2.27 degC RMSE to KGE -1.14 at 2.22 degC, over `frozenPrecipMultip`, `tempCritRain`,
-`k_macropore` and `routingGammaScale`; the well misses its record by 0.18 to 0.28 m.
+At 4 x 2 on 5 ranks it takes about an hour, and every trial runs. The best discharge trial reaches
+KGE 0.47 (K x 1.34); the well misses its record by 0.13 m at K x 0.22 to 0.61 m at K x 4.7. At the
+default parameters the cell's head misses the record by 0.70 m over water year 2017.
 
 ## `test_calibration_wolverine.sh`
 
