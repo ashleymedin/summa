@@ -27,6 +27,7 @@ module mizuroute_coupling
   public :: get_mizuroute_reach_hydraulics
   public :: set_mizuroute_reach_roughness
   public :: remap_lateral_energy
+  public :: init_mizuroute_wq_from_summa
 
   ! *****************************************************************************
   ! SUMMA--mizuRoute coupling interface
@@ -722,5 +723,25 @@ contains
 
   end associate
   end subroutine remap_lateral_energy
+
+  !----------------------------------------------------------------------- 
+  ! Switch on the reach water budget and runoff delivery map used by a water-quality coupler
+  !-----------------------------------------------------------------------
+  subroutine init_mizuroute_wq_from_summa(summaStruct, ierr, message)
+  USE wq_exchange_module, only: init_wq_exchange
+  type(summa1_type_dec), intent(inout) :: summaStruct
+  integer(i4b),          intent(out)   :: ierr
+  character(*),          intent(out)   :: message
+  character(len=256) :: cmessage
+
+  ierr = 0
+  message = 'init_mizuroute_wq_from_summa/'
+  call init_wq_exchange(summaStruct%mizu_domain%river_network, &
+                        summaStruct%mizu_domain%remap%routing, &
+                        summaStruct%config%mizu_info%do_remapping, &
+                        ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  end subroutine init_mizuroute_wq_from_summa
 
 end module mizuroute_coupling
