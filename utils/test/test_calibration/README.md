@@ -489,6 +489,13 @@ It passes when the front member nearest the ideal point, each objective scaled o
 ./test_calibration_sagehen_twin.sh [population] [generations] [n_ranks]   # defaults: 20, 10, 10
 ```
 
+At the defaults it takes 6 hours, and it does not pass yet. All 200 trials run and the true parameters
+reproduce their targets exactly, but the search ends at KGE 0.977, 0.63 degC and 0.56 m, short of the
+zeros the truth scores. K (1.1% of its range), `k_soil` (3.1%) and `k_macropore` (2.9%, though its front
+spans the whole range) are recovered; Sy (18%), VKS (22%), streambed K (13%) and KTS (17%) are not.
+Over the 200 trials heads follow K and VKS, temperature K, `k_macropore` and KTS, and discharge `k_soil`;
+Sy and streambed K barely move any objective.
+
 ## `test_calibration_wolverine.sh`
 
 A glacier calibration routed by mizuRoute, scoring discharge (KGE) and water temperature (RMSE, degC)
