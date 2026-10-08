@@ -380,6 +380,9 @@ contains
     real(rkind), allocatable           :: valAnom(:)         ! a series as departures from its baseline mean
     real(rkind), allocatable           :: timeVal(:)         ! time coordinate of the simulated series for the current target
     character(len=:), allocatable      :: timeValUnits       ! its units
+    integer(i4b)                       :: iMember,nMember    ! series of a target pooling several, and their number
+    character(len=:), allocatable      :: vnameMember        ! observed variable of one of them
+    real(rkind), allocatable           :: poolTime(:),poolSim(:),poolObs(:) ! their aligned series, end to end
     character(len=1024)                :: cmessage           ! error message of downwind routine
 
     err=0
@@ -491,110 +494,132 @@ contains
     do iTarget=1,nTarget
       associate(calTarget => summa1_struc(n)%config%calib%targets(iTarget))
 
-      ! the simulated series this target is compared against: routed streamflow at the network
-      ! outlet, or the series collected for its variable over its spatial unit
-      if(allocated(valSim)) deallocate(valSim)
-      timeVal=timeSim
-      timeValUnits=timeSimUnits
-      if(is_routed_streamflow(calTarget%variable) .and. targetUnit(iTarget) == ix_unit_domain)then
-        valSim=flowSim
-        valSimUnits=flowSimUnits
-      else if(is_mf6_obs(calTarget%variable))then
-        call mf6_obs_series(summa1_struc(n), trim(calTarget%obs_name), valSim, err, cmessage)
+      ! a modflow_obs target may pool several observations, each paired with its observed variable, and
+      ! is scored on all of them together
+      nMember=1
+      if(is_mf6_obs(calTarget%variable)) nMember=size(calTarget%obs_name)
+      do iMember=1,nMember
+        vnameMember=calTarget%vname_obs
+        if(allocated(calTarget%vname_pool)) vnameMember=trim(calTarget%vname_pool(iMember))
+
+        ! the simulated series this target is compared against: routed streamflow at the network
+        ! outlet, or the series collected for its variable over its spatial unit
+        if(allocated(valSim)) deallocate(valSim)
+        timeVal=timeSim
+        timeValUnits=timeSimUnits
+        if(is_routed_streamflow(calTarget%variable) .and. targetUnit(iTarget) == ix_unit_domain)then
+          valSim=flowSim
+          valSimUnits=flowSimUnits
+        else if(is_mf6_obs(calTarget%variable))then
+          call mf6_obs_series(summa1_struc(n), trim(calTarget%obs_name(iMember)), valSim, err, cmessage)
+          if(err/=0)then
+            message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+            exit trial
+          endif
+          valSimUnits='m'
+        else
+          iSeries=find_simulated_series(series,calTarget%variable,targetUnit(iTarget),calTarget%spatial_id)
+          if(iSeries == integerMissing)then
+            message=trim(message)//'calibration target "'//trim(calTarget%name)// &
+                    '" asks for simulated variable "'//trim(calTarget%variable)//'", which was not collected'
+            err=20; exit trial
+          endif
+          valSim=series(iSeries)%values
+          valSimUnits=trim(series(iSeries)%units)
+        endif
+
+        ! read this target's observations
+        if(allocated(timeObs)) deallocate(timeObs)
+        if(allocated(flowObs)) deallocate(flowObs)
+        call read_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(vnameMember), &
+                               timeObs,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
         if(err/=0)then
           message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
           exit trial
         endif
-        valSimUnits='m'
-      else
-        iSeries=find_simulated_series(series,calTarget%variable,targetUnit(iTarget),calTarget%spatial_id)
-        if(iSeries == integerMissing)then
-          message=trim(message)//'calibration target "'//trim(calTarget%name)// &
-                  '" asks for simulated variable "'//trim(calTarget%variable)//'", which was not collected'
-          err=20; exit trial
+
+        ! units the target states override the file's
+        if(len_trim(calTarget%obs_units) > 0) flowObsUnits=trim(calTarget%obs_units)
+
+        ! -------------------------------------------------------------------------------------------
+        ! Put the two series on the same footing, as far as this target asks for
+        ! -------------------------------------------------------------------------------------------
+
+        ! integrate a simulated rate into the quantity the observations report
+        if(calTarget%accumulate)then
+          call accumulate_series(timeVal,valSim,timeValUnits,valAccum,err,cmessage)
+          if(err/=0)then
+            message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+            exit trial
+          endif
+          call move_alloc(valAccum,valSim)
+          ! integrating kg m-2 s-1 over seconds leaves kg m-2, which is millimetres of water
+          if(trim(valSimUnits)=='kg m-2 s-1') valSimUnits='mm'
         endif
-        valSim=series(iSeries)%values
-        valSimUnits=trim(series(iSeries)%units)
-      endif
 
-      ! read this target's observations
-      if(allocated(timeObs)) deallocate(timeObs)
-      if(allocated(flowObs)) deallocate(flowObs)
-      call read_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(calTarget%vname_obs), &
-                             timeObs,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
-      if(err/=0)then
-        message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-        exit trial
-      endif
+        ! express both sides as departures from the same baseline, which is what an anomaly product
+        ! reports and what removes the constant of integration an accumulated series carries
+        if(allocated(calTarget%baseline_start) .and. allocated(calTarget%baseline_end))then
+          call remove_baseline_mean(timeVal,valSim,timeValUnits,                              &
+                                    calTarget%baseline_start,calTarget%baseline_end,          &
+                                    valAnom,err,cmessage)
+          if(err/=0)then
+            message=trim(message)//'calibration target "'//trim(calTarget%name)//'" (simulated): '//trim(cmessage)
+            exit trial
+          endif
+          call move_alloc(valAnom,valSim)
 
-      ! units the target states override the file's
-      if(len_trim(calTarget%obs_units) > 0) flowObsUnits=trim(calTarget%obs_units)
+          call remove_baseline_mean(timeObs,flowObs,timeObsUnits,                             &
+                                    calTarget%baseline_start,calTarget%baseline_end,          &
+                                    valAnom,err,cmessage)
+          if(err/=0)then
+            message=trim(message)//'calibration target "'//trim(calTarget%name)//'" (observed): '//trim(cmessage)
+            exit trial
+          endif
+          call move_alloc(valAnom,flowObs)
+        endif
 
-      ! -------------------------------------------------------------------------------------------
-      ! Put the two series on the same footing, as far as this target asks for
-      ! -------------------------------------------------------------------------------------------
+        ! a balance is the simulated change between seasonal extremes, one value at each observed time
+        if(len_trim(calTarget%balance) > 0)then
+          call balance_between_extremes(timeVal,valSim,timeValUnits,timeObs,timeObsUnits,            &
+                                        calTarget%balance,calTarget%balance_window,valAnom,err,cmessage)
+          if(err/=0)then
+            message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+            exit trial
+          endif
+          call move_alloc(valAnom,valSim)
+          timeVal=timeObs
+          timeValUnits=timeObsUnits
+        endif
 
-      ! integrate a simulated rate into the quantity the observations report
-      if(calTarget%accumulate)then
-        call accumulate_series(timeVal,valSim,timeValUnits,valAccum,err,cmessage)
+        ! align simulated and observed series
+        if(allocated(timeAligned))    deallocate(timeAligned)
+        if(allocated(flowSimAligned)) deallocate(flowSimAligned)
+        if(allocated(flowObsAligned)) deallocate(flowObsAligned)
+        call align_timeseries(timeVal,valSim,timeValUnits,valSimUnits,   &
+                              timeObs,flowObs,timeObsUnits,flowObsUnits, &
+                              summa1_struc(n)%config%calib%start_date,   &
+                              summa1_struc(n)%config%calib%end_date,     &
+                              timeAligned,flowSimAligned,flowObsAligned, &
+                              err,cmessage)
         if(err/=0)then
           message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
           exit trial
         endif
-        call move_alloc(valAccum,valSim)
-        ! integrating kg m-2 s-1 over seconds leaves kg m-2, which is millimetres of water
-        if(trim(valSimUnits)=='kg m-2 s-1') valSimUnits='mm'
-      endif
 
-      ! express both sides as departures from the same baseline, which is what an anomaly product
-      ! reports and what removes the constant of integration an accumulated series carries
-      if(allocated(calTarget%baseline_start) .and. allocated(calTarget%baseline_end))then
-        call remove_baseline_mean(timeVal,valSim,timeValUnits,                              &
-                                  calTarget%baseline_start,calTarget%baseline_end,          &
-                                  valAnom,err,cmessage)
-        if(err/=0)then
-          message=trim(message)//'calibration target "'//trim(calTarget%name)//'" (simulated): '//trim(cmessage)
-          exit trial
+        if(iMember == 1)then
+          call move_alloc(timeAligned,poolTime)
+          call move_alloc(flowSimAligned,poolSim)
+          call move_alloc(flowObsAligned,poolObs)
+        else
+          poolTime=[poolTime,timeAligned]
+          poolSim=[poolSim,flowSimAligned]
+          poolObs=[poolObs,flowObsAligned]
         endif
-        call move_alloc(valAnom,valSim)
-
-        call remove_baseline_mean(timeObs,flowObs,timeObsUnits,                             &
-                                  calTarget%baseline_start,calTarget%baseline_end,          &
-                                  valAnom,err,cmessage)
-        if(err/=0)then
-          message=trim(message)//'calibration target "'//trim(calTarget%name)//'" (observed): '//trim(cmessage)
-          exit trial
-        endif
-        call move_alloc(valAnom,flowObs)
-      endif
-
-      ! a balance is the simulated change between seasonal extremes, one value at each observed time
-      if(len_trim(calTarget%balance) > 0)then
-        call balance_between_extremes(timeVal,valSim,timeValUnits,timeObs,timeObsUnits,            &
-                                      calTarget%balance,calTarget%balance_window,valAnom,err,cmessage)
-        if(err/=0)then
-          message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-          exit trial
-        endif
-        call move_alloc(valAnom,valSim)
-        timeVal=timeObs
-        timeValUnits=timeObsUnits
-      endif
-
-      ! align simulated and observed series
-      if(allocated(timeAligned))    deallocate(timeAligned)
-      if(allocated(flowSimAligned)) deallocate(flowSimAligned)
-      if(allocated(flowObsAligned)) deallocate(flowObsAligned)
-      call align_timeseries(timeVal,valSim,timeValUnits,valSimUnits,   &
-                            timeObs,flowObs,timeObsUnits,flowObsUnits, &
-                            summa1_struc(n)%config%calib%start_date,   &
-                            summa1_struc(n)%config%calib%end_date,     &
-                            timeAligned,flowSimAligned,flowObsAligned, &
-                            err,cmessage)
-      if(err/=0)then
-        message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-        exit trial
-      endif
+      enddo
+      call move_alloc(poolTime,timeAligned)
+      call move_alloc(poolSim,flowSimAligned)
+      call move_alloc(poolObs,flowObsAligned)
 
       ! compute this target's metric
       call compute_metric(flowObsAligned,flowSimAligned,        &
