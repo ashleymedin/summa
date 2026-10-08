@@ -8,15 +8,18 @@ Two layouts of the same GRUs, stream HRUs, reaches and MODFLOW model:
            the GRU with equal weight (9 land HRUs)
 
 The forcing is a directory of single-HRU basin-mean monthly files, tiled to every HRU.
-The MODFLOW model is ex-gwf-sagehen, copied with a TDIS long enough for the forcing, saving
-heads and budgets at its last step only, and an OBS6 file writing the synthetic well's head
-every step as observation well1.
+The MODFLOW model is ex-gwf-sagehen-gwe (SFR streams, GWE heat transport), copied with a TDIS long
+enough for the forcing, saving heads, temperatures and budgets at its last step only, and an OBS6
+file writing the head at each observation cell every step.  GWE's water-table temperature is the
+temperature of the baseflow SUMMA hands the stream (deepTherml = aquiferTemp).  CND reads the solid
+thermal conductivity from kts1.txt, so a calibration can scale it.
 
 Usage:
     build_sagehen9_calibration.py <grid|lumped> <basin-mean forcing dir> <output domain dir>
 """
 
 import os
+import re
 import shutil
 import sys
 
@@ -26,7 +29,12 @@ from netCDF4 import Dataset
 import build_sagehen9 as b9
 from make_sagehen_synthetic_well import ROW as WELL_ROW, COL as WELL_COL
 
-LATFLOW_DECISIONS = b9.LATFLOW_DECISIONS
+MF6_GWE = os.path.join(os.path.dirname(b9.MF6), "ex-gwf-sagehen-gwe")
+# observation cells (1-based row, column), one per decile of depth to water off the channel, in every GRU;
+# well1 is the synthetic well
+OBS_CELLS = {"well1": (WELL_ROW, WELL_COL), "well2": (9, 73), "well3": (20, 57), "well4": (51, 34), "well5": (18, 45),
+             "well6": (33, 39), "well7": (62, 67), "well8": (36, 67), "well9": (42, 79), "well10": (49, 7)}
+DECISIONS = dict(b9.LATFLOW_DECISIONS, deepTherml="aquiferTemp", bcLowrTdyn="presTemp")
 
 
 def main(layout, forcing_src, out_dir):
@@ -212,9 +220,9 @@ def write_settings(settings, src_set):
     out = []
     for line in open(os.path.join(src_set, "modelDecisions.txt")):
         key = line.split()[0] if line.split() else ""
-        if key in LATFLOW_DECISIONS:
+        if key in DECISIONS:
             head, sep, tail = line.partition("!")
-            line = f"{key:<32}{LATFLOW_DECISIONS[key]:<16}{sep}{tail}" if sep else f"{key:<32}{LATFLOW_DECISIONS[key]}\n"
+            line = f"{key:<32}{DECISIONS[key]:<16}{sep}{tail}" if sep else f"{key:<32}{DECISIONS[key]}\n"
         out.append(line)
     open(os.path.join(settings, "modelDecisions.txt"), "w").writelines(out)
     # daily means of what a calibration run is judged on; each trial writes its own file
@@ -232,20 +240,29 @@ def write_zone_file(array_file, zone_file):
 
 
 def write_obs(mf6):
-    """An OBS6 file with the synthetic well's head, listed in the GWF name file."""
+    """An OBS6 file with the head at each observation cell every step, listed in the GWF name file."""
+    rows = "".join(f"  {name:<6} HEAD  1 {r} {c}\n" for name, (r, c) in OBS_CELLS.items())
     with open(os.path.join(mf6, "sagehen.obs"), "w") as f:
-        f.write(f"""# Observations - the head at the synthetic well, every step, for the calibration's well1 target.
+        f.write(f"""# Observations - the head at each observation cell, every step; well1 is the synthetic well.
 BEGIN CONTINUOUS FILEOUT sagehen.obs.csv
-  well1  HEAD  1 {WELL_ROW} {WELL_COL}
-END CONTINUOUS
+{rows}END CONTINUOUS
 """)
     nam = os.path.join(mf6, "sagehen.nam")
     text = open(nam).read().replace("END PACKAGES", "  OBS6   sagehen.obs   obs\nEND PACKAGES")
     open(nam, "w").write(text)
 
 
+def write_cnd(mf6):
+    """CND with the solid thermal conductivity as an array file, kts1.txt, so a calibration can scale it."""
+    cnd = open(os.path.join(mf6, "sagehen_gwe.cnd")).read()
+    kts = float(re.search(r"KTS\s+CONSTANT\s+(\S+)", cnd).group(1))
+    np.savetxt(os.path.join(mf6, "kts1.txt"), np.full((b9.NROW, b9.NCOL), kts), fmt="%g")
+    cnd = re.sub(r"KTS\s+CONSTANT\s+\S+", "KTS\n    OPEN/CLOSE  kts1.txt", cnd)
+    open(os.path.join(mf6, "sagehen_gwe.cnd"), "w").write(cnd)
+
+
 def write_modflow(out_dir, nSteps, layout):
-    """ex-gwf-sagehen with one stress period of nSteps hours, saving its last step only.
+    """ex-gwf-sagehen-gwe with one stress period of nSteps hours, saving its last step only.
 
     Only the grid layout solves the base exchange in MODFLOW: a lumped HRU's flux answers its cells' mean
     head, not each cell's, so a per-cell correction there is not its linearisation.
@@ -253,7 +270,7 @@ def write_modflow(out_dir, nSteps, layout):
     base = ("  base_ghb_package_name = 'GHBB'  ! the base exchange, solved by MODFLOW against its new head\n"
             "  base_drn_package_name = 'DRNB'\n") if layout == "grid" else ""
     mf6 = os.path.join(out_dir, "mf6")
-    shutil.copytree(b9.MF6, mf6, dirs_exist_ok=True)
+    shutil.copytree(MF6_GWE, mf6, dirs_exist_ok=True)
     with open(os.path.join(mf6, "sagehen.tdis"), "w") as f:
         f.write(f"""# Time discretisation - SECONDS, one stress period of {nSteps} hourly steps, the length of the forcing.
 BEGIN OPTIONS
@@ -270,6 +287,7 @@ BEGIN PERIODDATA
 END PERIODDATA
 """)
     write_obs(mf6)
+    write_cnd(mf6)
     write_zone_file(os.path.join(mf6, "kh1.txt"), os.path.join(mf6, "kzone1.txt"))
     write_zone_file(os.path.join(mf6, "sy1.txt"), os.path.join(mf6, "syzone1.txt"))
     with open(os.path.join(mf6, "sagehen.oc"), "w") as f:
@@ -284,13 +302,28 @@ BEGIN PERIOD 1
   SAVE  BUDGET  LAST
 END PERIOD
 """)
+    with open(os.path.join(mf6, "sagehen_gwe.oc"), "w") as f:
+        f.write("""# Output control - the last step only.
+BEGIN OPTIONS
+  BUDGET       FILEOUT  sagehen_gwe.cbc
+  TEMPERATURE  FILEOUT  sagehen_gwe.ucn
+END OPTIONS
+
+BEGIN PERIOD 1
+  SAVE  TEMPERATURE  LAST
+  SAVE  BUDGET       LAST
+END PERIOD
+""")
     with open(os.path.join(out_dir, "summa_modflow6.config"), "w") as f:
         f.write(f"""&coupler
   mf6_model_name     = 'SAGEHEN'
   rch_package_name   = 'RCHA'
 {base}  uzf_hold_days      = 7.0     ! a week of drainage per UZF wave, so deep cells keep few alive
-  bnd_package_names  = 'CHD', 'DRN'
+  bnd_package_names  = 'SFR', 'DRN'
   bnd_package_roles  = 'baseflow', 'surface_discharge'
+  gwe_model_name     = 'SAGEHEN_GWE'   ! its water-table temperature is SUMMA's scalarAquiferTemp
+  esl_package_name   = 'ESL'
+  uze_package_name   = 'UZE'
   map_file           = '{os.path.join(out_dir, "hru2cell_map.txt")}'
   mf6_epsg           = 0
   feedback           = .true.
