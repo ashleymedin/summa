@@ -8,8 +8,9 @@
 # forcing (Oct 2016 - Sep 2018) in sagehen/forcing. NSGA-II scores water year 2018 after a
 # water-year-2017 spin-up: discharge KGE and T_reach RMSE (degC) at reach 9, the outlet, and
 # head RMSE (m) as a departure from its mean at the synthetic well's cell, read from MODFLOW's OBS6
-# output, whose record is a reference run's head (make_sagehen_synthetic_well.py).  MODFLOW's K, Sy and UZF VKS
-# are searched with the SUMMA parameters, as multipliers on the model's input files.
+# output, whose record is a reference run's head (make_sagehen_synthetic_well.py).  MODFLOW's K, Sy and UZF VKS,
+# and GWE's solid thermal conductivity, which sets the baseflow's temperature, are searched with the SUMMA
+# parameters, as multipliers on the model's input files.
 #
 #   lumped  one land HRU per GRU (18 HRUs), mapped onto its GRU's cells; the default
 #   grid    one land HRU per MODFLOW cell (3396 HRUs), hours per trial
@@ -165,6 +166,7 @@ k_macropore       = "log"
 routingGammaScale = "log"
 K_mult            = "log"
 uzf_vks_mult      = "log"
+KTS_mult          = "log"
 
 
 # MODFLOW parameters: multipliers on the input files of [modflow] run_dir, rewritten for each trial;
@@ -191,6 +193,14 @@ block  = "PACKAGEDATA"
 column = 8
 lower  = 0.1
 upper  = 10.0
+
+# GWE's solid thermal conductivity, 2.5 W m-1 K-1 in the model
+[[calibration.modflow_parameter]]
+
+name  = "KTS_mult"
+files = "kts1.txt"
+lower = 0.5
+upper = 2.0
 
 
 [calibration.nsga2]
@@ -282,7 +292,7 @@ check(ran.shape[1] > 1 and bool(np.ptp(ran[1]) > 0.0), "temperature RMSE changes
 check(bool(np.all((ran[2] >= 0.0) & (ran[2] < 5.0))), "well level RMSE is between 0 and 5 m")
 
 # the MODFLOW multipliers are searched within their bounds, and a worker's model holds its last trial's K
-for name, lo, hi in [("K_mult", 0.2, 5.0), ("Sy_mult", 0.5, 1.5), ("uzf_vks_mult", 0.1, 10.0)]:
+for name, lo, hi in [("K_mult", 0.2, 5.0), ("Sy_mult", 0.5, 1.5), ("uzf_vks_mult", 0.1, 10.0), ("KTS_mult", 0.5, 2.0)]:
     v = np.asarray(d[name][:])
     check(bool(np.all((v >= lo) & (v <= hi)) and np.ptp(v) > 0.0), f"{name} varies within [{lo}, {hi}]")
 kh = np.loadtxt(os.path.join(work, "domain", "mf6", "kh1.txt")).ravel()

@@ -117,6 +117,10 @@ def steady_heads(mf6_exe, work, strt, recharge):
         f.write("BEGIN OPTIONS\n  READASARRAYS\nEND OPTIONS\n\nBEGIN PERIOD 1\n  RECHARGE\n    OPEN/CLOSE recharge.txt\n"
                 "END PERIOD\n")
     write_oc(ss, "LAST")
+    # the flow model alone: a GWE model's SSM reads a recharge temperature this RCH no longer carries
+    nam = os.path.join(ss, "mfsim.nam")
+    lines = [ln for ln in open(nam) if "GWE" not in ln.upper() or ln.lstrip().startswith("#")]
+    open(nam, "w").writelines(lines)
     with open(os.path.join(work, "mf6_ss.log"), "w") as log:
         subprocess.run([mf6_exe], cwd=ss, stdout=log, stderr=subprocess.STDOUT, check=True)
     return read_heads(os.path.join(ss, "sagehen.hds"))[1][-1]
