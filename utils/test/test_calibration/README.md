@@ -457,9 +457,9 @@ trial). The MODFLOW model is copied with a TDIS as long as the forcing. The lump
 change over a year had a median of 0.008 m and a 95th percentile of 0.17 m, on slow ridge cells). It needs
 `bin/summa_modflow6_opt_sundials_mizuroute.exe` and a python3 with netCDF4 and pyproj.
 
-At 4 x 2 on 5 ranks it takes about an hour, and every trial runs. The best discharge trial reaches
-KGE 0.47 (K x 1.34); the well misses its record by 0.13 m at K x 0.22 to 0.61 m at K x 4.7. At the
-default parameters the cell's head misses the record by 0.70 m over water year 2017.
+At 4 x 2 on 5 ranks every trial runs, in 2 hours beside a twin run on the same machine. The front runs
+from KGE -0.26 at 1.67 degC and 0.09 m (K x 2.04, KTS x 0.72) to KGE -0.54 at 2.51 degC and 0.03 m
+(K x 0.24, KTS x 1.69).
 
 ## `test_calibration_sagehen_twin.sh`
 
