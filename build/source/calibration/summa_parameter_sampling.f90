@@ -620,6 +620,7 @@ contains
     character(len=:), allocatable  :: csv_file
     character(len=1024)            :: cmessage
     integer(i4b)                   :: iTarget
+    integer(i4b)                   :: iObs
 
     err=0
     message='check_search_settings/'
@@ -671,15 +672,21 @@ contains
                 trim(calTarget%spatial_unit)//'; a MODFLOW observation''s cell is set in its OBS6 file'
         err=20; return
       endif
-      if(len_trim(calTarget%obs_name) == 0)then
+      if(.not.allocated(calTarget%obs_name))then
         message=trim(message)//'calibration target "'//trim(calTarget%name)//'" needs obs_name'
         err=20; return
       endif
-      call find_mf6_obs(trim(config%modflow_run_dir), trim(calTarget%obs_name), csv_file, err, cmessage)
-      if(err/=0)then
-        message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-        return
+      if(size(calTarget%obs_name) == 0)then
+        message=trim(message)//'calibration target "'//trim(calTarget%name)//'" needs obs_name'
+        err=20; return
       endif
+      do iObs=1,size(calTarget%obs_name)
+        call find_mf6_obs(trim(config%modflow_run_dir), trim(calTarget%obs_name(iObs)), csv_file, err, cmessage)
+        if(err/=0)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+          return
+        endif
+      enddo
       end associate
     enddo
 

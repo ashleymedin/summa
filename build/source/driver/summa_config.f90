@@ -417,6 +417,7 @@ contains
     type(toml_array), pointer     :: targets
     type(toml_table), pointer     :: target_table
     character(len=:), allocatable :: cvalue
+    character(len=256)            :: cmessage
     integer(i4b) :: i
     integer(i4b) :: istat
     integer(i4b) :: ntargets
@@ -483,11 +484,12 @@ contains
         config%calib%targets(i)%obs_path = ''
       endif
 
-      ! name of the observed variable within the file
+      ! name of the observed variable within the file, or a list of them for a pooled target
       if(allocated(cvalue)) deallocate(cvalue)
-      call get_value(target_table, 'vname_obs', cvalue, stat=istat)
-      if(istat==0 .and. allocated(cvalue))then
-        config%calib%targets(i)%vname_obs = trim(cvalue)
+      call get_word_or_list(target_table, 'vname_obs', config%calib%targets(i)%vname_pool, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      if(allocated(config%calib%targets(i)%vname_pool))then
+        config%calib%targets(i)%vname_obs = trim(config%calib%targets(i)%vname_pool(1))
       else if(allocated(config%obs%vname_obsflow))then
         config%calib%targets(i)%vname_obs = trim(config%obs%vname_obsflow)
       else
@@ -520,10 +522,29 @@ contains
       call get_value(target_table, 'obs_units', cvalue, stat=istat)
       if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%obs_units = trim(cvalue)
 
-      ! the MODFLOW 6 observation a modflow_obs target scores
-      if(allocated(cvalue)) deallocate(cvalue)
-      call get_value(target_table, 'obs_name', cvalue, stat=istat)
-      if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%obs_name = trim(cvalue)
+      ! the MODFLOW 6 observation a modflow_obs target scores, or a list of them pooled into one series
+      call get_word_or_list(target_table, 'obs_name', config%calib%targets(i)%obs_name, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      if(allocated(config%calib%targets(i)%obs_name))then
+        if(size(config%calib%targets(i)%obs_name) > 1 .and. .not.allocated(config%calib%targets(i)%vname_pool))then
+          message=trim(message)//'calibration target "'//trim(config%calib%targets(i)%name)// &
+                  '" pools several obs_name, so it needs a vname_obs for each'
+          ierr=20; return
+        endif
+      endif
+      if(allocated(config%calib%targets(i)%obs_name) .and. allocated(config%calib%targets(i)%vname_pool))then
+        if(size(config%calib%targets(i)%vname_pool) /= size(config%calib%targets(i)%obs_name))then
+          message=trim(message)//'calibration target "'//trim(config%calib%targets(i)%name)// &
+                  '" names a different number of obs_name and vname_obs'
+          ierr=20; return
+        endif
+      else if(allocated(config%calib%targets(i)%vname_pool))then
+        if(size(config%calib%targets(i)%vname_pool) > 1)then
+          message=trim(message)//'calibration target "'//trim(config%calib%targets(i)%name)// &
+                  '" lists several vname_obs; only a modflow_obs target with as many obs_name pools series'
+          ierr=20; return
+        endif
+      endif
 
       ! the spatial unit the simulated variable is scored over, named by its id: one of gru, hru or
       ! reach, and the whole domain when the target names none
@@ -573,10 +594,8 @@ contains
     integer(i4b),              intent(out)   :: ierr
     character(*),              intent(out)   :: message
     type(toml_array), pointer     :: params
-    type(toml_array), pointer     :: files
     type(toml_table), pointer     :: param_table
     character(len=:), allocatable :: cvalue
-    character(len=64), allocatable :: words(:)
     integer(i4b) :: i
     integer(i4b) :: istat
     integer(i4b) :: nparams
@@ -614,22 +633,11 @@ contains
       p%name = trim(cvalue)
 
       ! files: one name or a list of them
-      nullify(files)
-      call get_value(param_table, 'files', files, requested=.false., stat=istat)
-      if(associated(files))then
-        call parse_word_list(files, words, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-        allocate(p%files(size(words)))
-        p%files = words
-      else
-        if(allocated(cvalue)) deallocate(cvalue)
-        call get_value(param_table, 'files', cvalue, stat=istat)
-        if(istat/=0 .or. .not.allocated(cvalue))then
-          message=trim(message)//'files not defined for MODFLOW parameter "'//trim(p%name)//'"'
-          ierr=20; return
-        endif
-        allocate(p%files(1))
-        p%files(1) = trim(cvalue)
+      call get_word_or_list(param_table, 'files', p%files, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      if(.not.allocated(p%files))then
+        message=trim(message)//'files not defined for MODFLOW parameter "'//trim(p%name)//'"'
+        ierr=20; return
       endif
 
       call get_value(param_table, 'lower', p%lower, stat=istat)
@@ -1176,6 +1184,42 @@ contains
     enddo
   
   end subroutine parse_word_list
+
+  ! **************************************************************************************************
+  ! A key that holds one word or a TOML array of them; words is left unallocated when the key is absent.
+  ! **************************************************************************************************
+  subroutine get_word_or_list(table, key, words, ierr, message)
+    use tomlf_all, only: toml_table, toml_array, get_value
+    implicit none
+    type(toml_table), intent(inout)                :: table
+    character(*), intent(in)                       :: key
+    character(len=*), allocatable, intent(inout)   :: words(:)
+    integer(i4b), intent(out)                      :: ierr
+    character(*), intent(out)                      :: message
+    type(toml_array), pointer     :: list
+    character(len=:), allocatable :: word
+    character(len=256)            :: cmessage
+    integer(i4b)                  :: istat
+
+    ierr = 0
+    message = 'get_word_or_list/'
+    if(allocated(words)) deallocate(words)
+    call get_value(table, key, list, requested=.false., stat=istat)
+    if(associated(list))then
+      call parse_word_list(list, words, ierr, cmessage)
+      if(ierr/=0) message=trim(message)//trim(cmessage)
+      return
+    endif
+    call get_value(table, key, word, stat=istat)
+    if(istat/=0 .or. .not.allocated(word)) return
+    if(len_trim(word) > len(words))then
+      message=trim(message)//'"'//trim(word)//'" is too long for '//trim(key)
+      ierr=20; return
+    endif
+    allocate(words(1))
+    words(1) = trim(word)
+
+  end subroutine get_word_or_list
 
 
   ! **************************************************************************************************
