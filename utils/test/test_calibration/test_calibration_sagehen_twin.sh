@@ -6,7 +6,7 @@
 # A reference trial of the calibration driver, with every searched parameter pinned to a known value
 # away from its default (TRUTH below), writes the discharge and water temperature leaving reach 9 and
 # the head at the OBS6 observation cells.  Those become the targets (make_sagehen_twin_targets.py).
-# The same pinned trial, scored against them, must reproduce them.  Then NSGA-II searches the seven
+# The same pinned trial, scored against them, must reproduce them.  Then NSGA-II searches the six
 # parameters from scratch against three objectives, discharge KGE, temperature RMSE and the head RMSE
 # pooled over the cells, and the front member nearest the ideal point must recover every parameter
 # within 10% of its searched range, on its search scale.
@@ -36,7 +36,6 @@ PARAMS="K_mult        2.0     0.2   5.0   log
 Sy_mult       0.7     0.5   1.5   linear
 uzf_vks_mult  0.4     0.1   10.0  log
 rhk_mult      3.0     0.1   10.0  log
-KTS_mult      1.5     0.5   2.0   log
 k_soil        3.0e-6  1e-7  1e-5  log
 k_macropore   1.0e-2  1e-7  1e-1  log"
 TOLERANCE=0.10
@@ -62,7 +61,8 @@ echo "Building the lumped domain..."
 cp "${DATA}/strt_spunup_lumped.txt" "${WORK}/domain/mf6/strt1.txt"
 
 # the reference's settings: k_soil and k_macropore pinned to their true values, and an hourly output
-# file, which mizuRoute's reach series join
+# file, which mizuRoute's reach series join.  Only the bounds are pinned: the spinup runs at the
+# defaults, as every search trial's does.
 cp -r "${WORK}/domain/settings/SUMMA" "${WORK}/domain/settings/SUMMA_ref"
 "${PYTHON}" - "${WORK}/domain/settings/SUMMA_ref" "${PARAMS}" <<'PYEOF'
 import os, sys
@@ -73,7 +73,8 @@ out = []
 for line in open(path):
     key = line.split("|")[0].strip() if "|" in line else ""
     if key in truth:
-        line = f"{key:<26}| {truth[key]:>12} | {truth[key]:>12} | {truth[key]:>12}\n"
+        default = line.split("|")[1].strip()
+        line = f"{key:<26}| {default:>12} | {truth[key]:>12} | {truth[key]:>12}\n"
     out.append(line)
 open(path, "w").writelines(out)
 with open(os.path.join(settings, "outputControl.txt"), "a") as f:
@@ -193,7 +194,6 @@ EOF
       if ($1 == "Sy_mult")      files = "files = \"sy1.txt\""
       if ($1 == "uzf_vks_mult") files = "files = \"sagehen.uzf\"\nblock = \"PACKAGEDATA\"\ncolumn = 8"
       if ($1 == "rhk_mult")     files = "files = \"sagehen.sfr\"\nblock = \"PACKAGEDATA\"\ncolumn = 10"
-      if ($1 == "KTS_mult")     files = "files = \"kts1.txt\""
       printf "[[calibration.modflow_parameter]]\n\nname = \"%s\"\n%s\nlower = %s\nupper = %s\n\n", $1, files, lo, hi
     }'
   [ "${algorithm}" = "nsga2" ] && printf "[calibration.nsga2]\n\npopulation_size = %s\n\n" "${POPULATION}"
