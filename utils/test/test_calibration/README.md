@@ -414,11 +414,12 @@ with a soil water balance error.
 A coupled SUMMA / MODFLOW 6 / mizuRoute calibration on Sagehen Creek, scoring discharge (KGE) and
 stream temperature (`T_reach` RMSE, degC) at USGS 10343500, the outlet of reach 9, and the water level
 in a synthetic well (head RMSE, m, at its cell). NSGA-II scores water year 2018 after a water-year-2017
-spin-up. It searches MODFLOW's K (with K33), Sy and UZF VKS, and GWE's solid thermal conductivity
-(`KTS_mult`), alongside the SUMMA parameters, and checks that each worker's model holds its last trial's K.
-The model is `ex-gwf-sagehen-gwe`: SFR carries the streams and GWE the aquifer's heat, and with
-`deepTherml = aquiferTemp` GWE's water-table temperature is the temperature of the baseflow the stream
-receives, so MODFLOW, not a SUMMA parameter, sets it. The builder writes CND's KTS as `kts1.txt`. The builder writes `kzone1.txt` (7 zones)
+spin-up. It searches MODFLOW's K (with K33), Sy and UZF VKS alongside the SUMMA parameters, and
+checks that each worker's model holds its last trial's K. The model is `ex-gwf-sagehen-gwe`: SFR carries
+the streams and GWE the aquifer's heat, and with `deepTherml = aquiferTemp` GWE's water-table temperature
+is the temperature of the baseflow the stream receives, so MODFLOW, not a SUMMA parameter, sets it. The
+builder writes CND's KTS as `kts1.txt`, but it is not searched: conducting through 12 m of rock takes
+years, so a year's score cannot see it (0.001 degC across x0.56 to x1.91). The builder writes `kzone1.txt` (7 zones)
 and `syzone1.txt` (3) from the model's own value classes, for zone multipliers.
 
 Sagehen has no observation well, so the test makes one up. It sits on the lower valley side two cells
@@ -457,15 +458,16 @@ trial). The MODFLOW model is copied with a TDIS as long as the forcing. The lump
 change over a year had a median of 0.008 m and a 95th percentile of 0.17 m, on slow ridge cells). It needs
 `bin/summa_modflow6_opt_sundials_mizuroute.exe` and a python3 with netCDF4 and pyproj.
 
-At 4 x 2 on 5 ranks every trial runs, in 2 hours beside a twin run on the same machine. The front runs
-from KGE -0.26 at 1.67 degC and 0.09 m (K x 2.04, KTS x 0.72) to KGE -0.54 at 2.51 degC and 0.03 m
-(K x 0.24, KTS x 1.69).
+At 4 x 2 on 5 ranks every trial runs, in 2 hours beside a twin run on the same machine. With `KTS_mult`
+also searched, the front ran from KGE -0.26 at 1.67 degC and 0.09 m (K x 2.04) to KGE -0.54 at 2.51 degC
+and 0.03 m (K x 0.24).
 
 ## `test_calibration_sagehen_twin.sh`
 
 A twin experiment: whether discharge, stream temperature and heads can recover parameters the test
 knows. On the lumped Sagehen domain of `test_calibration_sagehen.sh`, one trial of the calibration
-driver with every searched bound pinned to a true value away from its default writes the reference:
+driver with every searched bound pinned to a true value away from its default writes the reference
+(the spinup still runs at the defaults, as every search trial's does):
 the discharge and water temperature leaving reach 9 and the head at ten OBS6 cells, one per decile of
 depth to water and spread over every GRU. `make_sagehen_twin_targets.py` takes them as daily means into
 one observation file. The pinned trial, scored against them, must reproduce them. Then NSGA-II searches
@@ -478,7 +480,6 @@ the ten cells.
 | `Sy_mult` | 0.7 | 0.5-1.5 |
 | `uzf_vks_mult` | 0.4 | 0.1-10, log |
 | `rhk_mult` (SFR streambed K) | 3.0 | 0.1-10, log |
-| `KTS_mult` (GWE solid conductivity) | 1.5 | 0.5-2, log |
 | `k_soil` | 3e-6 m s-1 | 1e-7 to 1e-5, log |
 | `k_macropore` | 1e-2 m s-1 | 1e-7 to 1e-1, log |
 
@@ -488,13 +489,6 @@ It passes when the front member nearest the ideal point, each objective scaled o
 ```bash
 ./test_calibration_sagehen_twin.sh [population] [generations] [n_ranks]   # defaults: 20, 10, 10
 ```
-
-At the defaults it takes 6 hours, and it does not pass yet. All 200 trials run and the true parameters
-reproduce their targets exactly, but the search ends at KGE 0.977, 0.63 degC and 0.56 m, short of the
-zeros the truth scores. K (1.1% of its range), `k_soil` (3.1%) and `k_macropore` (2.9%, though its front
-spans the whole range) are recovered; Sy (18%), VKS (22%), streambed K (13%) and KTS (17%) are not.
-Over the 200 trials heads follow K and VKS, temperature K, `k_macropore` and KTS, and discharge `k_soil`;
-Sy and streambed K barely move any objective.
 
 ## `test_calibration_wolverine.sh`
 
