@@ -490,6 +490,13 @@ It passes when the front member nearest the ideal point, each objective scaled o
 ./test_calibration_sagehen_twin.sh [population] [generations] [n_ranks]   # defaults: 20, 10, 10
 ```
 
+At the defaults it takes about 13 hours, and it does not pass. All 200 trials run and the true parameters
+reproduce their targets exactly. The front member nearest the ideal point recovers K (6.4% of its range),
+`k_soil` (2.3%) and `k_macropore` (0.7%), and misses Sy (12.8%), streambed K (18.4%) and VKS (27.5%). The
+trial with the best heads (0.021 m) has Sy within 1% and streambed K within 3%, so heads do recover them;
+the front trades them against temperature and discharge. VKS is not recoverable below its truth: every
+good trial sits at 0.11, since the targets see VKS only when it is too high.
+
 ## `test_calibration_wolverine.sh`
 
 A glacier calibration routed by mizuRoute, scoring discharge (KGE) and water temperature (RMSE, degC)
