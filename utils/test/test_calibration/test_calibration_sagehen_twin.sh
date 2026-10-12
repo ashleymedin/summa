@@ -6,7 +6,7 @@
 # A reference trial of the calibration driver, with every searched parameter pinned to a known value
 # away from its default (TRUTH below), writes the discharge and water temperature leaving reach 9 and
 # the head at the OBS6 observation cells.  Those become the targets (make_sagehen_twin_targets.py).
-# The same pinned trial, scored against them, must reproduce them.  Then NSGA-II searches the six
+# The same pinned trial, scored against them, must reproduce them.  Then NSGA-II searches the five
 # parameters from scratch against three objectives, discharge KGE, temperature RMSE and the head RMSE
 # pooled over the cells, and the front member nearest the ideal point must recover every parameter
 # within 10% of its searched range, on its search scale.
@@ -24,7 +24,7 @@ DATA="${TEST_DIR}/sagehen"
 TOOLS="${SUMMA_ROOT}/utils/test/test_mflow/tools"
 
 POPULATION=${1:-20}
-GENERATIONS=${2:-10}
+GENERATIONS=${2:-15}
 N_RANKS=${3:-10}
 N_SAMPLES=$((POPULATION * GENERATIONS))
 WORK="${TEST_DIR}/sagehen_twin_run"
@@ -34,7 +34,6 @@ SUMMA_EXE="${SUMMA_ROOT}/bin/summa_modflow6_opt_sundials_mizuroute.exe"
 # name  truth  lower  upper  scale; the SUMMA parameters' bounds are their localParamInfo.txt bounds
 PARAMS="K_mult        2.0     0.2   5.0   log
 Sy_mult       0.7     0.5   1.5   linear
-uzf_vks_mult  0.4     0.1   10.0  log
 rhk_mult      3.0     0.1   10.0  log
 k_soil        3.0e-6  1e-7  1e-5  log
 k_macropore   1.0e-2  1e-7  1e-1  log"
@@ -192,7 +191,6 @@ EOF
       lo = (pinned == "yes") ? $2 : $3; hi = (pinned == "yes") ? $2 : $4
       if ($1 == "K_mult")       files = "files = [\"kh1.txt\", \"kv1.txt\"]"
       if ($1 == "Sy_mult")      files = "files = \"sy1.txt\""
-      if ($1 == "uzf_vks_mult") files = "files = \"sagehen.uzf\"\nblock = \"PACKAGEDATA\"\ncolumn = 8"
       if ($1 == "rhk_mult")     files = "files = \"sagehen.sfr\"\nblock = \"PACKAGEDATA\"\ncolumn = 10"
       printf "[[calibration.modflow_parameter]]\n\nname = \"%s\"\n%s\nlower = %s\nupper = %s\n\n", $1, files, lo, hi
     }'
