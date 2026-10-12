@@ -459,9 +459,9 @@ trial). The MODFLOW model is copied with a TDIS as long as the forcing. The lump
 change over a year had a median of 0.008 m and a 95th percentile of 0.17 m, on slow ridge cells). It needs
 `bin/summa_modflow6_opt_sundials_mizuroute.exe` and a python3 with netCDF4 and pyproj.
 
-At 4 x 2 on 5 ranks every trial runs, in 2 hours beside a twin run on the same machine. With `KTS_mult`
-also searched, the front ran from KGE -0.26 at 1.67 degC and 0.09 m (K x 2.04) to KGE -0.54 at 2.51 degC
-and 0.03 m (K x 0.24).
+At 4 x 2 on 5 ranks every trial runs, in about 2 hours beside a twin run on the same machine. The front
+runs from KGE -0.86 at 2.64 degC and 0.18 m to KGE -1.59 at 2.09 degC and 0.29 m; eight trials of a
+random start are a smoke test, not a calibration.
 
 ## `test_calibration_sagehen_twin.sh`
 
