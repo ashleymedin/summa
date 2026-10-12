@@ -2128,9 +2128,9 @@ contains
       if (abs(this%bud_back(ROLE_SURFACE_DISCH)) > 0.1d0*this%bud_sent) &
         write(*,'(a,f0.1,a)') '  WARNING: land-surface seepage is ', &
           100.d0*abs(this%bud_back(ROLE_SURFACE_DISCH)/this%bud_sent), &
-          '% of the recharge sent. The drain is a head cap, not a transport path: check that the '// &
-          'aquifer can accept its recharge (conductivity, outlet capacity, STRT) rather than '// &
-          'pinning the water table at land surface.'
+          '% of the recharge sent. Low-relief basins can exceed 10% legitimately; otherwise the drain is '// &
+          'a head cap, not a transport path: check that the aquifer can accept its recharge '// &
+          '(conductivity, outlet capacity, STRT) rather than pinning the water table at land surface.'
     else if (this%have_surfdis .and. abs(this%bud_back(ROLE_SURFACE_DISCH)) > 0.d0) then
       ! under 1 mm of net recharge over the HRUs there is nothing to compare against: the seepage is the aquifer's own
       write(*,'(a)') '  NOTE: net recharge is upward or under 1 mm, so the land-surface seepage is the aquifer''s '// &
