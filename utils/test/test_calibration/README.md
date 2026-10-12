@@ -414,12 +414,13 @@ with a soil water balance error.
 A coupled SUMMA / MODFLOW 6 / mizuRoute calibration on Sagehen Creek, scoring discharge (KGE) and
 stream temperature (`T_reach` RMSE, degC) at USGS 10343500, the outlet of reach 9, and the water level
 in a synthetic well (head RMSE, m, at its cell). NSGA-II scores water year 2018 after a water-year-2017
-spin-up. It searches MODFLOW's K (with K33), Sy and UZF VKS alongside the SUMMA parameters, and
+spin-up. It searches MODFLOW's K (with K33) and Sy alongside the SUMMA parameters, and
 checks that each worker's model holds its last trial's K. The model is `ex-gwf-sagehen-gwe`: SFR carries
 the streams and GWE the aquifer's heat, and with `deepTherml = aquiferTemp` GWE's water-table temperature
 is the temperature of the baseflow the stream receives, so MODFLOW, not a SUMMA parameter, sets it. The
 builder writes CND's KTS as `kts1.txt`, but it is not searched: conducting through 12 m of rock takes
-years, so a year's score cannot see it (0.001 degC across x0.56 to x1.91). The builder writes `kzone1.txt` (7 zones)
+years, so a year's score cannot see it (0.001 degC across x0.56 to x1.91). UZF's VKS is left at the
+model's value too: the twin experiment below found these targets cannot see a VKS below the true one. The builder writes `kzone1.txt` (7 zones)
 and `syzone1.txt` (3) from the model's own value classes, for zone multipliers.
 
 Sagehen has no observation well, so the test makes one up. It sits on the lower valley side two cells
@@ -478,7 +479,6 @@ the ten cells.
 | --- | --- | --- |
 | `K_mult` (kh1, kv1) | 2.0 | 0.2-5, log |
 | `Sy_mult` | 0.7 | 0.5-1.5 |
-| `uzf_vks_mult` | 0.4 | 0.1-10, log |
 | `rhk_mult` (SFR streambed K) | 3.0 | 0.1-10, log |
 | `k_soil` | 3e-6 m s-1 | 1e-7 to 1e-5, log |
 | `k_macropore` | 1e-2 m s-1 | 1e-7 to 1e-1, log |
@@ -487,15 +487,16 @@ It passes when the front member nearest the ideal point, each objective scaled o
 10% of each parameter's searched range of the truth, on its search scale.
 
 ```bash
-./test_calibration_sagehen_twin.sh [population] [generations] [n_ranks]   # defaults: 20, 10, 10
+./test_calibration_sagehen_twin.sh [population] [generations] [n_ranks]   # defaults: 20, 15, 10
 ```
 
-At the defaults it takes about 13 hours, and it does not pass. All 200 trials run and the true parameters
-reproduce their targets exactly. The front member nearest the ideal point recovers K (6.4% of its range),
-`k_soil` (2.3%) and `k_macropore` (0.7%), and misses Sy (12.8%), streambed K (18.4%) and VKS (27.5%). The
-trial with the best heads (0.021 m) has Sy within 1% and streambed K within 3%, so heads do recover them;
-the front trades them against temperature and discharge. VKS is not recoverable below its truth: every
-good trial sits at 0.11, since the targets see VKS only when it is too high.
+With VKS also searched (truth 0.4, 0.1-10) and 10 generations, it took about 13 hours and did not pass.
+The true parameters reproduced their targets exactly, and the front member nearest the ideal point
+recovered K (6.4% of its range), `k_soil` (2.3%) and `k_macropore` (0.7%) but missed Sy (12.8%), streambed
+K (18.4%) and VKS (27.5%). The trial with the best heads (0.021 m) had Sy within 1% and streambed K within
+3%, so heads do recover them; the front traded them against temperature and discharge. VKS was not
+recoverable below its truth: every good trial sat at 0.11, since the targets see VKS only when it is too
+high.
 
 ## `test_calibration_wolverine.sh`
 
