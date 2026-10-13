@@ -1,24 +1,30 @@
 #!/usr/bin/env python3
-"""Correct SUMMA forcing toward on-site weather stations: air temperature, humidity, shortwave and pressure.
+"""Correct SUMMA forcing toward on-site weather stations and, optionally, glacier stake winter balances.
 
 Reads the USGS Benchmark Glacier station records (<stations>/<elevation>/LVL2/*_15min_LVL2_*.csv, as
 distributed with the glacier mass-balance data) and the monthly SUMMA forcing files, and writes corrected
-copies of the forcing.  Precipitation, wind and longwave are copied unchanged.
+copies of the forcing.  Wind and longwave are copied unchanged.
 
   airtemp   K added, per HRU and calendar month: the mean station-minus-forcing difference, with the
             station moved to each HRU's elevation by that month's lapse rate between the two stations
-  spechum   multiplied, per HRU: the ratio of mean station to mean forcing specific humidity, the
-            station's computed from its relative humidity, temperature and pressure (not lapsed)
+  spechum   multiplied, per HRU and calendar month: the ratio of mean station to mean forcing specific
+            humidity, the station's computed from its relative humidity, temperature and pressure (not lapsed)
   SWRadAtm  multiplied, per HRU: the ratio of summed station to summed forcing incoming shortwave
   airpres   multiplied, per HRU: the ratio of mean station pressure, carried hypsometrically to the HRU
             elevation, to mean forcing pressure
+  pptrate   multiplied, per HRU, only with --stakes: measured winter balance over the corrected forcing's
+            snowfall at the stakes within --stake-window of the HRU (or the nearest such group), over each
+            stake's fall-to-spring interval.  Snowfall is split on wet-bulb temperature as SUMMA does, with
+            --temp-crit-rain and --temp-range.  Only stakes above --stake-min-elev count, where winter
+            ablation is small; HRUs below it keep their precipitation.
 
-A correction is applied only where the station records the variable; the others stay at 0 or 1.  Station
-values are hourly means of the 15-minute samples in the hour ending at each forcing time.  The corrections
-are written to corrections.csv beside the corrected files.
+A correction is applied only where the data exist; the others stay at 0 or 1.  Station values are hourly
+means of the 15-minute samples in the hour ending at each forcing time.  The corrections are written to
+corrections.csv beside the corrected files.
 
     ./correct_forcing_to_station.py $S/domain_Wolverine/forcing/SUMMA_input $S/domain_Wolverine/USGSweatherData \\
-        $S/domain_Wolverine/settings/SUMMA/attributes.nc $S/domain_Wolverine/forcing/SUMMA_input/station_corrected
+        $S/domain_Wolverine/settings/SUMMA/attributes.nc $S/domain_Wolverine/forcing/SUMMA_input/station_corrected \\
+        --stakes $S/domain_Wolverine/observations/storage/mass_balance/Input_Wolverine_Glaciological_Data.csv
 """
 
 import argparse
@@ -91,12 +97,69 @@ def specific_humidity(rh, t_c, p_kpa):
     return 0.622 * e / (p_kpa - 0.378 * e)
 
 
+def wet_bulb(t_k, q, p_pa):
+    """Wet-bulb temperature (K) from air temperature (K), specific humidity and pressure (Pa), Stull (2011)."""
+    t = t_k - 273.15
+    e = q * p_pa / (0.622 + 0.378 * q)
+    rh = np.clip(100.0 * e / (611.2 * np.exp(17.67 * t / (t + 243.5))), 1.0, 100.0)
+    return (t * np.arctan(0.151977 * np.sqrt(rh + 8.313659)) + np.arctan(t + rh) - np.arctan(rh - 1.676331)
+            + 0.00391838 * rh ** 1.5 * np.arctan(0.023101 * rh) - 4.686035 + 273.15)
+
+
+def along_elevation(z_hru, values, z):
+    """values (time, hru) interpolated linearly in elevation to z, extrapolated from the end pair."""
+    k = np.argsort(z_hru)
+    zs, v = z_hru[k], values[:, k]
+    i = int(np.clip(np.searchsorted(zs, z) - 1, 0, len(zs) - 2))
+    w = (z - zs[i]) / (zs[i + 1] - zs[i])
+    return v[:, i] + (v[:, i + 1] - v[:, i]) * w
+
+
+def stake_ratios(path, hours, z, snow, min_elev, window):
+    """Per HRU, summed stake winter balance over summed forcing snowfall (both mm) at the stakes near it."""
+    rows = list(csv.DictReader(open(path)))
+    fall = {(int(r["Year"]), r["site_name"]): r["fall_date"] for r in rows}
+    stakes = []
+    for r in rows:
+        if r["bw"] in ("nan", "") or float(r["elevation"]) < min_elev:
+            continue
+        y = int(r["Year"])
+        f0 = fall.get((y - 1, r["site_name"]), "nan")
+        start = datetime.strptime(f0, "%Y/%m/%d") if f0 != "nan" else datetime(y - 1, 9, 30)
+        end = datetime.strptime(r["spring_date"], "%Y/%m/%d")
+        h0 = (start.replace(tzinfo=timezone.utc) - EPOCH).total_seconds() / 3600.0
+        h1 = (end.replace(tzinfo=timezone.utc) - EPOCH).total_seconds() / 3600.0
+        sel = (hours > h0) & (hours <= h1)
+        if sel.sum() < 0.9 * (h1 - h0):
+            continue
+        ze = float(r["elevation"])
+        stakes.append((ze, 1000.0 * float(r["bw"]), along_elevation(z, snow[sel], ze).sum()))
+    ratio, used = np.ones(len(z)), [[] for _ in z]
+    if not stakes:
+        return ratio, used
+    ze = np.array([s[0] for s in stakes])
+    for j, zj in enumerate(z):
+        if zj < min_elev:
+            continue
+        near = np.abs(ze - zj) <= window
+        if not near.any():
+            near = np.abs(ze - ze[np.argmin(np.abs(ze - zj))]) <= window
+        used[j] = [s for s, n in zip(stakes, near) if n]
+        ratio[j] = sum(s[1] for s in used[j]) / sum(s[2] for s in used[j])
+    return ratio, used
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("forcing", help="directory of the monthly SUMMA forcing files")
     p.add_argument("stations", help="USGSweatherData directory, one subdirectory per station elevation (m)")
     p.add_argument("attributes", help="SUMMA attributes file, for the HRU elevations")
     p.add_argument("output", help="directory to write the corrected forcing to")
+    p.add_argument("--stakes", help="Input_<glacier>_Glaciological_Data.csv; scale precipitation to the winter balances")
+    p.add_argument("--stake-min-elev", type=float, default=1000.0, help="lowest stake used, m")
+    p.add_argument("--stake-window", type=float, default=200.0, help="stakes within this of an HRU's elevation, m")
+    p.add_argument("--temp-crit-rain", type=float, default=273.16, help="wet-bulb rain/snow threshold, K")
+    p.add_argument("--temp-range", type=float, default=2.0, help="wet-bulb range over which the phase changes, K")
     a = p.parse_args()
 
     with Dataset(a.attributes) as d:
@@ -114,7 +177,7 @@ def main():
 
     # forcing, all files
     files = sorted(glob.glob(os.path.join(a.forcing, "*.nc")))
-    hours, frc = [], {v: [] for v in ("airtemp", "spechum", "SWRadAtm", "airpres")}
+    hours, frc = [], {v: [] for v in ("airtemp", "spechum", "SWRadAtm", "airpres", "pptrate")}
     for f in files:
         with Dataset(f) as d:
             if "time" not in d.variables or "airtemp" not in d.variables:
@@ -127,6 +190,7 @@ def main():
     frc = {v: np.concatenate(x) for v, x in frc.items()}
     month = np.array([(EPOCH + timedelta(hours=int(h))).month for h in hours])
     z = np.array([hru_elev[h] for h in hru_ids])
+    nh = len(hru_ids)
 
     def on_hours(series):
         return np.array([series.get(h, np.nan) for h in hours])
@@ -142,34 +206,45 @@ def main():
     t_hru = t_main[:, None] + lapse[month][:, None] * (z[None, :] - main_z) + 273.15
 
     # temperature: monthly additive offset per HRU
-    offset = np.zeros((13, len(hru_ids)))
+    offset = np.zeros((13, nh))
     for m in range(1, 13):
         sel = month == m
-        for j in range(len(hru_ids)):
+        for j in range(nh):
             ok = sel & np.isfinite(t_hru[:, j])
             if ok.sum() > 24 * 30:
                 offset[m, j] = np.mean(t_hru[ok, j] - frc["airtemp"][ok, j])
 
-    ratio = {v: np.ones(len(hru_ids)) for v in ("spechum", "SWRadAtm", "airpres")}
+    ratio = {v: np.ones(nh) for v in ("SWRadAtm", "airpres", "pptrate")}
+    q_ratio = np.ones((13, nh))
     # shortwave: ratio of sums, no elevation adjustment
     sw = on_hours(stations[sw_z].get("SW", {}))
     sw = np.where(sw < 0, 0.0, sw)
-    for j in range(len(hru_ids)):
+    for j in range(nh):
         ok = np.isfinite(sw)
         if ok.sum() > 24 * 365:
             ratio["SWRadAtm"][j] = sw[ok].sum() / frc["SWRadAtm"][ok, j].sum()
-    # humidity and pressure need the main station's barometer and hygrometer
+    # humidity (monthly) and pressure need the main station's barometer and hygrometer
     rh, pk = on_hours(st_main.get("RH", {})), on_hours(st_main.get("P", {}))
     q = specific_humidity(rh, t_main, pk)
-    for j in range(len(hru_ids)):
-        ok = np.isfinite(q)
-        if ok.sum() > 24 * 365:
-            ratio["spechum"][j] = q[ok].mean() / frc["spechum"][ok, j].mean()
+    for j in range(nh):
+        for m in range(1, 13):
+            ok = (month == m) & np.isfinite(q)
+            if ok.sum() > 24 * 30:
+                q_ratio[m, j] = q[ok].mean() / frc["spechum"][ok, j].mean()
         ok = np.isfinite(pk) & np.isfinite(t_hru[:, j])
         if ok.sum() > 24 * 365:
             lap = lapse[month][ok]
             p_hru = pk[ok] * 1000.0 * (t_hru[ok, j] / (t_main[ok] + 273.15)) ** (-G / (R_DRY * lap))
             ratio["airpres"][j] = p_hru.mean() / frc["airpres"][ok, j].mean()
+
+    # precipitation: stake winter balance against the corrected forcing's snowfall
+    used = [[] for _ in z]
+    if a.stakes:
+        t_c = frc["airtemp"] + offset[month]
+        tw = wet_bulb(t_c, frc["spechum"] * q_ratio[month], frc["airpres"] * ratio["airpres"][None, :])
+        snow_frac = np.clip((a.temp_crit_rain + a.temp_range / 2.0 - tw) / a.temp_range, 0.0, 1.0)
+        snow = np.maximum(frc["pptrate"], 0.0) * 3600.0 * snow_frac
+        ratio["pptrate"], used = stake_ratios(a.stakes, hours, z, snow, a.stake_min_elev, a.stake_window)
 
     # write the corrected files
     os.makedirs(a.output, exist_ok=True)
@@ -187,25 +262,32 @@ def main():
                 x = v[:]
                 if name == "airtemp":
                     x = x + offset[m_file]
+                elif name == "spechum":
+                    x = x * q_ratio[m_file]
                 elif name in ratio:
                     x = x * ratio[name][None, :]
                 o[:] = x
 
     with open(os.path.join(a.output, "corrections.csv"), "w") as fh:
         w = csv.writer(fh)
-        w.writerow(["hruId", "elevation_m", "spechum_ratio", "SWRadAtm_ratio", "airpres_ratio"]
-                   + [f"airtemp_offset_K_{m:02d}" for m in range(1, 13)])
+        w.writerow(["hruId", "elevation_m", "SWRadAtm_ratio", "airpres_ratio", "pptrate_ratio", "stakes_used"]
+                   + [f"airtemp_offset_K_{m:02d}" for m in range(1, 13)]
+                   + [f"spechum_ratio_{m:02d}" for m in range(1, 13)])
         for j, h in enumerate(hru_ids):
-            w.writerow([h, z[j], f"{ratio['spechum'][j]:.4f}", f"{ratio['SWRadAtm'][j]:.4f}",
-                        f"{ratio['airpres'][j]:.4f}"] + [f"{offset[m, j]:.3f}" for m in range(1, 13)])
+            w.writerow([h, z[j], f"{ratio['SWRadAtm'][j]:.4f}", f"{ratio['airpres'][j]:.4f}",
+                        f"{ratio['pptrate'][j]:.4f}", len(used[j])]
+                       + [f"{offset[m, j]:.3f}" for m in range(1, 13)]
+                       + [f"{q_ratio[m, j]:.4f}" for m in range(1, 13)])
         w.writerow([])
         w.writerow(["lapse_rate_K_per_km"] + [f"{1000 * lapse[m]:.2f}" for m in range(1, 13)])
 
     print("lapse rate (K/km) by month:", " ".join(f"{1000 * lapse[m]:.1f}" for m in range(1, 13)))
     for j, h in enumerate(hru_ids):
-        print(f"HRU {h} ({z[j]:.0f} m): q x{ratio['spechum'][j]:.3f}, SW x{ratio['SWRadAtm'][j]:.3f}, "
-              f"P x{ratio['airpres'][j]:.3f}, T offset by month (K) "
-              + " ".join(f"{offset[m, j]:+.1f}" for m in range(1, 13)))
+        stk = (f", precip x{ratio['pptrate'][j]:.3f} from {len(used[j])} stake-years at "
+               f"{min(s[0] for s in used[j]):.0f}-{max(s[0] for s in used[j]):.0f} m") if used[j] else ""
+        print(f"HRU {h} ({z[j]:.0f} m): SW x{ratio['SWRadAtm'][j]:.3f}, P x{ratio['airpres'][j]:.3f}{stk}")
+        print("    T offset by month (K) " + " ".join(f"{offset[m, j]:+.1f}" for m in range(1, 13)))
+        print("    q ratio by month      " + " ".join(f"{q_ratio[m, j]:.2f}" for m in range(1, 13)))
     print(f"{len(files)} files written to {a.output}")
 
 
