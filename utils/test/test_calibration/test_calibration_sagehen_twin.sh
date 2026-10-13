@@ -8,8 +8,8 @@
 # the head at the OBS6 observation cells.  Those become the targets (make_sagehen_twin_targets.py).
 # The same pinned trial, scored against them, must reproduce them.  Then NSGA-II searches the five
 # parameters from scratch against three objectives, discharge KGE, temperature RMSE and the head RMSE
-# pooled over the cells, and the front member nearest the ideal point must recover every parameter
-# within 10% of its searched range, on its search scale.
+# pooled over the cells, and the balanced front member, whose worst objective is nearest that objective's
+# best on the front, must recover every parameter within 10% of its searched range, on its search scale.
 #
 # The domain is test_calibration_sagehen.sh's lumped one (build_sagehen9_calibration.py), with GWE.
 # Needs bin/summa_modflow6_opt_sundials_mizuroute.exe and a python3 with netCDF4 and pyproj.
@@ -307,11 +307,11 @@ failed = np.asarray(d["trial_failed"][:]) == 1
 front = (np.asarray(d["pareto_front"][:]) == 1) & ~failed
 check(front.any(), f"{int(front.sum())} trials on the front, {int(failed.sum())} of {failed.size} failed")
 
-# the front member nearest the ideal point, each objective scaled over the front and oriented to minimise
+# the balanced front member: its worst objective, as a multiple of that objective's best on the front, is smallest
 f = np.vstack([1.0 - obj[0], obj[1], obj[2]])[:, front]
-span = np.where(np.ptp(f, axis=1) > 0, np.ptp(f, axis=1), 1.0)
-best = np.where(front)[0][np.argmin(np.linalg.norm((f - f.min(axis=1)[:, None]) / span[:, None], axis=0))]
-print(f"  front member nearest the ideal point: sample {best + 1}, KGE {obj[0, best]:.4f}, "
+ratio = f / np.maximum(f.min(axis=1), 1e-12)[:, None]
+best = np.where(front)[0][np.argmin(ratio.max(axis=0))]
+print(f"  balanced front member: sample {best + 1}, KGE {obj[0, best]:.4f}, "
       f"T RMSE {obj[1, best]:.3f} degC, head RMSE {obj[2, best]:.3f} m")
 
 print(f"  {'parameter':<14}{'truth':>10}{'found':>11}{'error':>9}   front range")

@@ -483,12 +483,20 @@ the ten cells.
 | `k_soil` | 3e-6 m s-1 | 1e-7 to 1e-5, log |
 | `k_macropore` | 1e-2 m s-1 | 1e-7 to 1e-1, log |
 
-It passes when the front member nearest the ideal point, each objective scaled over the front, is within
-10% of each parameter's searched range of the truth, on its search scale.
+It passes when the balanced front member, whose worst objective is nearest that objective's best on the
+front, is within 10% of each parameter's searched range of the truth, on its search scale. The member
+nearest the ideal point, each objective scaled by its spread over the front, is the wrong pick: heads spread
+from 0.04 to 0.85 m, so it takes a member that fits discharge and temperature and misses heads by 0.55 m,
+with Sy and streambed K wrong.
 
 ```bash
 ./test_calibration_sagehen_twin.sh [population] [generations] [n_ranks]   # defaults: 20, 15, 10
 ```
+
+With the five parameters above and 15 generations it passes: 300 trials in about 21 hours of computing,
+none failed. The balanced member (KGE 0.964, 0.23 degC, 0.039 m) has K within 4.0% of its range, Sy 9.6%,
+streambed K 3.1%, `k_soil` 0.2% and `k_macropore` 0.0%. Discharge and temperature alone are fooled by Sy
+and streambed K: the best-temperature and best-KGE trials have them 20-64% off, and the heads pin them.
 
 With VKS also searched (truth 0.4, 0.1-10) and 10 generations, it took about 13 hours and did not pass.
 The true parameters reproduced their targets exactly, and the front member nearest the ideal point
