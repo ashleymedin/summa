@@ -4,10 +4,9 @@
 #
 # NSGA-II on daily discharge (KGE) and water temperature (RMSE, degC) at USGS 15236900,
 # the outlet of the one reach, and the glacier-wide seasonal mass balance (RMSE), 2017-2019
-# after a 2016 spin-up, over eight parameters that move snow accumulation, melt and glacier
-# runoff; and aquiferBaseflowRate and aquiferScaleFactor, on log scales, which set how much
-# groundwater reaches the reach and how long the aquifer holds it. The groundwater leaves at the
-# temperature of the bedrock base (deepTherml = bedrockLyrs), so no parameter sets its temperature.
+# after a 2016 spin-up, over the common parameter set plus the glacier and snow ones. The
+# groundwater leaves at the temperature of the bedrock base (deepTherml = bedrockLyrs), so no
+# parameter sets its temperature.
 # The script checks the front the way test_calibration_gulkana.sh does and prints it.
 #
 # The budget is tiny, so this exercises the machinery; it does not calibrate the glacier.
@@ -130,16 +129,31 @@ end_date   = "2019-12-31"
 n_samples = ${N_SAMPLES}
 
 param_list = [
+    "k_soil",
+    "theta_sat",
+    "aquiferBaseflowExp",
+    "aquiferBaseflowRate",
+    "qSurfScale",
+    "summerLAI",
     "frozenPrecipMultip",
+    "Fcapil",
     "tempCritRain",
-    "albedoMax",
+    "heightCanopyTop",
+    "heightCanopyBottom",
+    "windReductionParam",
+    "vGn_n",
+    "routingGammaScale",
+    "routingGammaShape",
     "glacierWindFactor",
     "glacierTempReduction",
     "glacStor_kIce",
     "glacStor_kSnow",
     "glacStor_kFirn",
-    "aquiferBaseflowRate",
-    "aquiferScaleFactor"
+    "debrisConc",
+    "k_snow",
+    "mw_exp",
+    "albedoDecayRate",
+    "albedoMax"
 ]
 
 write_aligned = false
@@ -147,8 +161,20 @@ write_aligned = false
 
 [calibration.parameter_transformations]
 
+k_soil              = "log"
 aquiferBaseflowRate = "log"
-aquiferScaleFactor  = "log"
+
+
+[[parameter_dependencies.ordered]]
+
+parameters   = ["heightCanopyBottom", "heightCanopyTop"]
+gap_fraction = 0.25
+
+[[parameter_dependencies.ordered]]
+
+parameters   = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+gap_fraction = 0.025
+sample_gaps  = true
 
 
 [calibration.nsga2]

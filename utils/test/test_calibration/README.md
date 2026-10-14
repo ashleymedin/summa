@@ -360,6 +360,26 @@ is therefore `-DUSE_MPI=ON -DUSE_MIZUROUTE=ON -DUSE_MODFLOW6=ON`.
 
 `test_calibration_sagehen.sh` below is the bundled end-to-end test of this path.
 
+## The test cases' parameters
+
+Every test case starts from the defaults in its `localParamInfo.txt` and `basinParamInfo.txt`:
+its `trialParams.nc` holds only the HRU and GRU ids (and `latMoraineWidth` in `gulkana_wolverine/`,
+which is physically distributed). Each searches one common set:
+
+`k_soil`, `theta_sat`, `aquiferBaseflowExp`, `aquiferBaseflowRate`, `qSurfScale`, `summerLAI`,
+`frozenPrecipMultip`, `Fcapil`, `tempCritRain`, `heightCanopyTop`, `heightCanopyBottom`,
+`windReductionParam`, `vGn_n`, `routingGammaScale`, `routingGammaShape`
+
+with `k_soil` and `aquiferBaseflowRate` on log scales, the canopy heights ordered, and `theta_sat`
+in the five-member soil chain above with `sample_gaps = true`, which searches the other four too
+(Bow's and Sagehen's default `critSoilWilting` lies below `theta_res`). A glacier basin adds `glacierWindFactor`, `glacierTempReduction`,
+`glacStor_kIce`, `glacStor_kSnow`, `glacStor_kFirn`, `debrisConc`, and the snow parameters
+`k_snow`, `mw_exp`, `albedoDecayRate` and `albedoMax`, which set the shortwave the snow and firn
+absorb and how fast the meltwater drains. `aquiferScaleFactor` is not searched: it enters only the
+baseflow law, Q = `aquiferBaseflowRate`·(S/`aquiferScaleFactor`)^`aquiferBaseflowExp`, so any value of
+it is a rescaling of the rate. Sagehen leaves out the two aquifer parameters, which do nothing under
+`groundwatr = modLatflow`; the twin experiment keeps its own short list.
+
 ## `test_calibration_bow.sh`
 
 A short, self-contained calibration on the Bow River at Banff (CAN_05BB001). Everything it needs
@@ -385,7 +405,7 @@ metric         = "rmse"
 ./test_calibration_bow.sh [n_samples] [n_ranks]     # defaults: 4 samples, 2 ranks
 ```
 
-It writes a TOML configuration pointing at that data, runs a DDS search over five parameters for
+It writes a TOML configuration pointing at that data, runs a DDS search over the common parameters for
 one simulated year after a year of spinup, and checks that finite, plausible objective values were
 recorded for the trials.
 
@@ -405,9 +425,7 @@ fronts and their hypervolumes.
 ./test_calibration_bow_pareto.sh [population] [generations] [n_ranks]   # defaults: 8, 5, 5
 ```
 
-It calibrates `k_soil`, `aquiferScaleFactor` and the two routing parameters. `theta_sat` is left out:
-sampling it needs the soil ordering constraint, and under that constraint some trials stop SUMMA
-with a soil water balance error.
+It calibrates the common parameters.
 
 ## `test_calibration_sagehen.sh`
 
@@ -511,11 +529,8 @@ high.
 A glacier calibration routed by mizuRoute, scoring discharge (KGE) and water temperature (RMSE, degC)
 at USGS 15236900, and the glacier-wide seasonal mass balance (RMSE), on the bundled `wolverine/`
 domain: three glacier land HRUs and a stream HRU for the one reach. It spins up over 2016 and scores
-2017–2019, over `frozenPrecipMultip`, `tempCritRain`, `albedoMax`, `glacierWindFactor`,
-`glacierTempReduction`, the three glacier storage constants `glacStor_kIce`, `glacStor_kSnow` and
-`glacStor_kFirn`, and `aquiferBaseflowRate` and `aquiferScaleFactor`, searched on log scales, which set
-how much groundwater reaches the reach and how long the aquifer holds it. `aquiferBaseflowRate` has a
-lower bound of 10⁻⁸ m s⁻¹ in `wolverine/` so it can be searched on a log scale. Under
+2017–2019, over the common parameters and the glacier and snow ones. `aquiferBaseflowRate` has a
+lower bound of 10⁻⁸ m s⁻¹ in `wolverine/` and `gulkana/` so it can be searched on a log scale. Under
 `deepTherml = bedrockLyrs` the groundwater leaves at the bedrock base, whose temperature no parameter
 sets; with `deepTherml = airTempGW` the search would add `C_ATGW` and `gwTempWindow`. The stream width
 is left at the gauge's: searching `streamWidthMultip` instead gives about the same temperature and a

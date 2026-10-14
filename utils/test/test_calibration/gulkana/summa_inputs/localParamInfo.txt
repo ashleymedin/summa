@@ -176,7 +176,7 @@ kAnisotropic              |       1.0000 |       0.0001 |      10.0000
 zScale_TOPMODEL           |       2.5000 |       1.0000 |      10.0000
 f_hydCond                 |       3.0000 |       0.1000 |      10.0000
 compactedDepth            |       1.0000 |       0.0000 |       1.0000
-aquiferBaseflowRate       |       0.1000 |       0.0000 |       0.1000
+aquiferBaseflowRate       |       0.1000 |       1.d-08 |       0.1000
 aquiferScaleFactor        |       0.3500 |       0.1000 |      10.0000
 aquiferBaseflowExp        |       2.0000 |       1.0000 |      10.0000
 qSurfScale                |      50.0000 |       1.0000 |     100.0000

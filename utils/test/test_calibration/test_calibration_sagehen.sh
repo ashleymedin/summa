@@ -151,10 +151,19 @@ end_date   = "2018-09-30"
 n_samples = ${N_SAMPLES}
 
 param_list = [
+    "k_soil",
+    "theta_sat",
+    "qSurfScale",
+    "summerLAI",
     "frozenPrecipMultip",
+    "Fcapil",
     "tempCritRain",
-    "k_macropore",
-    "routingGammaScale"
+    "heightCanopyTop",
+    "heightCanopyBottom",
+    "windReductionParam",
+    "vGn_n",
+    "routingGammaScale",
+    "routingGammaShape"
 ]
 
 write_aligned = false
@@ -162,9 +171,21 @@ write_aligned = false
 
 [calibration.parameter_transformations]
 
-k_macropore       = "log"
+k_soil            = "log"
 routingGammaScale = "log"
 K_mult            = "log"
+
+
+[[parameter_dependencies.ordered]]
+
+parameters   = ["heightCanopyBottom", "heightCanopyTop"]
+gap_fraction = 0.25
+
+[[parameter_dependencies.ordered]]
+
+parameters   = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+gap_fraction = 0.025
+sample_gaps  = true
 
 
 # MODFLOW parameters: multipliers on the input files of [modflow] run_dir, rewritten for each trial;
