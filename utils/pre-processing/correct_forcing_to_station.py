@@ -17,10 +17,15 @@ copies of the forcing.  Wind and longwave are copied unchanged.
             snowfall at the stakes within --stake-window of the HRU (or the nearest such group), over each
             stake's fall-to-spring interval.  Snowfall is split on wet-bulb temperature as SUMMA does, with
             --temp-crit-rain and --temp-range.  Only stakes above --stake-min-elev count, where winter
-            ablation is small; HRUs below it keep their precipitation.
+            ablation is small.  With --gauge-shield, every HRU the stakes leave out instead takes the ratio
+            of the station's weighing-gauge catch, corrected for wind undercatch, to the forcing's
+            precipitation at the gauge's elevation, summed over the full hours the gauge, wind and
+            temperature all record.  The catch efficiency is Eq. 3 of Kochendorfer et al. (2017, HESS 21,
+            3525) for gauge-height wind (capped at 7.2 m s-1) and air temperature; without --gauge-shield
+            those HRUs keep their precipitation.
 
 A correction is applied only where the data exist; the others stay at 0 or 1.  Station values are hourly
-means of the 15-minute samples in the hour ending at each forcing time.  The corrections are written to
+means of the 15-minute samples in the hour ending at each forcing time, precipitation the sum of all four.  The corrections are written to
 corrections.csv beside the corrected files.
 
     ./correct_forcing_to_station.py $S/domain_Wolverine/forcing/SUMMA_input $S/domain_Wolverine/USGSweatherData \\
@@ -42,7 +47,10 @@ EPOCH = datetime(1900, 1, 1, tzinfo=timezone.utc)   # forcing time is hours sinc
 LOCAL = ZoneInfo("America/Anchorage")
 G, R_DRY = 9.80665, 287.05                           # m s-2, J kg-1 K-1
 DEFAULT_LAPSE = -0.0065                              # K m-1
-COLUMNS = {"site_temp": "T", "RelHum": "RH", "Barom": "P", "ShortwaveIn": "SW"}
+COLUMNS = {"site_temp": "T", "RelHum": "RH", "Barom": "P", "ShortwaveIn": "SW", "WindSpeed": "U",
+           "Precip_Weighing_Incremental": "PR"}
+CATCH = {"SA": (0.0348, 1.366, 0.779), "UN": (0.0785, 0.729, 0.407)}   # Kochendorfer et al. (2017) Table 2, gauge height
+U_CATCH_MAX = 7.2                                                      # m s-1, where those fits end
 
 
 def parse_time(text):
@@ -56,7 +64,8 @@ def parse_time(text):
 
 
 def read_station(folder):
-    """Hourly means {variable: {hour: value}} of one station's 15-minute records; T degC, RH %, P kPa, SW W m-2."""
+    """Hourly means {variable: {hour: value}} of one station's 15-minute records; T degC, RH %, P kPa, SW W m-2,
+    U m s-1; PR is the hour's total in mm, kept only where all four samples exist."""
     sums, counts = {}, {}
     for f in sorted(glob.glob(os.path.join(folder, "LVL2", "*_15min_LVL2_*.csv"))):
         with open(f) as fh:
@@ -89,7 +98,16 @@ def read_station(folder):
                     counts.setdefault(v, {})
                     sums[v][hour] = sums[v].get(hour, 0.0) + x
                     counts[v][hour] = counts[v].get(hour, 0) + 1
-    return {v: {h: s / counts[v][h] for h, s in d.items()} for v, d in sums.items()}
+    out = {v: {h: s / counts[v][h] for h, s in d.items()} for v, d in sums.items() if v != "PR"}
+    if "PR" in sums:
+        out["PR"] = {h: s for h, s in sums["PR"].items() if counts["PR"][h] == 4}
+    return out
+
+
+def catch_efficiency(u, t_c, shield):
+    """Gauge catch efficiency (-) from gauge-height wind (m s-1) and air temperature (degC), Kochendorfer et al. (2017) Eq. 3."""
+    a, b, c = CATCH[shield]
+    return np.exp(-a * np.minimum(u, U_CATCH_MAX) * (1.0 - np.arctan(b * t_c) + c))
 
 
 def specific_humidity(rh, t_c, p_kpa):
@@ -163,6 +181,9 @@ def main():
     p.add_argument("--temp-range", type=float, default=2.0, help="wet-bulb range over which the phase changes, K")
     p.add_argument("--wet-threshold", type=float, default=0.1,
                    help="forcing precipitation above which an hour is corrected as wet, mm/h")
+    p.add_argument("--gauge-shield", choices=sorted(CATCH),
+                   help="wind shield of the station's weighing gauge (SA single-Alter, UN none); scales the "
+                        "precipitation of HRUs without stakes to the undercatch-corrected gauge")
     a = p.parse_args()
 
     with Dataset(a.attributes) as d:
@@ -260,6 +281,20 @@ def main():
         snow = np.maximum(frc["pptrate"], 0.0) * 3600.0 * snow_frac
         ratio["pptrate"], used = stake_ratios(a.stakes, hours, z, snow, a.stake_min_elev, a.stake_window)
 
+    # precipitation: undercatch-corrected gauge for the HRUs the stakes leave out
+    gauge = ""
+    if a.gauge_shield:
+        gz = max(stations, key=lambda s: len(stations[s].get("PR", {})))
+        pr, u, tg = (on_hours(stations[gz].get(v, {})) for v in ("PR", "U", "T"))
+        ok = np.isfinite(pr) & np.isfinite(u) & np.isfinite(tg)
+        if ok.sum() > 24 * 365:
+            caught = pr[ok] / catch_efficiency(u[ok], tg[ok], a.gauge_shield)
+            forced = along_elevation(z, np.maximum(frc["pptrate"][ok], 0.0) * 3600.0, gz)
+            gauge = f"{gz} m gauge, {ok.sum()} h, catch {pr[ok].sum() / caught.sum():.2f}"
+            for j in range(nh):
+                if not used[j]:
+                    ratio["pptrate"][j] = caught.sum() / forced.sum()
+
     # write the corrected files
     os.makedirs(a.output, exist_ok=True)
     for f in files:
@@ -298,11 +333,16 @@ def main():
         w.writerow([])
         w.writerow(["lapse_rate_K_per_km"] + [f"{1000 * lapse[m]:.2f}" for m in range(1, 13)])
         w.writerow(["wet_threshold_mm_per_h", f"{a.wet_threshold}"])
+        if gauge:
+            w.writerow(["pptrate_gauge", f"{a.gauge_shield} shield, {gauge}"])
 
     print("lapse rate (K/km) by month:", " ".join(f"{1000 * lapse[m]:.1f}" for m in range(1, 13)))
+    if gauge:
+        print(f"precipitation without stakes from the {a.gauge_shield}-shielded {gauge}")
     for j, h in enumerate(hru_ids):
         stk = (f", precip x{ratio['pptrate'][j]:.3f} from {len(used[j])} stake-years at "
-               f"{min(s[0] for s in used[j]):.0f}-{max(s[0] for s in used[j]):.0f} m") if used[j] else ""
+               f"{min(s[0] for s in used[j]):.0f}-{max(s[0] for s in used[j]):.0f} m") if used[j] else (
+               f", precip x{ratio['pptrate'][j]:.3f} from the gauge" if gauge else "")
         print(f"HRU {h} ({z[j]:.0f} m): SW x{ratio['SWRadAtm'][j]:.3f}, P x{ratio['airpres'][j]:.3f}{stk}")
         for k, t in enumerate(("dry", "wet")):
             print(f"    T offset by month, {t} (K) " + " ".join(f"{offset[k, m, j]:+.1f}" for m in range(1, 13)))
