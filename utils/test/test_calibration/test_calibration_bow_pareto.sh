@@ -151,7 +151,18 @@ n_samples = ${N_SAMPLES}
 
 param_list = [
     "k_soil",
-    "aquiferScaleFactor",
+    "theta_sat",
+    "aquiferBaseflowExp",
+    "aquiferBaseflowRate",
+    "qSurfScale",
+    "summerLAI",
+    "frozenPrecipMultip",
+    "Fcapil",
+    "tempCritRain",
+    "heightCanopyTop",
+    "heightCanopyBottom",
+    "windReductionParam",
+    "vGn_n",
     "routingGammaScale",
     "routingGammaShape"
 ]
@@ -161,7 +172,20 @@ write_aligned = false
 
 [calibration.parameter_transformations]
 
-k_soil = "log"
+k_soil              = "log"
+aquiferBaseflowRate = "log"
+
+
+[[parameter_dependencies.ordered]]
+
+parameters   = ["heightCanopyBottom", "heightCanopyTop"]
+gap_fraction = 0.25
+
+[[parameter_dependencies.ordered]]
+
+parameters   = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+gap_fraction = 0.025
+sample_gaps  = true
 
 
 [calibration.nsga2]
