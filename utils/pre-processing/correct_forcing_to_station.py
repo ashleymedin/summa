@@ -15,9 +15,8 @@ copies of the forcing.  Longwave is copied unchanged.
   airpres   multiplied, per HRU: the ratio of mean station pressure, carried hypsometrically to the HRU
             elevation, to mean forcing pressure
   windspd   multiplied, every HRU alike, per calendar month: the ratio of mean station wind to mean forcing
-            wind at the station's elevation, times --wind-exposure, off-ice surface wind as a share of the
-            station's, so the glacier factor adds katabatic flow (0.56 on Wolverine's 990 m ridge station:
-            Seward and Portage valley stations against it; 1 on Gulkana, whose 1,480 m station is off ice)
+            wind at the station's elevation, times --wind-exposure (default 1, the station's wind, which SUMMA's
+            windExposure then scales to the surface)
   pptrate   only with --stakes: the snowfall part multiplied, per HRU, by measured winter balance over the
             corrected forcing's snowfall at the stakes within --stake-window of the HRU (or the nearest such
             group), over each stake's fall-to-spring interval; rain is unchanged, and so is snowfall outside
