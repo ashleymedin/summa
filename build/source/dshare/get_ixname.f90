@@ -467,6 +467,7 @@ contains
   ! hyporheic exchange in a stream domain
   case('hypFrac'                  ); get_ixParam = iLookPARAM%hypFrac                ! fraction of the reach flow returned as hyporheic flow (-)
   case('hypLag'                   ); get_ixParam = iLookPARAM%hypLag                 ! residence time of the hyporheic flow paths (h)
+  case('windExposure'             ); get_ixParam = iLookPARAM%windExposure           ! surface wind as a fraction of the wind station's (-)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing

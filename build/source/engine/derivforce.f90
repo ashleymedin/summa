@@ -142,6 +142,7 @@ contains
  newSnowDenBase          => mpar_data%var(iLookPARAM%newSnowDenBase)%dat(1)       , & ! Anderson 1976, base value that is rasied to the (3/2) power (K)
  glacierWindFactor       => mpar_data%var(iLookPARAM%glacierWindFactor)%dat(1)    , & ! wind speed increase to account for glacier katabatic wind profile (-)
  glacierTempReduction    => mpar_data%var(iLookPARAM%glacierTempReduction)%dat(1) , & ! air temperature decrease to account for down-glacier katabatic wind (-)
+ windExposure            => mpar_data%var(iLookPARAM%windExposure)%dat(1)         , & ! surface wind as a fraction of the wind station's (-)
  ! radiation geometry variables
  latitude                => attr_data%var(iLookATTR%latitude)                     , & ! latitude (degrees north)
  longitude               => attr_data%var(iLookATTR%longitude)                    , & ! longitude (degrees east)
@@ -188,8 +189,11 @@ contains
 
  ! NGEN wants the wind inputted as two components, if not inputting NGEN forcing let the y direction be 0
  if(ngen_forcing_active)then
+   windspd_x = windspd_x * windExposure
+   windspd_y = windspd_y * windExposure
    windspd = sqrt(windspd_x**2_i4b + windspd_y**2_i4b)
  else
+   windspd   = windspd * windExposure ! wind station to surface exposure
    windspd_x = windspd
    windspd_y = 0._rkind
    if(windspd_x < minwind) windspd_x=minwind ! ensure wind speed is above a prescribed minimum value
