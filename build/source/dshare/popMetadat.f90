@@ -787,6 +787,7 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%dLakeAdvNrgFlux_dTemp)         = var_info('dLakeAdvNrgFlux_dTemp'        , 'derivative of the lake advective energy source w.r.t. layer temperature', 'J m-3 s-1 K-1', get_ixVarType('midLake'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dLakeAdvNrgFlux_dLiq)          = var_info('dLakeAdvNrgFlux_dLiq'         , 'derivative of the lake energy source w.r.t. liquid water at fixed liquid depth', 'J m-3 s-1', get_ixVarType('midLake'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dLakeAdvNrgFlux_dDepth)        = var_info('dLakeAdvNrgFlux_dDepth'       , 'derivative of the lake energy source w.r.t. the column liquid depth', 'J m-4 s-1', get_ixVarType('midLake'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dExfil_dDrive)                 = var_info('dExfil_dDrive'                , 'derivative of exfiltration w.r.t. the column surplus it returns', '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin-wide runoff and aquifer fluxes...
   ! -----------------------------------------

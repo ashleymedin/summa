@@ -861,6 +861,10 @@ MODULE data_types
    real(rkind), allocatable :: mLayerdTheta_dTk(:)               ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
    real(rkind), allocatable :: mLayerVolFracLiqTrial(:)          ! intent(in):    volumetric fraction of liquid water (-)
    real(rkind), allocatable :: mLayerVolFracIceTrial(:)          ! intent(in):    volumetric fraction of ice (-)
+   real(rkind), allocatable :: dqTop_dHydStateVec(:)             ! intent(in):    derivative in the soil surface flux w.r.t. hydrology state in each soil layer
+   real(rkind), allocatable :: dqTop_dNrgStateVec(:)             ! intent(in):    derivative in the soil surface flux w.r.t. temperature in each soil layer (m s-1 K-1)
+   real(rkind)              :: dqBot_dHydState                   ! intent(in):    derivative in the soil bottom flux w.r.t. hydrology state in the bottom soil layer
+   real(rkind)              :: dqBot_dNrgState                   ! intent(in):    derivative in the soil bottom flux w.r.t. temperature in the bottom soil layer (m s-1 K-1)
   contains
    procedure :: initialize => initialize_in_groundwatr
  end type in_type_groundwatr
@@ -876,6 +880,7 @@ MODULE data_types
    real(rkind), allocatable :: mLayerBaseflow(:)                 ! intent(out):   baseflow from each soil layer (m s-1)
    real(rkind), allocatable :: dBaseflow_dWat(:,:)               ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
    real(rkind), allocatable :: dBaseflow_dTk(:,:)                ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
+   real(rkind)              :: dExfil_dDrive                     ! intent(out):   derivative of exfiltration w.r.t. the column surplus it returns (-)
    integer(i4b)             :: err                               ! intent(out):   error code
    character(len=len_msg)   :: cmessage                          ! intent(out):   error message
   contains
@@ -1864,7 +1869,11 @@ contains
   associate(&
    dVolTot_dPsi0     => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat,         & ! intent(in): [dp(:)] derivative in total volumetric water content w.r.t. matric head (m-1)
    mLayerdTheta_dPsi => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,     & ! intent(in): [dp(:)] derivative in liquid water content w.r.t. matric potential (m-1)
-   mLayerdTheta_dTk  => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat(nSnow+nLake+1:nSnow+nLake+nSoil) )! intent(in): [dp(:)] derivative in volumetric liquid water content w.r.t. temperature (K-1)
+   mLayerdTheta_dTk  => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat(nSnow+nLake+1:nSnow+nLake+nSoil),& ! intent(in): [dp(:)] derivative in volumetric liquid water content w.r.t. temperature (K-1)
+   dq_dHydStateLayerSurfVec => deriv_data%var(iLookDERIV%dq_dHydStateLayerSurfVec)%dat,& ! intent(in): [dp(:)] derivative in the soil surface flux w.r.t. hydrology state in each soil layer
+   dq_dNrgStateLayerSurfVec => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec)%dat,& ! intent(in): [dp(:)] derivative in the soil surface flux w.r.t. temperature in each soil layer
+   dq_dHydStateAbove => deriv_data%var(iLookDERIV%dq_dHydStateAbove)%dat,     & ! intent(in): [dp(0:)] derivative in interface fluxes w.r.t. hydrology state in the layer above
+   dq_dNrgStateAbove => deriv_data%var(iLookDERIV%dq_dNrgStateAbove)%dat      ) ! intent(in): [dp(0:)] derivative in interface fluxes w.r.t. temperature in the layer above
    ! intent(in) arguments
    in_groundwatr % nSnow                    = nSnow                                  ! intent(in):    number of snow layers
    in_groundwatr % nLake                    = nLake                                  ! intent(in):    total number of layers
@@ -1876,6 +1885,11 @@ contains
    in_groundwatr % mLayerdTheta_dTk         = mLayerdTheta_dTk                       ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
    in_groundwatr % mLayerVolFracLiqTrial    = mLayerVolFracLiqTrial(nSnow+nLake+1:nSnow+nLake+nSoil) ! intent(in):    volumetric fraction of liquid water (-)
    in_groundwatr % mLayerVolFracIceTrial    = mLayerVolFracIceTrial(nSnow+nLake+1:nSnow+nLake+nSoil) ! intent(in):    volumetric fraction of ice (-)
+   ! surface and bottom flux derivatives, zero where soilLiqFlux did not compute them
+   in_groundwatr % dqTop_dHydStateVec = merge(dq_dHydStateLayerSurfVec(1:nSoil), 0._rkind, dq_dHydStateLayerSurfVec(1:nSoil)/=nr_realMissing)
+   in_groundwatr % dqTop_dNrgStateVec = merge(dq_dNrgStateLayerSurfVec(1:nSoil), 0._rkind, dq_dNrgStateLayerSurfVec(1:nSoil)/=nr_realMissing)
+   in_groundwatr % dqBot_dHydState    = merge(dq_dHydStateAbove(nSoil), 0._rkind, dq_dHydStateAbove(nSoil)/=nr_realMissing)
+   in_groundwatr % dqBot_dNrgState    = merge(dq_dNrgStateAbove(nSoil), 0._rkind, dq_dNrgStateAbove(nSoil)/=nr_realMissing)
   end associate
  end subroutine initialize_in_groundwatr
 
@@ -1893,11 +1907,12 @@ contains
   ixSaturation = io_groundwatr % ixSaturation ! intent(inout): index of lowest saturated layer (NOTE: only computed on the first iteration)
  end subroutine finalize_io_groundwatr
 
- subroutine finalize_out_groundwatr(out_groundwatr,dBaseflow_dWat,dBaseflow_dTk,flux_data,err,cmessage)
+ subroutine finalize_out_groundwatr(out_groundwatr,dBaseflow_dWat,dBaseflow_dTk,flux_data,deriv_data,err,cmessage)
   class(out_type_groundwatr),intent(in) :: out_groundwatr          ! class object for intent(out) groundwatr arguments
   real(rkind),intent(out)               :: dBaseflow_dWat(:,:)     ! derivative in baseflow w.r.t. soil water characteristic
   real(rkind),intent(out)               :: dBaseflow_dTk(:,:)      ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   type(var_dlength),intent(inout)       :: flux_data               ! model fluxes for a local HRU
+  type(var_dlength),intent(inout)       :: deriv_data              ! derivatives in model fluxes w.r.t. relevant state variables
   integer(i4b),intent(out)              :: err                     ! error code
   character(*),intent(out)              :: cmessage                ! error message from groundwatr
   integer(i4b)                          :: nActive                 ! number of hydrologically active soil layers
@@ -1911,6 +1926,7 @@ contains
    mLayerBaseflow(1:nActive) = out_groundwatr % mLayerBaseflow              ! intent(out):   baseflow from each soil layer (m s-1)
    dBaseflow_dWat(1:nActive,1:nActive) = out_groundwatr % dBaseflow_dWat    ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
    dBaseflow_dTk(1:nActive,1:nActive)  = out_groundwatr % dBaseflow_dTk     ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
+   deriv_data%var(iLookDERIV%dExfil_dDrive)%dat(1) = out_groundwatr % dExfil_dDrive ! intent(out): derivative of exfiltration w.r.t. the column surplus it returns (-)
    err            = out_groundwatr % err                           ! intent(out):   error code
    cmessage       = out_groundwatr % cmessage                      ! intent(out):   error message
   end associate

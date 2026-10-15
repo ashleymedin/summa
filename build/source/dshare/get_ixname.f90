@@ -945,6 +945,7 @@ contains
   case('dLakeAdvNrgFlux_dTemp'          ); get_ixDeriv = iLookDERIV%dLakeAdvNrgFlux_dTemp          ! derivative of the lake advective energy source w.r.t. layer temperature
   case('dLakeAdvNrgFlux_dLiq'           ); get_ixDeriv = iLookDERIV%dLakeAdvNrgFlux_dLiq           ! derivative of the lake energy source w.r.t. liquid water at fixed liquid depth
   case('dLakeAdvNrgFlux_dDepth'         ); get_ixDeriv = iLookDERIV%dLakeAdvNrgFlux_dDepth         ! derivative of the lake energy source w.r.t. the column liquid depth
+  case('dExfil_dDrive'                  ); get_ixDeriv = iLookDERIV%dExfil_dDrive                  ! derivative of exfiltration w.r.t. the column surplus it returns
 
   case default
    get_ixDeriv = integerMissing
