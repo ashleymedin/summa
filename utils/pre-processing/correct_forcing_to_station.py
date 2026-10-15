@@ -9,7 +9,8 @@ copies of the forcing.  Longwave is copied unchanged.
             precipitation against --wet-threshold): the mean station-minus-forcing difference, with the
             station moved to each HRU's elevation by that month's lapse rate between the two stations
   spechum   multiplied, per HRU, calendar month and hour type: the ratio of mean station to mean forcing
-            specific humidity, the station's computed from its relative humidity, temperature and pressure (not lapsed)
+            specific humidity, the station's computed from its relative humidity, temperature and pressure (not lapsed).
+            Where the station has no humidity, --spechum-ratios supplies them (spechum_ratio_from_campaign.py)
   SWRadAtm  multiplied, per HRU: the ratio of summed station to summed forcing incoming shortwave
   airpres   multiplied, per HRU: the ratio of mean station pressure, carried hypsometrically to the HRU
             elevation, to mean forcing pressure
@@ -189,6 +190,7 @@ def main():
     p.add_argument("--gauge-shield", choices=sorted(CATCH),
                    help="wind shield of the station's weighing gauge (SA single-Alter, UN none); scales the "
                         "precipitation of HRUs without stakes to the undercatch-corrected gauge")
+    p.add_argument("--spechum-ratios", help="CSV of hruId, month, ratio for the months the station has no humidity for")
     a = p.parse_args()
 
     with Dataset(a.attributes) as d:
@@ -282,6 +284,11 @@ def main():
     rh, pk = on_hours(st_main.get("RH", {})), on_hours(st_main.get("P", {}))
     q = specific_humidity(rh, t_main, pk)
     q_ratio = by_type(lambda ok, j: q[ok].mean() / frc["spechum"][ok, j].mean(), lambda j: np.isfinite(q), 1.0)
+    if a.spechum_ratios:
+        for r in csv.DictReader(open(a.spechum_ratios)):
+            j, m = list(hru_ids).index(int(r["hruId"])), int(r["month"])
+            if np.all(q_ratio[:, m, j] == 1.0):
+                q_ratio[:, m, j] = float(r["ratio"])
     for j in range(nh):
         ok = np.isfinite(pk) & np.isfinite(t_hru[:, j])
         if ok.sum() > 24 * 365:
