@@ -17,16 +17,18 @@ copies of the forcing.  Longwave is copied unchanged.
   windspd   multiplied, every HRU alike, per calendar month: the ratio of mean station wind to mean forcing
             wind at the station's elevation, times --wind-exposure, the surface's share of the exposed
             station's wind (0.61 on Gulkana: on-ice Site B against the 1,725 m ridge station, 2024)
-  pptrate   multiplied, per HRU, only with --stakes: measured winter balance over the corrected forcing's
-            snowfall at the stakes within --stake-window of the HRU (or the nearest such group), over each
-            stake's fall-to-spring interval.  Snowfall is split on wet-bulb temperature as SUMMA does, with
-            --temp-crit-rain and --temp-range.  Only stakes above --stake-min-elev count, where winter
-            ablation is small.  With --gauge-shield, every HRU the stakes leave out instead takes the ratio
+  pptrate   only with --stakes: the snowfall part multiplied, per HRU, by measured winter balance over the
+            corrected forcing's snowfall at the stakes within --stake-window of the HRU (or the nearest such
+            group), over each stake's fall-to-spring interval; rain is unchanged, and so is snowfall outside
+            those intervals, the multiplier weighted by the share of stake intervals covering the month's
+            15th.  Snowfall is split on wet-bulb temperature as SUMMA does, with --temp-crit-rain and
+            --temp-range.  Only stakes above --stake-min-elev count, where winter ablation is small.
+            With --gauge-shield, every HRU the stakes leave out instead takes the ratio
             of the station's weighing-gauge catch, corrected for wind undercatch, to the forcing's
             precipitation at the gauge's elevation, summed over the full hours the gauge, wind and
             temperature all record.  The catch efficiency is Eq. 3 of Kochendorfer et al. (2017, HESS 21,
             3525) for gauge-height wind (capped at 7.2 m s-1) and air temperature; without --gauge-shield
-            those HRUs keep their precipitation.
+            those HRUs keep their precipitation.  The gauge ratio scales rain and snow alike, in every month.
 
 A correction is applied only where the data exist; the others stay at 0 or 1.  Station values are hourly
 means of the 15-minute samples in the hour ending at each forcing time, precipitation the sum of all four.  The corrections are written to
@@ -129,6 +131,11 @@ def wet_bulb(t_k, q, p_pa):
             + 0.00391838 * rh ** 1.5 * np.arctan(0.023101 * rh) - 4.686035 + 273.15)
 
 
+def snow_fraction(t_k, q, p_pa, crit, width):
+    """Frozen share of precipitation (-), linear in wet-bulb temperature over width (K) centred on crit (K), as SUMMA."""
+    return np.clip((crit + width / 2.0 - wet_bulb(t_k, q, p_pa)) / width, 0.0, 1.0)
+
+
 def along_elevation(z_hru, values, z):
     """values (time, hru) interpolated linearly in elevation to z, extrapolated from the end pair."""
     k = np.argsort(z_hru)
@@ -139,10 +146,11 @@ def along_elevation(z_hru, values, z):
 
 
 def stake_ratios(path, hours, z, snow, min_elev, window):
-    """Per HRU, summed stake winter balance over summed forcing snowfall (both mm) at the stakes near it."""
+    """Per HRU, summed stake winter balance over summed forcing snowfall (both mm) at the stakes near it, and
+    per calendar month (index 1-12) the share of the stakes' fall-to-spring intervals that cover its 15th."""
     rows = list(csv.DictReader(open(path)))
     fall = {(int(r["Year"]), r["site_name"]): r["fall_date"] for r in rows}
-    stakes = []
+    stakes, spans = [], []
     for r in rows:
         if r["bw"] in ("nan", "") or float(r["elevation"]) < min_elev:
             continue
@@ -157,9 +165,12 @@ def stake_ratios(path, hours, z, snow, min_elev, window):
             continue
         ze = float(r["elevation"])
         stakes.append((ze, 1000.0 * float(r["bw"]), along_elevation(z, snow[sel], ze).sum()))
-    ratio, used = np.ones(len(z)), [[] for _ in z]
+        spans.append((start, end))
+    ratio, used, cover = np.ones(len(z)), [[] for _ in z], np.zeros(13)
     if not stakes:
-        return ratio, used
+        return ratio, used, cover
+    for m in range(1, 13):
+        cover[m] = np.mean([any(s <= datetime(y, m, 15) <= e for y in (s.year, e.year)) for s, e in spans])
     ze = np.array([s[0] for s in stakes])
     for j, zj in enumerate(z):
         if zj < min_elev:
@@ -169,7 +180,7 @@ def stake_ratios(path, hours, z, snow, min_elev, window):
             near = np.abs(ze - ze[np.argmin(np.abs(ze - zj))]) <= window
         used[j] = [s for s, n in zip(stakes, near) if n]
         ratio[j] = sum(s[1] for s in used[j]) / sum(s[2] for s in used[j])
-    return ratio, used
+    return ratio, used, cover
 
 
 def main():
@@ -297,14 +308,15 @@ def main():
             ratio["airpres"][j] = p_hru.mean() / frc["airpres"][ok, j].mean()
 
     # precipitation: stake winter balance against the corrected forcing's snowfall
-    used = [[] for _ in z]
+    used, cover = [[] for _ in z], np.zeros(13)
     if a.stakes:
         cols = np.arange(nh)[None, :]
-        t_c = frc["airtemp"] + offset[wet, month[:, None], cols]
-        tw = wet_bulb(t_c, frc["spechum"] * q_ratio[wet, month[:, None], cols], frc["airpres"] * ratio["airpres"][None, :])
-        snow_frac = np.clip((a.temp_crit_rain + a.temp_range / 2.0 - tw) / a.temp_range, 0.0, 1.0)
+        snow_frac = snow_fraction(frc["airtemp"] + offset[wet, month[:, None], cols],
+                                  frc["spechum"] * q_ratio[wet, month[:, None], cols],
+                                  frc["airpres"] * ratio["airpres"][None, :], a.temp_crit_rain, a.temp_range)
         snow = np.maximum(frc["pptrate"], 0.0) * 3600.0 * snow_frac
-        ratio["pptrate"], used = stake_ratios(a.stakes, hours, z, snow, a.stake_min_elev, a.stake_window)
+        ratio["pptrate"], used, cover = stake_ratios(a.stakes, hours, z, snow, a.stake_min_elev, a.stake_window)
+    staked = np.array([bool(u) for u in used])
 
     # precipitation: undercatch-corrected gauge for the HRUs the stakes leave out
     gauge = ""
@@ -331,6 +343,14 @@ def main():
             m_file = np.array([(EPOCH + timedelta(hours=int(h))).month for h in np.array(s["time"][:])])[:, None]
             wet_file = (np.array(s["pptrate"][:], float) * 3600.0 > a.wet_threshold).astype(int)
             cols = np.arange(nh)[None, :]
+            # precipitation multiplier: the stake ratio on the snowfall inside the stake intervals, else the gauge's
+            p_mult = np.broadcast_to(ratio["pptrate"][None, :], wet_file.shape)
+            if staked.any():
+                frac = snow_fraction(np.array(s["airtemp"][:], float) + offset[wet_file, m_file, cols],
+                                     np.array(s["spechum"][:], float) * q_ratio[wet_file, m_file, cols],
+                                     np.array(s["airpres"][:], float) * ratio["airpres"][None, :],
+                                     a.temp_crit_rain, a.temp_range)
+                p_mult = np.where(staked[None, :], 1.0 + (ratio["pptrate"][None, :] - 1.0) * frac * cover[m_file], p_mult)
             for name, v in s.variables.items():
                 fill = v.getncattr("_FillValue") if "_FillValue" in v.ncattrs() else None
                 o = d.createVariable(name, v.dtype, v.dimensions, zlib=True, complevel=4, fill_value=fill)
@@ -342,6 +362,8 @@ def main():
                     x = x * q_ratio[wet_file, m_file, cols]
                 elif name == "windspd":
                     x = x * wind[m_file]
+                elif name == "pptrate":
+                    x = x * p_mult
                 elif name in ratio:
                     x = x * ratio[name][None, :]
                 o[:] = x
@@ -360,6 +382,8 @@ def main():
         w.writerow([])
         w.writerow(["lapse_rate_K_per_km"] + [f"{1000 * lapse[m]:.2f}" for m in range(1, 13)])
         w.writerow(["wet_threshold_mm_per_h", f"{a.wet_threshold}"])
+        if staked.any():
+            w.writerow(["pptrate_stake_snowfall_weight"] + [f"{cover[m]:.3f}" for m in range(1, 13)])
         if gauge:
             w.writerow(["pptrate_gauge", f"{a.gauge_shield} shield, {gauge}"])
         w.writerow(["windspd_ratio"] + [f"{wind[m]:.3f}" for m in range(1, 13)])
@@ -367,6 +391,8 @@ def main():
 
     print("lapse rate (K/km) by month:", " ".join(f"{1000 * lapse[m]:.1f}" for m in range(1, 13)))
     print(f"wind x{a.wind_exposure} of the {wz} m station, by month:", " ".join(f"{wind[m]:.2f}" for m in range(1, 13)))
+    if staked.any():
+        print("stake multiplier weight on snowfall, by month:", " ".join(f"{cover[m]:.2f}" for m in range(1, 13)))
     if gauge:
         print(f"precipitation without stakes from the {a.gauge_shield}-shielded {gauge}")
     for j, h in enumerate(hru_ids):
