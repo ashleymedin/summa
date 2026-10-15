@@ -145,11 +145,113 @@ contains
    parFallback(iLookPARAM%be_steps)%default_val = 1._rkind
   end if
   ! IDA solver parameters
-  call set_ida_defaults(absEnergyFac, parFallback, err, cmessage)
-  if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
+  call set_ida_defaults(absEnergyFac, parFallback)
   ! set FUSE parameter defaults
   call set_FUSE_defaults(parFallback, err, cmessage)
   if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
+  call set_glacier_lake_defaults(parFallback)
+ else
+  call set_glacier_basin_defaults(parFallback)
+ end if
+
+ ! check we have populated all variables
+ ! NOTE: ultimately need a need a parameter dictionary to ensure that the parameters used are populated
+ if(.not.backwardsCompatible)then  ! if we add new variables in future versions of the code, then some may be missing in the input file
+  if(any(parFallback(:)%default_val < 0.99_rkind*realMissing))then
+   do iVar=1,size(parFallback)
+    if(parFallback(iVar)%default_val < 0.99_rkind*realMissing)then
+     err=40; message=trim(message)//"variableNonexistent[var="//trim(mpar_meta(iVar)%varName)//"]"; return
+    end if
+   end do
+  end if
+ ! populate parameters that were not included in the original control files
+ else ! (need backwards compatibility)
+  if(isLocal)then
+   if(model_decisions(iLookDECISIONS%cIntercept)%iDecision == unDefined)then
+    parFallback(iLookPARAM%canopyWettingFactor)%default_val = 1._rkind             ! maximum wetted fraction of the canopy (-)
+    parFallback(iLookPARAM%canopyWettingExp)%default_val    = 0.666666667_rkind    ! exponent in canopy wetting function (-)
+   end if
+  end if
+ end if
+ 
+ ! close file unit
+ close(unt)
+ end subroutine read_pinit
+
+ ! ************************************************************************************************
+ ! Subroutine to separate the default settings of the IDA solver from the rest of the model parameters
+ ! ************************************************************************************************
+ subroutine set_ida_defaults(absEnergyFac, parFallback)
+ USE data_types,only:par_info              ! data type for parameter constraints
+ implicit none
+ ! define input
+ real(rkind),intent(in)                 :: absEnergyFac   ! multiplier for absolute value of energy state variable (for enthalpy or temperature)
+ type(par_info),intent(out)             :: parFallback(:) ! default values and constraints of model parameters
+ ! local varaibles
+ integer(i4b)                           :: i   
+ real(rkind)                            :: default_relTol = 1.e-5_rkind 
+ real(rkind)                            :: default_absTol = 1.e-5_rkind
+ integer(i4b), dimension(7)             :: relTol_paramIndx = [iLookPARAM%relTolTempCas, iLookPARAM%relTolTempVeg, iLookPARAM%relTolWatVeg, &
+                                                               iLookPARAM%relTolTempSoilSnow, iLookPARAM%relTolWatSnow, iLookPARAM%relTolMatric, &
+                                                               iLookPARAM%relTolAquifr]
+ integer(i4b), dimension(3)             :: absTolTemp_paramIndx = [iLookPARAM%absTolTempCas, iLookPARAM%absTolTempVeg, iLookPARAM%absTolTempSoilSnow]
+ integer(i4b), dimension(4)             :: absTolWat_paramIndx =  [iLookPARAM%absTolWatVeg, iLookPARAM%absTolWatSnow, iLookPARAM%absTolMatric, &
+                                                                   iLookPARAM%absTolAquifr]
+ 
+  ! Relative Tolerances
+  do i = 1, size(relTol_paramIndx)
+    if (parFallback(relTol_paramIndx(i))%default_val < 0.99_rkind*realMissing) then
+      parFallback(relTol_paramIndx(i))%default_val = default_relTol
+    end if
+  end do
+
+  ! Absolute Tolerances
+  do i = 1, size(absTolTemp_paramIndx)
+    if (parFallback(absTolTemp_paramIndx(i))%default_val < 0.99_rkind*realMissing) then
+      parFallback(absTolTemp_paramIndx(i))%default_val = default_absTol*absEnergyFac ! scale by absolute energy multiplier
+    end if
+  end do
+  do i = 1, size(absTolWat_paramIndx)
+    if (parFallback(absTolWat_paramIndx(i))%default_val < 0.99_rkind*realMissing) then
+      parFallback(absTolWat_paramIndx(i))%default_val = default_absTol
+    end if
+  end do
+
+  ! IDA Solver Parameters
+  if (parFallback(iLookPARAM%idaMaxOrder)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxOrder)%default_val = 5
+  end if
+  if (parFallback(iLookPARAM%idaMaxInternalSteps)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxInternalSteps)%default_val = 999999 ! IDA default is 500, this is often too small for us
+  end if
+  if (parFallback(iLookPARAM%idaInitStepSize)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaInitStepSize)%default_val = 0
+  end if
+  if (parFallback(iLookPARAM%idaMinStepSize)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMinStepSize)%default_val = 0 ! IDA default is 0
+  end if
+  if (parFallback(iLookPARAM%idaMaxStepSize)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxStepSize)%default_val = 0 ! 0 means IDA's default of infinity
+  end if
+  if (parFallback(iLookPARAM%idaMaxErrTestFail)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxErrTestFail)%default_val = 50 ! IDA default is 10
+  end if
+  if (parFallback(iLookPARAM%idaMaxDataWindowSteps)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxDataWindowSteps)%default_val = 1.e6_rkind ! default is infinity, if 1e10 or larger then treat as infinity
+  end if
+  if (parFallback(iLookPARAM%idaDetectEvents)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaDetectEvents)%default_val = 1._rkind ! default is to detect events (0 means do not detect events)
+  end if
+ end subroutine set_ida_defaults
+
+ ! ************************************************************************************************
+ ! Subroutine to set the local-column glacier, lake, stream, bedrock and geothermal defaults if not already set
+ ! ************************************************************************************************
+ subroutine set_glacier_lake_defaults(parFallback)
+ USE data_types,only:par_info              ! data type for parameter constraints
+ implicit none
+ type(par_info),intent(inout)           :: parFallback(:) ! default values and constraints of model parameters
+ 
   ! glacier and lake parameters
   if (parFallback(iLookPARAM%albedoFrznWatVisible)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%albedoFrznWatVisible)%default_val = 0.6_rkind
@@ -182,14 +284,14 @@ contains
     parFallback(iLookPARAM%z0Ice)%upper_limit = 0.05_rkind
   end if
   if (parFallback(iLookPARAM%glacierWindFactor)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%glacierWindFactor)%default_val = 1._rkind ! 
+    parFallback(iLookPARAM%glacierWindFactor)%default_val = 1._rkind
     parFallback(iLookPARAM%glacierWindFactor)%lower_limit = 1._rkind
     parFallback(iLookPARAM%glacierWindFactor)%upper_limit = 3._rkind
   end if
   if (parFallback(iLookPARAM%glacierTempReduction)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%glacierTempReduction)%default_val = 0._rkind
     parFallback(iLookPARAM%glacierTempReduction)%lower_limit = 0._rkind
-    parFallback(iLookPARAM%glacierTempReduction)%upper_limit = 6.5_rkind
+    parFallback(iLookPARAM%glacierTempReduction)%upper_limit = 2.5_rkind
   end if
   ! stream and lake column parameters
   if (parFallback(iLookPARAM%streamMinDepth)%default_val < 0.99_rkind*realMissing) then
@@ -242,18 +344,28 @@ contains
     ! NOTE: a soil-column value, leaving ~5% of the surface conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m
     !       depth, so glacier runs should set f_hydCond explicitly rather than take this default
     parFallback(iLookPARAM%f_hydCond)%default_val = 0.75_rkind
+    parFallback(iLookPARAM%f_hydCond)%lower_limit = 0.1_rkind
+    parFallback(iLookPARAM%f_hydCond)%upper_limit = 10._rkind
   end if
- else
+ end subroutine set_glacier_lake_defaults
+
+ ! ************************************************************************************************
+ ! Subroutine to set the basin glacier, debris and stream defaults if not already set
+ ! ************************************************************************************************
+ subroutine set_glacier_basin_defaults(parFallback)
+ USE data_types,only:par_info              ! data type for parameter constraints
+ implicit none
+ type(par_info),intent(inout)           :: parFallback(:) ! default values and constraints of model parameters
   ! glacier parameters
   if (parFallback(iLookBPAR%glacStor_kIce)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%glacStor_kIce)%default_val = 15._rkind*secprhour! convert from hours to seconds
     parFallback(iLookBPAR%glacStor_kIce)%lower_limit = 5._rkind*secprhour
-    parFallback(iLookBPAR%glacStor_kIce)%upper_limit = 29._rkind*secprhour - 1._rkind
+    parFallback(iLookBPAR%glacStor_kIce)%upper_limit = 30._rkind*secprhour - 1._rkind
   end if
   if (parFallback(iLookBPAR%glacStor_kSnow)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%glacStor_kSnow)%default_val = 90._rkind*secprhour ! convert from hours to seconds
     parFallback(iLookBPAR%glacStor_kSnow)%lower_limit = 30._rkind*secprhour
-    parFallback(iLookBPAR%glacStor_kSnow)%upper_limit = 149._rkind*secprhour - 1._rkind
+    parFallback(iLookBPAR%glacStor_kSnow)%upper_limit = 150._rkind*secprhour - 1._rkind
   end if
   if (parFallback(iLookBPAR%glacStor_kFirn)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%glacStor_kFirn)%default_val = 575._rkind*secprhour ! convert from hours to seconds
@@ -294,101 +406,7 @@ contains
     parFallback(iLookBPAR%streamWidthMultip)%lower_limit = 0.5_rkind
     parFallback(iLookBPAR%streamWidthMultip)%upper_limit = 2._rkind
   endif
- end if
-
- ! check we have populated all variables
- ! NOTE: ultimately need a need a parameter dictionary to ensure that the parameters used are populated
- if(.not.backwardsCompatible)then  ! if we add new variables in future versions of the code, then some may be missing in the input file
-  if(any(parFallback(:)%default_val < 0.99_rkind*realMissing))then
-   do iVar=1,size(parFallback)
-    if(parFallback(iVar)%default_val < 0.99_rkind*realMissing)then
-     err=40; message=trim(message)//"variableNonexistent[var="//trim(mpar_meta(iVar)%varName)//"]"; return
-    end if
-   end do
-  end if
- ! populate parameters that were not included in the original control files
- else ! (need backwards compatibility)
-  if(isLocal)then
-   if(model_decisions(iLookDECISIONS%cIntercept)%iDecision == unDefined)then
-    parFallback(iLookPARAM%canopyWettingFactor)%default_val = 1._rkind             ! maximum wetted fraction of the canopy (-)
-    parFallback(iLookPARAM%canopyWettingExp)%default_val    = 0.666666667_rkind    ! exponent in canopy wetting function (-)
-   end if
-  end if
- end if
- 
- ! close file unit
- close(unt)
- end subroutine read_pinit
-
- ! ************************************************************************************************
- ! Subroutine to separate the default settings of the IDA solver from the rest of the model parameters
- ! ************************************************************************************************
- subroutine set_ida_defaults(absEnergyFac, parFallback, err, message)
- USE data_types,only:par_info              ! data type for parameter constraints
- implicit none
- ! define input
- real(rkind),intent(in)                 :: absEnergyFac   ! multiplier for absolute value of energy state variable (for enthalpy or temperature)
- type(par_info),intent(out)             :: parFallback(:) ! default values and constraints of model parameters
- integer(i4b),intent(out)               :: err            ! error code
- character(*),intent(out)               :: message        ! error message
- ! local varaibles
- integer(i4b)                           :: i   
- real(rkind)                            :: default_relTol = 1.e-5_rkind 
- real(rkind)                            :: default_absTol = 1.e-5_rkind
- integer(i4b), dimension(7)             :: relTol_paramIndx = [iLookPARAM%relTolTempCas, iLookPARAM%relTolTempVeg, iLookPARAM%relTolWatVeg, &
-                                                               iLookPARAM%relTolTempSoilSnow, iLookPARAM%relTolWatSnow, iLookPARAM%relTolMatric, &
-                                                               iLookPARAM%relTolAquifr]
- integer(i4b), dimension(3)             :: absTolTemp_paramIndx = [iLookPARAM%absTolTempCas, iLookPARAM%absTolTempVeg, iLookPARAM%absTolTempSoilSnow]
- integer(i4b), dimension(4)             :: absTolWat_paramIndx =  [iLookPARAM%absTolWatVeg, iLookPARAM%absTolWatSnow, iLookPARAM%absTolMatric, &
-                                                                   iLookPARAM%absTolAquifr]
- err=0 ! initialize error code
- message="set_ida_defaults/"
- 
-  ! Relative Tolerances
-  do i = 1, size(relTol_paramIndx)
-    if (parFallback(relTol_paramIndx(i))%default_val < 0.99_rkind*realMissing) then
-      parFallback(relTol_paramIndx(i))%default_val = default_relTol
-    end if
-  end do
-
-  ! Absolute Tolerances
-  do i = 1, size(absTolTemp_paramIndx)
-    if (parFallback(absTolTemp_paramIndx(i))%default_val < 0.99_rkind*realMissing) then
-      parFallback(absTolTemp_paramIndx(i))%default_val = default_absTol*absEnergyFac ! scale by absolute energy multiplier
-    end if
-  end do
-  do i = 1, size(absTolWat_paramIndx)
-    if (parFallback(absTolWat_paramIndx(i))%default_val < 0.99_rkind*realMissing) then
-      parFallback(absTolWat_paramIndx(i))%default_val = default_absTol
-    end if
-  end do
-
-  ! IDA Solver Parameters
-  if (parFallback(iLookPARAM%idaMaxOrder)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaMaxOrder)%default_val = 5
-  end if
-  if (parFallback(iLookPARAM%idaMaxInternalSteps)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaMaxInternalSteps)%default_val = 999999 ! IDA default is 500, this is often too small for us
-  end if
-  if (parFallback(iLookPARAM%idaInitStepSize)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaInitStepSize)%default_val = 0
-  end if
-  if (parFallback(iLookPARAM%idaMinStepSize)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaMinStepSize)%default_val = 0 ! IDA default is 0
-  end if
-  if (parFallback(iLookPARAM%idaMaxStepSize)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaMaxStepSize)%default_val = 0 ! 0 means IDA's default of infinity
-  end if
-  if (parFallback(iLookPARAM%idaMaxErrTestFail)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaMaxErrTestFail)%default_val = 50 ! IDA default is 10
-  end if
-  if (parFallback(iLookPARAM%idaMaxDataWindowSteps)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaMaxDataWindowSteps)%default_val = 1.e6_rkind ! default is infinity, if 1e10 or larger then treat as infinity
-  end if
-  if (parFallback(iLookPARAM%idaDetectEvents)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaDetectEvents)%default_val = 1._rkind ! default is to detect events (0 means do not detect events)
-  end if
- end subroutine set_ida_defaults
+ end subroutine set_glacier_basin_defaults
 
  ! ************************************************************************************************
  ! Subroutine to set the FUSE default values if they are not already set
