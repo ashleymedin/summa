@@ -371,8 +371,8 @@ MODULE var_lookup
   ! hyporheic exchange in a stream domain
   integer(i4b)    :: hypFrac               = integerMissing    ! fraction of the reach flow returned as hyporheic flow (-)
   integer(i4b)    :: hypLag                = integerMissing    ! residence time of the hyporheic flow paths (h)
-  ! surface wind relative to the forcing's wind station
-  integer(i4b)    :: windExposure          = integerMissing    ! surface wind as a fraction of the wind station's (-)
+  ! glacier surface wind relative to the forcing's wind station
+  integer(i4b)    :: windExposure          = integerMissing    ! glacier surface wind as a fraction of the wind station's (-)
  endtype iLook_param
 
  ! ***********************************************************************************************************
