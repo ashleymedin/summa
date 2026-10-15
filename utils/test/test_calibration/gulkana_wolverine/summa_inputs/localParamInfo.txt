@@ -137,7 +137,7 @@ rootingDepth              |       2.0000 |       0.1000 |       6.0000
 rootDistExp               |       1.0000 |       0.0100 |       1.0000
 plantWiltPsi              |    -150.0000 |    -500.0000 |       0.0000
 soilStressParam           |       5.8000 |       4.3600 |       6.3700
-critSoilWilting           |       0.0800 |       0.0000 |       1.0000
+critSoilWilting           |       0.0750 |       0.0000 |       1.0000
 critSoilTranspire         |       0.1750 |       0.0000 |       1.0000
 critAquiferTranspire      |       0.2000 |       0.1000 |      10.0000
 minStomatalResistance     |      50.0000 |      10.0000 |     200.0000
