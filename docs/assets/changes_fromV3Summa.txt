@@ -357,7 +357,10 @@ AFTER tag of v4.0.0-exp-Sundials
 -79) Jacobian fixes
      -1) frozen-soil conductivity derivative should include the ice impedance, commit 90450fcb Oct 5, 2026
      -2) when transpiration latent flux is toward the leaves (condensation) derivative should add to canopy evaporation derivative, commit 788eacb8 Oct 5, 2026
+     -3) soil water super-diagonal no longer overwrites the baseflow derivatives of the layer above, commit eab8f603 Oct 15, 2026
+     -4) scalar soil water solve zeroes the derivative of the flux from above, which it holds fixed, commit 60b167b1 Oct 15, 2026
 -80) imposeConstraints takes the BE snow (layer and canopy) temperature step along the enthalpy curve, commit 3cdbe7ea and 9b7696f2 Oct 5, 2026
 -81) change scalarRootZoneTemp to be the depth-weighed (last root layer truncated at rootingDepth) arithmatic mean, instead of non depth-weighed arithmatic mean. The variable is diagnostic only, not used in model calculations, commit 7e9eb963 and da4bf144 Oct 15, 2026
 
  82) derivforce.f90 scales the forcing wind by windExposure, the surface-to-wind-station ratio (default 1), commit e5380f28 Oct 15, 2026
+-83) updatDiagn.f90 a saturated liquid matric potential state passes its pressure to the total matric head, commit 8b38167a Oct 15, 2026
