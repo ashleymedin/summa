@@ -2228,8 +2228,8 @@ contains
    scalarDrainage = cflux + bottomSatHydCond ! compute the total flux (add gravity flux, positive downwards)
 
    ! derivatives
-   dq_dHydStateUnsat = -bottomSatHydCond/dz + dHydCond_dMatric
-   dq_dNrgStateUnsat = -bottomSatHydCond*node_dPsiLiq_dTemp/dz + dHydCond_dTemp
+   dq_dHydStateUnsat = bottomSatHydCond/dz ! the saturated conductivity at the base does not vary with the state
+   dq_dNrgStateUnsat = bottomSatHydCond*node_dPsiLiq_dTemp/dz
 
    ! Constrain flux: can't drain into glacier and can't exceed melt supply
    scalarSoilControlBot = 0._rkind ! need for derivatives
