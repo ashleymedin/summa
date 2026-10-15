@@ -557,7 +557,6 @@ def write_summa(name, h, nGRU, period):
     with Dataset(os.path.join(settings, "trialParams.nc"), "w", format="NETCDF4") as d:
         d.createDimension("hru", n)
         d.createVariable("hruId", "i8", ("hru",))[:] = hru_id
-        d.createVariable("maxstep", "f8", ("hru",))[:] = np.full(n, 900.0)
 
     for fname in ("TBL_GENPARM.TBL", "TBL_MPTABLE.TBL", "TBL_SOILPARM.TBL", "TBL_VEGPARM.TBL",
                   "localParamInfo.txt", "basinParamInfo.txt"):

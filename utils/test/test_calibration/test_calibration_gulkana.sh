@@ -3,10 +3,9 @@
 # Two-objective glacier calibration on the bundled Gulkana domain.
 #
 # NSGA-II on daily discharge (KGE) and the glacier-wide seasonal mass balance (RMSE),
-# 2009-2012 after a 2008 spin-up, over four parameters that move snow accumulation, melt
-# and glacier runoff. GRACE can stand in for the mass balance (the commented target below);
-# scoring both at once pits two measures of the same storage against each other. The
-# script checks the front the way test_calibration_bow_pareto.sh does and prints it.
+# 2009-2012 after a 2008 spin-up, over the common parameter set plus the glacier and snow ones.
+# GRACE can stand in for the mass balance (the commented target below); scoring both at once
+# pits two measures of the same storage against each other. The script checks the front the way test_calibration_bow_pareto.sh does and prints it.
 #
 # The budget is tiny, so this exercises the machinery; it does not calibrate the glacier.
 # Needs an executable built with -DUSE_MPI=ON. No mizuRoute topology is used.
@@ -98,13 +97,52 @@ end_date   = "2012-12-31"
 n_samples = ${N_SAMPLES}
 
 param_list = [
+    "k_soil",
+    "theta_sat",
+    "aquiferBaseflowExp",
+    "aquiferBaseflowRate",
+    "qSurfScale",
+    "summerLAI",
     "frozenPrecipMultip",
+    "Fcapil",
     "tempCritRain",
-    "albedoMax",
-    "glacStor_kIce"
+    "heightCanopyTop",
+    "heightCanopyBottom",
+    "windReductionParam",
+    "vGn_n",
+    "routingGammaScale",
+    "routingGammaShape",
+    "glacierWindFactor",
+    "glacierTempReduction",
+    "glacStor_kIce",
+    "glacStor_kSnow",
+    "glacStor_kFirn",
+    "debrisConc",
+    "k_snow",
+    "mw_exp",
+    "albedoDecayRate",
+    "albedoMax"
 ]
 
 write_aligned = false
+
+
+[calibration.parameter_transformations]
+
+k_soil              = "log"
+aquiferBaseflowRate = "log"
+
+
+[[parameter_dependencies.ordered]]
+
+parameters   = ["heightCanopyBottom", "heightCanopyTop"]
+gap_fraction = 0.25
+
+[[parameter_dependencies.ordered]]
+
+parameters   = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+gap_fraction = 0.025
+sample_gaps  = true
 
 
 [calibration.nsga2]
