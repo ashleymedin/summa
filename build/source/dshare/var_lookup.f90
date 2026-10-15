@@ -371,6 +371,8 @@ MODULE var_lookup
   ! hyporheic exchange in a stream domain
   integer(i4b)    :: hypFrac               = integerMissing    ! fraction of the reach flow returned as hyporheic flow (-)
   integer(i4b)    :: hypLag                = integerMissing    ! residence time of the hyporheic flow paths (h)
+  ! glacier surface wind relative to the forcing's wind station
+  integer(i4b)    :: windExposure          = integerMissing    ! glacier surface wind as a fraction of the wind station's (-)
  endtype iLook_param
 
  ! ***********************************************************************************************************
@@ -805,6 +807,8 @@ MODULE var_lookup
   integer(i4b)    :: dLakeAdvNrgFlux_dTemp           = integerMissing ! derivative of the lake advective energy source w.r.t. the layer temperature (J m-3 s-1 K-1)
   integer(i4b)    :: dLakeAdvNrgFlux_dLiq            = integerMissing ! derivative of the lake energy source w.r.t. the layer's liquid water at fixed liquid depth (J m-3 s-1)
   integer(i4b)    :: dLakeAdvNrgFlux_dDepth          = integerMissing ! derivative of the lake energy source w.r.t. the column liquid depth (J m-4 s-1)
+  ! derivative of the exfiltration
+  integer(i4b)    :: dExfil_dDrive                   = integerMissing ! derivative of exfiltration w.r.t. the column surplus it returns (-)
  endtype iLook_deriv
 
  ! ***********************************************************************************************************
@@ -1078,7 +1082,7 @@ MODULE var_lookup
                                                                         171,172,173,174,175,176,177,178,179,180,&
                                                                         181,182,183,184,185,186,187,188,189,190,&
                                                                         191,192,193,194,195,196,197,198,199,200,&
-                                                                        201,202,203,204,205)
+                                                                        201,202,203,204,205,206)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1119,7 +1123,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82, 83, 84, 85)
+                                                                         81, 82, 83, 84, 85, 86)
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =iLook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

@@ -467,6 +467,7 @@ contains
   ! hyporheic exchange in a stream domain
   case('hypFrac'                  ); get_ixParam = iLookPARAM%hypFrac                ! fraction of the reach flow returned as hyporheic flow (-)
   case('hypLag'                   ); get_ixParam = iLookPARAM%hypLag                 ! residence time of the hyporheic flow paths (h)
+  case('windExposure'             ); get_ixParam = iLookPARAM%windExposure           ! glacier surface wind as a fraction of the wind station's (-)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
@@ -944,6 +945,7 @@ contains
   case('dLakeAdvNrgFlux_dTemp'          ); get_ixDeriv = iLookDERIV%dLakeAdvNrgFlux_dTemp          ! derivative of the lake advective energy source w.r.t. layer temperature
   case('dLakeAdvNrgFlux_dLiq'           ); get_ixDeriv = iLookDERIV%dLakeAdvNrgFlux_dLiq           ! derivative of the lake energy source w.r.t. liquid water at fixed liquid depth
   case('dLakeAdvNrgFlux_dDepth'         ); get_ixDeriv = iLookDERIV%dLakeAdvNrgFlux_dDepth         ! derivative of the lake energy source w.r.t. the column liquid depth
+  case('dExfil_dDrive'                  ); get_ixDeriv = iLookDERIV%dExfil_dDrive                  ! derivative of exfiltration w.r.t. the column surplus it returns
 
   case default
    get_ixDeriv = integerMissing

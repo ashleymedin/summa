@@ -319,6 +319,7 @@ subroutine computFlux(&
   end associate
 
   ! *** CALCULATE THE SHALLOW GROUNDWATER FLOW OR DEBRIS LATERAL FLOW ***
+  deriv_data%var(iLookDERIV%dExfil_dDrive)%dat(1) = 0._rkind ! no exfiltration unless groundwatr finds a surplus
   associate(nSoilOnlyHyd => indx_data%var(iLookINDEX%nSoilOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the soil domain
     if (nSoilOnlyHyd>0) then ! check if computing soil hydrology
       if (local_ixGroundwater/=qbaseTopmodel .and. local_ixGroundwater/=modLatflow .and. nGlce==0) then ! set baseflow fluxes to zero if nothing flows laterally
@@ -929,7 +930,7 @@ contains
 
  subroutine finalize_groundwatr
   call io_groundwatr%finalize(ixSaturation)
-  call out_groundwatr%finalize(dBaseflow_dWat,dBaseflow_dTk,flux_data,err,cmessage)
+  call out_groundwatr%finalize(dBaseflow_dWat,dBaseflow_dTk,flux_data,deriv_data,err,cmessage)
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
  end subroutine finalize_groundwatr
