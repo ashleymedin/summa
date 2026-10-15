@@ -3,7 +3,7 @@
 
 Reads the USGS Benchmark Glacier station records (<stations>/<elevation>/LVL2/*_15min_LVL2_*.csv, as
 distributed with the glacier mass-balance data) and the monthly SUMMA forcing files, and writes corrected
-copies of the forcing.  Wind and longwave are copied unchanged.
+copies of the forcing.  Longwave is copied unchanged.
 
   airtemp   K added, per HRU, calendar month and forcing hour type (wet or dry, by the forcing's own
             precipitation against --wet-threshold): the mean station-minus-forcing difference, with the
@@ -13,6 +13,9 @@ copies of the forcing.  Wind and longwave are copied unchanged.
   SWRadAtm  multiplied, per HRU: the ratio of summed station to summed forcing incoming shortwave
   airpres   multiplied, per HRU: the ratio of mean station pressure, carried hypsometrically to the HRU
             elevation, to mean forcing pressure
+  windspd   multiplied, every HRU alike, per calendar month: the ratio of mean station wind to mean forcing
+            wind at the station's elevation, times --wind-exposure, the surface's share of the exposed
+            station's wind (0.61 on Gulkana: on-ice Site B against the 1,725 m ridge station, 2024)
   pptrate   multiplied, per HRU, only with --stakes: measured winter balance over the corrected forcing's
             snowfall at the stakes within --stake-window of the HRU (or the nearest such group), over each
             stake's fall-to-spring interval.  Snowfall is split on wet-bulb temperature as SUMMA does, with
@@ -181,6 +184,8 @@ def main():
     p.add_argument("--temp-range", type=float, default=2.0, help="wet-bulb range over which the phase changes, K")
     p.add_argument("--wet-threshold", type=float, default=0.1,
                    help="forcing precipitation above which an hour is corrected as wet, mm/h")
+    p.add_argument("--wind-exposure", type=float, default=0.61,
+                   help="surface wind as a fraction of the station's; 0 leaves the wind unchanged")
     p.add_argument("--gauge-shield", choices=sorted(CATCH),
                    help="wind shield of the station's weighing gauge (SA single-Alter, UN none); scales the "
                         "precipitation of HRUs without stakes to the undercatch-corrected gauge")
@@ -201,7 +206,7 @@ def main():
 
     # forcing, all files
     files = sorted(glob.glob(os.path.join(a.forcing, "*.nc")))
-    hours, frc = [], {v: [] for v in ("airtemp", "spechum", "SWRadAtm", "airpres", "pptrate")}
+    hours, frc = [], {v: [] for v in ("airtemp", "spechum", "SWRadAtm", "airpres", "pptrate", "windspd")}
     for f in files:
         with Dataset(f) as d:
             if "time" not in d.variables or "airtemp" not in d.variables:
@@ -253,6 +258,19 @@ def main():
                      lambda j: np.isfinite(t_hru[:, j]), 0.0)
 
     ratio = {v: np.ones(nh) for v in ("SWRadAtm", "airpres", "pptrate")}
+    # wind: monthly ratio at the station with the most wind, the same for every HRU
+    wind = np.ones(13)
+    wz = max(stations, key=lambda s: len(stations[s].get("U", {})))
+    if a.wind_exposure > 0:
+        u_st = on_hours(stations[wz].get("U", {}))
+        u_frc = along_elevation(z, frc["windspd"], wz)
+        all_ok = np.isfinite(u_st)
+        if all_ok.sum() > 24 * 365:
+            wind[:] = a.wind_exposure * u_st[all_ok].mean() / u_frc[all_ok].mean()
+            for m in range(1, 13):
+                ok = all_ok & (month == m)
+                if ok.sum() > 24 * 30:
+                    wind[m] = a.wind_exposure * u_st[ok].mean() / u_frc[ok].mean()
     # shortwave: ratio of sums, no elevation adjustment
     sw = on_hours(stations[sw_z].get("SW", {}))
     sw = np.where(sw < 0, 0.0, sw)
@@ -315,6 +333,8 @@ def main():
                     x = x + offset[wet_file, m_file, cols]
                 elif name == "spechum":
                     x = x * q_ratio[wet_file, m_file, cols]
+                elif name == "windspd":
+                    x = x * wind[m_file]
                 elif name in ratio:
                     x = x * ratio[name][None, :]
                 o[:] = x
@@ -335,8 +355,11 @@ def main():
         w.writerow(["wet_threshold_mm_per_h", f"{a.wet_threshold}"])
         if gauge:
             w.writerow(["pptrate_gauge", f"{a.gauge_shield} shield, {gauge}"])
+        w.writerow(["windspd_ratio"] + [f"{wind[m]:.3f}" for m in range(1, 13)])
+        w.writerow(["wind_exposure", f"{a.wind_exposure}", f"station {wz} m"])
 
     print("lapse rate (K/km) by month:", " ".join(f"{1000 * lapse[m]:.1f}" for m in range(1, 13)))
+    print(f"wind x{a.wind_exposure} of the {wz} m station, by month:", " ".join(f"{wind[m]:.2f}" for m in range(1, 13)))
     if gauge:
         print(f"precipitation without stakes from the {a.gauge_shield}-shielded {gauge}")
     for j, h in enumerate(hru_ids):
