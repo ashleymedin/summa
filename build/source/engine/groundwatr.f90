@@ -167,6 +167,7 @@ subroutine groundwatr(&
     ! check for an early return (no layers are "active")
     if (ixSaturation > nSoil) then
       scalarExfiltration     = 0._rkind   ! exfiltration from the soil profile (m s-1)
+      out_groundwatr%dExfil_dDrive = 0._rkind ! derivative of exfiltration w.r.t. the column surplus it returns (-)
       mLayerColumnOutflow(:) = 0._rkind   ! column outflow from each soil layer (m3 s-1)
       mLayerBaseflow(:)      = 0._rkind   ! baseflow from each soil layer (m s-1)
       dBaseflow_dWat(:,:)    = 0._rkind   ! derivative in baseflow w.r.t. soil water characteristic
@@ -196,10 +197,15 @@ subroutine groundwatr(&
                           dVolTot_dPsi0,           & ! intent(in):    derivative in total volumetric water content w.r.t. matric head (m-1)
                           mLayerdTheta_dPsi,       & ! intent(in):    derivative in liquid water content w.r.t. matric potential (m-1)
                           mLayerdTheta_dTk,        & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                          in_groundwatr%dqTop_dHydStateVec, & ! intent(in): derivative in the soil surface flux w.r.t. hydrology state in each soil layer
+                          in_groundwatr%dqTop_dNrgStateVec, & ! intent(in): derivative in the soil surface flux w.r.t. temperature in each soil layer (m s-1 K-1)
+                          in_groundwatr%dqBot_dHydState,    & ! intent(in): derivative in the soil bottom flux w.r.t. hydrology state in the bottom soil layer
+                          in_groundwatr%dqBot_dNrgState,    & ! intent(in): derivative in the soil bottom flux w.r.t. temperature in the bottom soil layer (m s-1 K-1)
                           ! output: fluxes and derivatives
                           mLayerBaseflow,          & ! intent(out):   baseflow flux in each soil layer (m s-1)
                           dBaseflow_dWat,          & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
                           dBaseflow_dTk,           & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
+                          out_groundwatr%dExfil_dDrive, & ! intent(out): derivative of exfiltration w.r.t. the column surplus it returns (-)
                           err, cmessage)             ! intent(out):   error control
    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
    ! end association to variables in data structures
@@ -228,10 +234,15 @@ subroutine computBaseflow(&
                           dVolTot_dPsi0,                 & ! intent(in):    derivative in total volumetric water content w.r.t. matric head (m-1)
                           mLayerdTheta_dPsi,             & ! intent(in):    derivative in liquid water content w.r.t. matric potential (m-1)
                           mLayerdTheta_dTk,              & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                          dqTop_dHydStateVec,            & ! intent(in):    derivative in the soil surface flux w.r.t. hydrology state in each soil layer
+                          dqTop_dNrgStateVec,            & ! intent(in):    derivative in the soil surface flux w.r.t. temperature in each soil layer (m s-1 K-1)
+                          dqBot_dHydState,               & ! intent(in):    derivative in the soil bottom flux w.r.t. hydrology state in the bottom soil layer
+                          dqBot_dNrgState,               & ! intent(in):    derivative in the soil bottom flux w.r.t. temperature in the bottom soil layer (m s-1 K-1)
                           ! output: fluxes and derivatives
                           mLayerBaseflow,                & ! intent(out):   baseflow flux in each soil layer (m s-1)
                           dBaseflow_dWat,                & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
                           dBaseflow_dTk,                 & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
+                          dExfil_dDrive,                 & ! intent(out):   derivative of exfiltration w.r.t. the column surplus it returns (-)
                           ! error handling
                           err, message)                    ! intent(out):   error control
   USE soil_utils_module,only:iceImpede        ! compute the ice impedance factor
@@ -256,10 +267,15 @@ subroutine computBaseflow(&
   real(rkind),intent(in)           :: dVolTot_dPsi0(:)        ! derivative in total volumetric water content w.r.t. matric head (m-1)
   real(rkind),intent(in)           :: mLayerdTheta_dPsi(:)    ! derivative in liquid water content w.r.t. matric potential (m-1)
   real(rkind),intent(in)           :: mLayerdTheta_dTk(:)     ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+  real(rkind),intent(in)           :: dqTop_dHydStateVec(:)   ! derivative in the soil surface flux w.r.t. hydrology state in each soil layer
+  real(rkind),intent(in)           :: dqTop_dNrgStateVec(:)   ! derivative in the soil surface flux w.r.t. temperature in each soil layer (m s-1 K-1)
+  real(rkind),intent(in)           :: dqBot_dHydState         ! derivative in the soil bottom flux w.r.t. hydrology state in the bottom soil layer
+  real(rkind),intent(in)           :: dqBot_dNrgState         ! derivative in the soil bottom flux w.r.t. temperature in the bottom soil layer (m s-1 K-1)
   ! output: baseflow
   real(rkind),intent(out)          :: mLayerBaseflow(:)       ! baseflow from each soil layer (m s-1)
   real(rkind),intent(out)          :: dBaseflow_dWat(:,:)     ! derivative in baseflow w.r.t. soil water characteristic
   real(rkind),intent(out)          :: dBaseflow_dTk(:,:)      ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
+  real(rkind),intent(out)          :: dExfil_dDrive           ! derivative of exfiltration w.r.t. the column surplus it returns (-)
   ! error handling
   integer(i4b), intent(out)        :: err                     ! error code
   character(*), intent(out)        :: message                 ! error message
@@ -461,8 +477,10 @@ subroutine computBaseflow(&
     exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow
     if (exfilDrive > 0._rkind .and. logF > tiny(1._rkind)) then
       scalarExfiltration = logF*exfilDrive  ! m s-1
+      dExfil_dDrive      = logF
     else
       scalarExfiltration = 0._rkind
+      dExfil_dDrive      = 0._rkind
     end if
 
     ! compute the baseflow in each layer (m s-1)
@@ -529,9 +547,11 @@ subroutine computBaseflow(&
     ! compute the derivative in the exfiltration flux and add to the baseflow derivative matrix
     if (exfilDrive > 0._rkind .and. logF > tiny(1._rkind)) then
       do iLayer=1,nSoil
-        dExfiltrate_dWat(iLayer) = -sum(dBaseflow_dWat(1:nSoil,iLayer))*logF + dLogFunc_dWat(iLayer)*exfilDrive
-        dExfiltrate_dTk(iLayer) = -sum(dBaseflow_dTk(1:nSoil,iLayer))*logF
+        dExfiltrate_dWat(iLayer) = -sum(dBaseflow_dWat(1:nSoil,iLayer))*logF + dLogFunc_dWat(iLayer)*exfilDrive + logF*dqTop_dHydStateVec(iLayer)
+        dExfiltrate_dTk(iLayer) = -sum(dBaseflow_dTk(1:nSoil,iLayer))*logF + logF*dqTop_dNrgStateVec(iLayer)
       end do  ! end looping through soil layers
+      dExfiltrate_dWat(nSoil) = dExfiltrate_dWat(nSoil) - logF*dqBot_dHydState ! water leaving the base is not surplus
+      dExfiltrate_dTk(nSoil)  = dExfiltrate_dTk(nSoil)  - logF*dqBot_dNrgState
       dBaseflow_dWat(1,1:nSoil) = dBaseflow_dWat(1,1:nSoil) + dExfiltrate_dWat(1:nSoil)
       dBaseflow_dTk(1,1:nSoil) = dBaseflow_dTk(1,1:nSoil) + dExfiltrate_dTk(1:nSoil)
     end if
