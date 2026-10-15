@@ -347,7 +347,7 @@ subroutine popMetadat(err,message)
   ! hyporheic exchange in a stream domain
   mpar_meta(iLookPARAM%hypFrac)                        = var_info('hypFrac'                        , 'fraction of the reach flow returned as hyporheic flow'            , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%hypLag)                         = var_info('hypLag'                         , 'residence time of the hyporheic flow paths'                       , 'h'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%windExposure)                   = var_info('windExposure'                   , 'surface wind as a fraction of the wind station''s'                , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%windExposure)                   = var_info('windExposure'                   , 'glacier surface wind as a fraction of the wind station''s'        , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------
