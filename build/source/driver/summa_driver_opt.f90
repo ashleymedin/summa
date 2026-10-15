@@ -40,6 +40,7 @@ program summa_driver_opt
   USE summa_parameter_sampling, only: check_search_settings
   USE summa_parameter_sampling, only: initialize_parameter_evaluation
   USE summa_parameter_sampling, only: dispatch_parameter_samples
+  USE summa_simulation,         only: n_calibration_targets
 
   ! MPI
   USE mpi, only: MPI_Init,MPI_Finalize
@@ -419,6 +420,9 @@ contains
     ! refuse a search the configuration cannot run before the spinup is paid for
     call check_search_settings(config,err,message)
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+    if(instance_parallel%rank==0 .and. trim(config%calib%algorithm)=='dds' .and. n_calibration_targets(config)>1) &
+      write(output_unit,'(A,I0,A)') 'WARNING: DDS searches the weighted sum of the ',n_calibration_targets(config), &
+                                    ' calibration targets; nsga2 keeps them separate'
     
     ! configure rank-specific logging
     iulog=99
