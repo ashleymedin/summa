@@ -1,2 +1,0 @@
-'NWAM_SUMMA_forcing_201701.nc'
-'NWAM_SUMMA_forcing_201702.nc'
