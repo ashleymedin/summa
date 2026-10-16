@@ -1,0 +1,10 @@
+# Output control - the last step only; a calibration trial is judged on SUMMA's output.
+BEGIN OPTIONS
+  BUDGET  FILEOUT  sagehen.cbc
+  HEAD    FILEOUT  sagehen.hds
+END OPTIONS
+
+BEGIN PERIOD 1
+  SAVE  HEAD    LAST
+  SAVE  BUDGET  LAST
+END PERIOD

@@ -1,111 +1,67 @@
-# SUMMA / MODFLOW 6 coupled test cases
+# SUMMA / MODFLOW 6 coupling
 
-A thin BMI coupler runs SUMMA as the land model and MODFLOW 6 as the groundwater model.
-This folder holds the coupler driver script, two MODFLOW 6 models, and eleven cases.
+A thin BMI coupler runs SUMMA as the land model and MODFLOW 6 as the groundwater model. This folder
+holds one test of the coupling and the calibration through it, `sagehen_calibration/`, and documents
+the coupler. The coupled cases it was developed on (Sagehen from 1 to 3396 HRUs, Little River, the
+twin experiment) and the tools that build them live in `summa_modflow_workflow`.
 
-## Cases
+## `sagehen_calibration/`
 
-| script | case | HRUs | `groundwatr` | what it is for |
-|---|---|---|---|---|
-| `./run_sagehen1.sh` | `domain_sagehen1` | 1 | `modflow` | the basic one-way/two-way coupling |
-| `./run_sagehen4.sh` | `domain_sagehen4` | 4 | `modLatflow` | lateral flow between HRUs; guards the cascade ordering in `run_oneGRU` |
-| `./run_sagehen4_noLatflow.sh` | `domain_sagehen4` | 4 | `modflow` | the same four HRUs without lateral flow |
-| `./run_sagehen1_steady.sh` | `domain_sagehen1` | 1 | `modflow` | steady-state first stress period, and a DRN at land surface returning groundwater discharge as surface runoff |
-| `./run_sagehen1_deeproot.sh` | `domain_sagehen1` | 1 | `modflow` | groundwater evapotranspiration through an EVT package |
-| `./run_sagehen9.sh` | `domain_sagehen9` | 3396 | `modLatflow` | one HRU per MODFLOW cell in 9 GRUs; HRU area equals cell area, so there is no aggregation or area error left to correct |
-| `./run_sagehen9_noLatflow.sh` | `domain_sagehen9` | 3396 | `modflow` | the same 3396 HRUs without lateral flow |
-| `./run_sagehen9_mizuroute.sh` | `domain_sagehen9` | 3396 | `modLatflow` | `run_sagehen9.sh` with the 9 reaches routed by mizuRoute; needs a build with both couplers |
-| `./run_sagehen9_wel.sh` | `domain_sagehen9` | 3396 | `modflow` | `run_sagehen9_noLatflow.sh` with one pumping well; `tools/check_sagehen_wel.py` shows its drawdown reach `lowerBoundHead` |
-| `./run_sagehen9_deeproot.sh` | `domain_sagehen9` | 3396 | `modflow` | `run_sagehen1_deeproot.sh`'s EVT mechanism over one HRU per cell |
-| `./run_sagehen1_wet.sh` | `domain_sagehen1` | 1 | `modflow` | the lumped half of `run_sagehen9_noLatflow.sh`: same event, decisions and MODFLOW model |
-| `./run_sagehen1_wet_deeproot.sh` | `domain_sagehen1` | 1 | `modflow` | the lumped half of `run_sagehen9_deeproot.sh` |
+A coupled SUMMA / MODFLOW 6 / mizuRoute calibration of lumped Sagehen Creek, against every kind of
+target and through every MODFLOW package the coupler drives.
 
-`domain_sagehen4` carries two file managers, `fileManager_latflow.txt` and
-`fileManager_noLatflow.txt`, whose decision files differ on the `groundwatr` line alone, so
-running the pair isolates what lateral flow contributes. They write `run1_latflow*` and
-`run1_noLatflow*`, so neither overwrites the other.
+The domain has 9 GRUs, each a land HRU mapped onto all of its cells and a stream HRU for its reach; mizuRoute
+routes the 9 reaches. MODFLOW runs `ex-gwf-sagehen-gwe` with:
 
-`run_sagehen1_steady.sh` and the three deeproot cases use `ex-gwf-sagehen-ss`, which adds a
-steady-state first stress period and an EVT package; the rest share the MODFLOW 6 model
-in `ex-gwf-sagehen`. Both carry a DRN at land surface, returned to SUMMA as surface runoff, so
-the water table cannot rise above the ground over a spin-up. All of them run the same 72 hourly steps. Each case carries its own
-`summa_modflow6.config`, so they can differ in package names, roles, HRU→cell map and feedback.
+| package | role |
+|---|---|
+| RCH, UZF | SUMMA's drainage, through UZF where the water table is below the soil column |
+| UZE, GWE (ESL, CND) | the drainage's and the soil base's heat; GWE's water-table temperature is SUMMA's aquifer temperature |
+| SFR | baseflow to the streams (role `baseflow`) |
+| DRN | water at land surface (role `surface_discharge`) |
+| GHBB, DRNB | the base exchange |
+| EVTA | SUMMA's aquifer transpiration demand (role `gw_et`), with roots reaching 6 m |
+| OBS6 | the head at ten cells, one per decile of depth to water |
 
-Every model carries a UZF package below the soil column, one cell per active cell bar the CHD
-outlet, written by `tools/build_sagehen_uzf.py` with the upstream example's parameters and 3
-trailing waves. Its starting water content carries the long-term mean recharge, so the
-unsaturated zone starts in step with the settled heads rather than empty.
+The base exchange is a per-cell correction, so on a lumped HRU it tests the path rather than closing
+it better. The calibration spins up over water year 2017 and scores October-November 2017.
 
-Every model also carries the base exchange's GHB (`GHBB`) and DRN (`DRNB`), one row per UZF cell,
-written by `tools/build_sagehen_base.py` at `DIS/TOP` with zero conductance; the coupler sets them each
-step. Only the `domain_sagehen9` configs name them. A lumped HRU's flux answers the mean head of its
-cells, so a per-cell correction is not its linearisation, and the `domain_sagehen1` and
-`domain_sagehen4` configs leave the exchange explicit, as lumped layouts never bounced. Every config
-holds drainage a week before UZF (`uzf_hold_days = 7`).
+`run_test.sh` runs three calibrations:
 
-Every MODFLOW model starts from the same `strt1.txt`: the heads `tools/spinup_sagehen9_heads.py`
-settles on the lumped calibration domain, a steady state then 20 coupled water years 2017. The
-native `ex-gwf-sagehen` heads sit near land surface, and the uplands drain from them for decades.
+1. A reference trial with every searched parameter pinned to a true value writes the targets
+   (`make_targets.py`), as daily means:
 
-The February 2017 cases — `run_sagehen1_wet*.sh` and every `run_sagehen9*.sh` — start the event
-from a spin-up, 2017-01-15 to 2017-02-06, 552 hourly steps with the same decisions, parameters and
-MODFLOW model. The first run of a case makes its spin-up, which takes about twenty minutes for
-`domain_sagehen9`; later runs restart from it. The spin-up lands in the domain's `simulations/spinup/`
-— the aquifer heads as `heads_<case>.bin` and SUMMA's state as `spinup_<case>_restart_2017020623_*.nc`
-— and is only remade once `heads_<case>.bin` is gone, so delete that folder after changing anything
-the spin-up depends on. `run_sagehen9_mizuroute.sh` restarts from `run_sagehen9.sh`'s spin-up.
+   | target | variable | unit scored | metric |
+   |---|---|---|---|
+   | discharge | `streamflow` | reach 9 | KGE |
+   | stream temperature | `T_reach` | reach 9 | RMSE |
+   | heads | `modflow_obs`, ten cells pooled | OBS6 | RMSE |
+   | storage | `basin__StorageChange`, accumulated | domain | RMSE |
+   | baseflow | `basin__AquiferBaseflow` | GRU 5 | KGE |
+   | aquifer | `scalarAquiferStorage`, departure from its mean | HRU 5 | RMSE |
 
-`run_sagehen9_wel.sh` runs `ex-gwf-sagehen-wel`, which is `ex-gwf-sagehen` by symbolic link bar its name
-file, its output control and a WEL package pumping 500 m³ a day from one valley cell. The coupler does not
-know the well is there: the drawdown reaches SUMMA through the head alone. Over the event the cell's water
-table falls 0.86 m below the soil-column base, `lowerBoundHead` follows it a step behind, and the HRU's
-drainage turns from rise to free drainage into UZF. Demand-driven pumping through AG has no SUMMA
-counterpart, since SUMMA has no irrigation demand.
+2. The same pinned trial, scored against them, must reproduce every one, and its coupled budget must
+   show water or heat through each package above.
+3. NSGA-II searches the SUMMA and MODFLOW parameters, and each worker's MODFLOW files must hold its last
+   trial's multipliers:
 
-`run_sagehen9_mizuroute.sh` is the only case that also needs a TOML configuration file, which
-`coupler_commands.sh` takes with `-t` and passes to the coupler as a third argument. It
-configures the river network; everything SUMMA needs is still in the file manager. That case
-needs `bin/summa_modflow6_mizuroute.exe`, built with `-DUSE_MODFLOW6=ON -DUSE_MIZUROUTE=ON`.
+   | parameter | truth | searched | scales |
+   |---|---|---|---|
+   | `K_mult` | 2.0 | 0.2-5, log | `kh1.txt`, `kv1.txt` (arrays) |
+   | `Sy_zone3_mult` | 0.7 | 0.5-1.5 | `sy1.txt` in zone 3 of `syzone1.txt` |
+   | `rhk_mult` | 3.0 | 0.1-10, log | SFR PACKAGEDATA column 10, streambed K |
+   | `vks_mult` | 0.5 | 0.1-10, log | UZF PACKAGEDATA column 8, VKS |
+   | `kts_mult` | 1.5 | 0.5-2 | `kts1.txt`, GWE solid conductivity |
+   | `k_soil`, `k_macropore` | 3e-6, 1e-2 m s-1 | their `localParamInfo.txt` bounds, log | SUMMA |
 
-`run_sagehen1_deeproot.sh` is a mechanism test rather than a realistic Sagehen setup: it sets
-`rootingDepth` to 6 m against a 4 m soil column with `rootProfil = doubleExp` and both root
-scale factors at their lower bound, because the bundled parameters otherwise place 99.98% of
-roots inside the soil column and groundwater ET never switches on. Note that `powerLaw` clamps
-the rooting depth to the soil depth, so it can never place roots below the column.
+```bash
+./run_test.sh [population] [generations] [n_ranks]   # defaults: 4, 2, 5
+```
 
-Build the coupler first, with `-DUSE_MODFLOW6=ON` (see `build/cmake/build_mflow.mac.bash`);
-it lands in `srcextern/summa/bin/summa_modflow6.exe`.
-
-## Lumped against distributed
-
-`run_sagehen1_wet*.sh` put the one-HRU domain on `domain_sagehen9`'s event, 2017-02-07 to
-2017-02-09, and its decisions (`hc_profile = exp_prof`, `infRateMax = topmodel_GA`), so the pairs
-differ in structure alone. The forcing is identical, bit for bit. `tools/compare_lumped_distributed.py`
-sums each flux over the run and weights it by area, in mm, because `domain_sagehen1` is 5.47%
-larger than the grid.
-
-Every case starts the event from its own spin-up, so the soil column is in equilibrium with
-its aquifer and there is about 440 mm of snow on the ground.
-
-| mm over 72 h | lumped | distributed | + latflow | lumped, deeproot | distributed, deeproot |
-|---|---:|---:|---:|---:|---:|
-| rain + melt | 142.62 | 141.91 | 141.91 | 142.62 | 141.90 |
-| infiltration | 117.27 | 134.58 | 128.32 | 114.00 | 139.43 |
-| surface runoff | 25.34 | 7.33 | 13.59 | 28.62 | 2.47 |
-| soil drainage (negative: up from the aquifer) | 0.35 | −1.96 | 0.84 | 0.24 | −2.48 |
-| aquifer seepage (DRN) | 1.34 | 0.01 | 0.83 | 1.71 | 0.05 |
-| lateral export to the reaches | – | – | 3.12 | – | – |
-| `basin__TotalRunoff` | 26.72 | 7.35 | 17.54 | 30.36 | 2.54 |
-| `averageRoutedRunoff` | 21.03 | 4.32 | 13.03 | 25.12 | 1.89 |
-| `scalarTranspireLimAqfr` (mean) | – | – | – | 0.541 | 0.522 |
-
-Drainage is small, so the runoff differences are structure. The lumped HRU turns 18% of the rain
-and melt into surface runoff against 5% distributed, on either MODFLOW model. The distributed seepage
-is nearly gone, 0.01 mm against 0.55 before the base exchange: the hourly bounce had been pushing
-water out through the drain. The infiltration
-closure is already evaluated per cell, so what remains is `surfRun_SE = homegrown_SE` taking the
-infiltrating area from how full the root zone is, which the lumped column holds as one state. ET is
-1.87 mm in every run, and aquifer transpiration is below 10⁻⁴ mm, since February is energy-limited.
+It needs `bin/summa_modflow6_opt_sundials_mizuroute.exe`, built with `-DUSE_MPI=ON -DUSE_MIZUROUTE=ON
+-DUSE_MODFLOW6=ON`, and a python3 with netCDF4. @TIMING@ The domain is built by
+`build_sagehen_calibration_test.py` in `summa_modflow_workflow`; rebuild it there after changing the
+model or the builder.
 
 ## How the coupling works
 
@@ -222,16 +178,16 @@ rather than a stop, since a missing declaration is not proof of the wrong unit.
 
 ## Running
 
-    ./coupler_commands.sh -c CONFIG [-t TOML] [-r HEADS [-s SPINUP_FILEMANAGER]] [-w HEADS]
-                          MODFLOW_CASE SUMMA_FILEMANAGER [summa_modflow6.exe]
+The serial coupler runs from the MODFLOW case directory, which holds `mfsim.nam`:
 
-`-c/--config` is **required**: each case keeps its own config beside its settings. The
-executable defaults to `../bin/summa_modflow6.exe`.
+    cd MODFLOW_CASE && summa_modflow6.exe SUMMA_FILEMANAGER CONFIG [TOML]
+                       [--head-restart-read HEADS] [--head-restart-write HEADS]
 
-`-r HEADS` starts MODFLOW from a saved head field, and SUMMA from whatever restart its file manager
-names as `initConditionFile`. `-w HEADS` writes the head field at the end, and SUMMA's restart with
-it. `-s SPINUP_FILEMANAGER`, given with `-r`, runs that file manager first as the spin-up writing
-`HEADS` whenever `HEADS` does not exist yet; the spin-up never routes, so `-t` is left out of it.
+The TOML is needed only with mizuRoute, whose river network it configures. `--head-restart-read` starts
+MODFLOW from a saved head field, and SUMMA from whatever restart its file manager names as
+`initConditionFile`. `--head-restart-write` writes the head field at the end, and SUMMA's restart with it.
+The cases in `summa_modflow_workflow` run it through their `coupler_commands.sh`, which resolves the
+paths and runs a spin-up first when its heads do not exist yet.
 
 ### MPI (`summa_modflow6_mpi.exe`)
 
@@ -243,8 +199,7 @@ potentially many GRUs, not one MODFLOW grid per GRU (see the header of
 `summa_modflow6_mpi.f90` for the full rationale). In `build/CMakeLists.txt` it links both
 halves of that: `parallel_utils` for the GRU split (as `summa_mpi.exe` does) and
 `bmif`/`MF6_LIB` for driving MODFLOW 6 (as the plain `summa_modflow6.exe` does). Run it
-directly (it takes the same file manager/config arguments as the plain coupler, not through
-`coupler_commands.sh`):
+directly; it takes the same file manager/config arguments as the plain coupler:
 
     cd MODFLOW_CASE && mpirun -n <nranks> /path/to/summa_modflow6_mpi.exe SUMMA_FILEMANAGER CONFIG
 
@@ -308,12 +263,12 @@ span any number of lines.
 
 `iHRU` is SUMMA's internal HRU index, which runs GRU by GRU. With one GRU that is the row
 order of `attributes.nc`; with several it is that order only if the file is itself written
-GRU by GRU, which `domain_sagehen9` is.
+GRU by GRU, which `sagehen_calibration/domain` is.
 
 ## Mapping HRUs to cells
 
 HRUs may each own a disjoint set of cells — down to one cell per HRU. They need not overlap
-and need not cover the whole grid; `domain_sagehen4` uses four disjoint regions.
+and need not cover the whole grid; `sagehen_calibration/domain` gives each GRU's land HRU its own cells.
 
 The one requirement is that an HRU's `elevation` in `attributes.nc` be the mean land surface
 of the cells it maps to, because the coupler forms
@@ -325,5 +280,5 @@ checks this against `DIS/TOP` plus the column depth at start-up and stops with t
 than letting SUMMA fail to converge for no visible reason.
 
 `DIS/TOP` must be the base of SUMMA's soil column, as GSFLOW puts its MODFLOW top at the
-soil-zone base, so the two models share no pore space. Every bundled grid has it 4 m below
-the native land surface, which is kept as `land1.txt` for the build tools.
+soil-zone base, so the two models share no pore space. The test's grid has it 4 m below
+the native land surface, which is kept as `land1.txt`.

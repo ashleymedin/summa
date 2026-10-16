@@ -1,0 +1,13 @@
+# Observations - the head at each observation cell, every step; well1 is the synthetic well.
+BEGIN CONTINUOUS FILEOUT sagehen.obs.csv
+  well1  HEAD  1 41 75
+  well2  HEAD  1 9 73
+  well3  HEAD  1 20 57
+  well4  HEAD  1 51 34
+  well5  HEAD  1 18 45
+  well6  HEAD  1 33 39
+  well7  HEAD  1 62 67
+  well8  HEAD  1 36 67
+  well9  HEAD  1 42 79
+  well10 HEAD  1 49 7
+END CONTINUOUS

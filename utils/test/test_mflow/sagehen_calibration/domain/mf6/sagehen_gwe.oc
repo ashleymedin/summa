@@ -1,0 +1,10 @@
+# Output control - the last step only.
+BEGIN OPTIONS
+  BUDGET       FILEOUT  sagehen_gwe.cbc
+  TEMPERATURE  FILEOUT  sagehen_gwe.ucn
+END OPTIONS
+
+BEGIN PERIOD 1
+  SAVE  TEMPERATURE  LAST
+  SAVE  BUDGET       LAST
+END PERIOD
