@@ -432,8 +432,7 @@ It calibrates the common parameters.
 `../test_mflow/sagehen_calibration/run_test.sh` is the bundled test of a coupled calibration: lumped
 Sagehen Creek against every kind of target (reach, OBS6 heads, domain, GRU and HRU), through every MODFLOW
 package the coupler drives, with SUMMA and MODFLOW parameters searched together; see
-[`../test_mflow/README.md`](../test_mflow/README.md). The longer Sagehen calibration and the twin experiment
-live in `summa_modflow_workflow`.
+[`../test_mflow/README.md`](../test_mflow/README.md).
 
 ## `test_calibration_gulkana_wolverine.sh` and `test_calibration_wolverine.sh`
 

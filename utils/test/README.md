@@ -24,8 +24,7 @@ Tests and example domains for SUMMA, grouped by what they exercise:
   (needs `-DUSE_MPI=ON -DUSE_MIZUROUTE=ON -DUSE_MODFLOW6=ON`): `sagehen_calibration/`,
   a coupled calibration of lumped Sagehen Creek against every kind of target,
   through every MODFLOW package the coupler drives. Run it after any change to
-  the coupling or the calibration. The coupled cases it grew from live in
-  `summa_modflow_workflow`.
+  the coupling or the calibration.
 - [`test_ngen/`](test_ngen/readme.md) -- example NextGen case studies (Provo,
   gauge_01073000) showing how a SUMMA setup looks under NextGen, run either
   standalone or coupled through ngen with t-route routing. Not a pass/fail
