@@ -164,6 +164,9 @@ covers the user-facing highlights.
   applies to the vertical conductivity, with the matching derivatives. Before this, a frozen
   layer still drained laterally at its full rate, since the transmissivity profile is built from
   the saturated conductivity alone. Affects `groundwatr = qTopmodl` runs with frozen soil.
+- New `soilLatflw` decision: `latflow` lets the upland soil above a `bigBuckt` aquifer drain laterally
+  to the channel, at each layer's own temperature, as `qTopmodl` and `modLatflow` do, while its
+  base still recharges the bucket. The default `none` is the previous behaviour, bit for bit.
 - New `hyporhTdyn` decision adds the conceptual hyporheic exchange of Wade et al. (2024) to a
   stream domain: `proxy` returns a fraction `hypFrac` of the reach flow at the temperature the
   reach had `hypLag` hours ago, written as one more inflow exchange so no water moves. It damps

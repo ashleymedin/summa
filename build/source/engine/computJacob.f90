@@ -40,6 +40,7 @@ USE var_lookup,only:iLookDERIV      ! named variables for structure elements
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag
+USE globalData,only:soilLateralFlow ! flag: soil layers drain laterally
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -1130,7 +1131,7 @@ integer(c_int) function computJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
   subroutine initialize_computJacob
    ! *** Transfer data to in_computJacob class object from local variables ***
    call in_computJacob % initialize(eqns_data%dt_cur,eqns_data%nSnow,eqns_data%nLake,eqns_data%nSoil,eqns_data%nGlce,eqns_data%nLayers,eqns_data%computeVegFlux,&
-      (eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel .or. eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==modLatflow),eqns_data%ixMatrix)
+      soilLateralFlow,eqns_data%ixMatrix)
   end subroutine initialize_computJacob
 
   subroutine finalize_computJacob

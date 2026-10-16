@@ -68,6 +68,7 @@ There are 44 model decisions. Defaults (used for `notPopulatedYet` where accepte
 | 44 | [write_buff](#write_buff) | **writePerStep**, writeFullSeries | how model output is buffered before writing |
 | 45 | [deepTherml](#deeptherml) | **none**, aquiferTemp, airTempGW, bedrockLyrs | deep thermal state below the hydrologically active soil column |
 | 46 | [hyporhTdyn](#hyporhtdyn) | **none**, proxy | hyporheic exchange in a stream domain |
+| 47 | [soilLatflw](#soillatflw) | **none**, latflow | lateral flow in the soil above a big-bucket aquifer |
 
 ---
 
@@ -675,3 +676,22 @@ The mechanism is not blocked by permafrost, since streams usually keep an unfroz
 under continuous permafrost, but it has not been validated there. `hypFrac` and `hypLag` are an
 empirical fit rather than derived SUMMA physics, which is why this is opt-in and separate from
 [`deepTherml`](#deeptherml): the two compose, and either can be used without the other.
+
+<a id="soillatflw"></a>
+## 47. soilLatflw — lateral flow in the soil above a big-bucket aquifer
+
+| Option | Description |
+|---|---|
+| none | the soil drains only downward, into the aquifer (default; also selected by `notPopulatedYet`) |
+| latflow | saturated soil layers also drain laterally to the channel, each at its own temperature |
+
+With `groundwatr = bigBuckt` the whole soil column drains down into the bucket, and the water
+reaches the channel at the aquifer's temperature. `latflow` adds the lateral flow of `qTopmodl` and
+`modLatflow` to the upland domain: the layers above field capacity, counted up from the base of the
+hydrologically active soil, drain sideways through the transmissivity of the conductivity profile
+(`kAnisotropic`, `f_hydCond`), while the base still recharges the bucket. That water goes to the
+channel at the temperature of the layer it leaves, so a wet, sunlit upper soil reaches the stream
+warmer than the aquifer. Needs `spatial_gw = localColumn` and `hc_profile = constant` or `exp_prof`,
+since the bucket is recharged through the conductivity at the soil base. The stream, wetland and
+glacier domains are unchanged.
+
