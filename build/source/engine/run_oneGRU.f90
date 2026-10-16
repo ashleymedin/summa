@@ -784,8 +784,10 @@ subroutine run_oneGRU(&
                       domInfo%nLake,                             & ! intent(in):    number of lake layers
                       domInfo%nSoil,                             & ! intent(in):    number of soil layers
                       domInfo%nGlce,                             & ! intent(in):    number of glacier ice layers
+                      model_decisions(iLookDECISIONS%nrgConserv)%iDecision==enthalpyForm, & ! intent(in):    flag to use the lookup table for soil enthalpy
                       ! data structures
                       mparHRU%hru(iHRU)%dom(iDOM),               & ! intent(in):    model parameters
+                      lookupHRU%hru(iHRU)%dom(iDOM),             & ! intent(in):    lookup tables
                       indxHRU%hru(iHRU)%dom(iDOM),               & ! intent(in):    model indices
                       progHRU%hru(iHRU)%dom(iDOM),               & ! intent(inout): model prognostic variables
                       diagHRU%hru(iHRU)%dom(iDOM),               & ! intent(inout): model diagnostic variables
