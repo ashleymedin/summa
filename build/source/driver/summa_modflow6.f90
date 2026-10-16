@@ -24,12 +24,11 @@ program summa_modflow6
   ! This program is the SUMMA side and the time loop only: it drives SUMMA through its BMI and hands
   ! each step's soil drainage to mf6_coupling, which owns everything MODFLOW.  See mf6_coupling.f90
   ! for the exchange, the &coupler namelist and the HRU->cell map, and
-  ! utils/test/test_mflow/README.md for the test cases.
+  ! utils/test/test_mflow/README.md for the coupler's documentation.
   !
   ! Usage:  summa_modflow6.exe <fileManager.txt> <summa_modflow6.config> [<config.toml>]
   !                            [--head-restart-read <file>] [--head-restart-write <file>]
-  !         or through utils/test/test_mflow/coupler_commands.sh, which resolves paths and cds into
-  !         the MODFLOW case directory.  The TOML is needed only for a build with mizuRoute, whose
+  !         run from the MODFLOW case directory.  The TOML is needed only for a build with mizuRoute, whose
   !         river network it configures; the routing then runs inside SUMMA's own step, taking the
   !         GRU runoff that already carries the MODFLOW baseflow.  The restart flags override the
   !         &coupler namelist; writing one also writes SUMMA's restart on the last step, so a spin-up

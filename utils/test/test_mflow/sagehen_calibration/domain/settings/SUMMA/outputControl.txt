@@ -1,0 +1,5 @@
+scalarSWE | 24
+scalarTotalRunoff | 24
+averageRoutedRunoff | 24
+scalarStreamTemp | 24
+basin__TotalRunoff | 24

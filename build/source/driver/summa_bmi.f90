@@ -434,6 +434,7 @@ module summabmi
      this%model%newOutputFile = newOutputFile
 #ifndef NGEN_FORCING_ACTIVE
      this%model%forcFileInfo = forcFileInfo
+     this%model%nHRUfile = nHRUfile
      this%model%iFile = iFile
      this%model%forcingStep = forcingStep
      this%model%forcNcid = forcNcid
@@ -487,6 +488,7 @@ module summabmi
      ixRestart = this%model%ixRestart
 #ifndef NGEN_FORCING_ACTIVE
      forcFileInfo = this%model%forcFileInfo
+     nHRUfile = this%model%nHRUfile
      iFile = this%model%iFile
      forcingStep = this%model%forcingStep
      forcNcid = this%model%forcNcid
@@ -529,7 +531,7 @@ module summabmi
      this%model%nGRUrun = nGRUrun
      this%model%maxDOM = maxDOM
 #ifndef NGEN_FORCING_ACTIVE
-     this%model%nHRUrun = nHRUfile
+     this%model%nHRUfile = nHRUfile
      this%model%iFile = iFile
      this%model%forcingStep = forcingStep
      this%model%forcNcid = forcNcid
