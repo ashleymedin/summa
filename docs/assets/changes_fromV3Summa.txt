@@ -285,6 +285,7 @@ AFTER tag of v4.0.0-exp-Sundials
       8) The scatter weighs each HRU's share of a cell by its area, so an area-intersection map_file conserves recharge volume, commit 5923c4de Oct 6, 2026
       9) Stop the hourly bounce: base flux continuous over 10 cm below the base, and an optional implicit base exchange
       (base_ghb/drn_package_name) returned with the rejected recharge, commits 4510ad32, 53499790 Oct 6, 2026
+      10) The MPI coupler writes output past its first step: the BMI no longer overwrites nHRUrun with the file's HRU count, commit 2717f03c Oct 17, 2026
  64) Domain-parallel MPI: GRUs distributed across ranks, PR #631 -DUSE_MPI=ON 
      Builds a second executable (summa[_sundials]_mpi.exe); each rank reads/writes only its own GRUs.
      Also, later, added summa_modflow6_mpi coupler executable (-DUSE_MODFLOW6=ON -DUSE_MPI=ON), Sep 16, 2026
