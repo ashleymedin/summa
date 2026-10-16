@@ -524,31 +524,22 @@ K (18.4%) and VKS (27.5%). The trial with the best heads (0.021 m) had Sy within
 recoverable below its truth: every good trial sat at 0.11, since the targets see VKS only when it is too
 high.
 
-## `test_calibration_wolverine.sh`
+## `test_calibration_gulkana_wolverine.sh`
 
-A glacier calibration routed by mizuRoute, scoring discharge (KGE) and water temperature (RMSE, degC)
-at USGS 15236900, and the glacier-wide seasonal mass balance (RMSE), on the bundled `wolverine/`
-domain: three glacier land HRUs and a stream HRU for the one reach. It spins up over 2016 and scores
-2017–2019, over the common parameters and the glacier and snow ones. `aquiferBaseflowRate` has a
-lower bound of 10⁻⁸ m s⁻¹ in `wolverine/` and `gulkana/` so it can be searched on a log scale. Under
-`deepTherml = bedrockLyrs` the groundwater leaves at the bedrock base, whose temperature no parameter
-sets; with `deepTherml = airTempGW` the search would add `C_ATGW` and `gwTempWindow`. The stream width
-is left at the gauge's: searching `streamWidthMultip` instead gives about the same temperature and a
-worse mass balance.
-`hypFrac` and `hypLag` are left at their defaults: the hyporheic proxy damps the daily swing, which a
-daily-mean target cannot see, and halving `hypLag` leaves the RMSE unchanged.
+The minimal test of a multi-objective calibration over several GRUs: Gulkana (GRU 1) and Wolverine
+(GRU 2) as one domain, each glacier's glacier-wide seasonal mass balance (RMSE) scored on its own GRU
+by NSGA-II over six snow and glacier parameters. It spins up from October 2008 and scores October 2009
+to December 2011: a seasonal balance takes the opposite extreme from a year before its observation, so
+the first balances scored are 2011's.
 
 ```bash
-./test_calibration_wolverine.sh [population] [generations] [n_ranks]   # defaults: 8, 4, 5
+./test_calibration_gulkana_wolverine.sh [population] [generations] [n_ranks]   # defaults: 4, 3, 5
 ```
 
-It needs `bin/summa_sundials_mizuroute_opt.exe`. At the defaults it takes about 10 minutes, and every
-trial runs. The front runs from KGE 0.88 at 0.78 degC and 602 mm, through KGE 0.81 at 0.84 degC and
-248 mm, to 0.71 degC at KGE 0.67 and 1,557 mm. Every trial runs 0.5–1 degC cold from July to
-September. Glacier runoff enters the reach at freezing; the water
-warms from the groundwater of the unglaciated third of the basin, which leaves at the bedrock's
-starting temperature, and from the heat friction dissipates down the reach.
-`wolverine/README.md` says how the domain and observations were built.
+It needs `bin/summa_sundials_mizuroute_opt.exe` and takes about 9 minutes. Every trial runs, and the
+front trades the two glaciers: from 63 mm on Gulkana at 1,189 mm on Wolverine to 457 mm on Wolverine at
+1,007 mm on Gulkana. The Gulkana and Wolverine glacier cases, their builds and their full calibrations
+are in `summa_glacier`, beside this checkout.
 
 ## `multi_case_example/` -- multi-case calibration
 
