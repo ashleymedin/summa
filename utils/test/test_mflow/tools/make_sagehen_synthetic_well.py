@@ -10,8 +10,8 @@ USGS recorder reports it: depth to water below land surface (72019) in ft to 0.0
 Pacific-standard day.  The calibration that scores it therefore knows the true answer, the parameters
 of the reference run.
 
-The output is a GeoJSON FeatureCollection shaped like the Water Data API's daily values, read by
-acquire_groundwater_level.py --features as a real well's would be.  The site id says it is synthetic.
+The output is a GeoJSON FeatureCollection shaped like the Water Data API's daily values, as a real
+well's would be.  The site id says it is synthetic.
 
 Usage:
     make_sagehen_synthetic_well.py <sagehen.hds> <run start, UTC, "YYYY-MM-DD HH:MM"> <output.json>
