@@ -1,0 +1,13 @@
+# Time discretisation - SECONDS, one stress period of 10224 hourly steps, the length of the forcing.
+BEGIN OPTIONS
+  TIME_UNITS  SECONDS
+END OPTIONS
+
+BEGIN DIMENSIONS
+  NPER  1
+END DIMENSIONS
+
+BEGIN PERIODDATA
+#  perlen      nstp   tsmult
+   36806400.0   10224    1.0
+END PERIODDATA

@@ -40,7 +40,7 @@ program summa_modflow6_mpi
   ! (MPI_Scatterv).  Everything MODFLOW-side lives in mf6_coupling, shared with the serial coupler
   ! and with the calibration driver, so this file is only the SUMMA side and the rank bookkeeping.
   !
-  ! See utils/test/test_mflow/README.md for the serial coupler's worked examples and two test cases.
+  ! See utils/test/test_mflow/README.md for the coupler's documentation.
   !
   ! Usage:  mpirun -n <nranks> summa_modflow6_mpi.exe <fileManager.txt> <summa_modflow6.config>
 
