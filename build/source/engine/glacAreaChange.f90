@@ -61,10 +61,12 @@ implicit none
 real(rkind),parameter :: flat_threshold=1.e-6_rkind  ! tan slope below which terrain is treated as flat for aspect
 real(rkind),parameter :: deg2rad=PI_D/180._rkind     ! factor to convert degrees to radians
 real(rkind),parameter :: rad2deg=180._rkind/PI_D     ! factor to convert radians to degrees
+real(rkind),parameter :: min_thickness=0.02_rkind    ! minimum thickness of debris cover to be considered as debris cover (m)
+real(rkind),parameter :: maxDebrisTop=0.05_rkind     ! maximum thickness of the top debris layer (m)
 
 ! privacy
 private::run_flowModel,run_debrisModel,diffusion_MUSCL,advection_MUSCL,static_emergElev_latRockfall
-private::fit_massBalanceCurve,cell_slopeAspect,argsort_desc
+private::fit_massBalanceCurve,cell_slopeAspect,argsort_desc,debrisLayering
 private::superbee,flux,SIA,midpt,pluss,minus
 public::glacAreaChange
 public::time_updateGlacArea
@@ -185,7 +187,6 @@ subroutine glacAreaChange(&
   integer(i4b)                       :: i, j, k, n, dbr                 ! loop indices
   integer(i4b)                       :: iGlac, iGrid, iDOM, iHRU        ! loop indices
   character(len=256)                 :: cmessage                        ! error message of downwind routine
-  real(rkind),parameter              :: min_thickness=0.02_rkind        ! minimum thickness of debris cover to be considered as debris cover (m)
   logical(lgt),parameter             :: printFlag=.false.               ! flag to print details for debugging
 
   ! ----------------------------------------------------------------------------------------------
@@ -1506,6 +1507,7 @@ subroutine updateGlacDomain(&
   ! ----- define downstream subroutines -----------------------------------------------------------------------------------
   USE var_derive_module,only:rootDensty  ! module to calculate the vertical distribution of roots
   USE var_derive_module,only:satHydCond  ! module to calculate the saturated hydraulic conductivity in each soil layer
+  USE var_derive_module,only:calcHeight  ! layer heights from layer depths
   ! ----- define dummy variables ------------------------------------------------------------------------------------------
   implicit none
   integer(i4b), intent(inout)     :: iglac                   ! glacier domain index
@@ -1567,18 +1569,10 @@ subroutine updateGlacDomain(&
    ! update glacier layering
    if(dom_type==glacDbr .and. DOMarea>0._rkind)then ! thickness of average debris cover in HRU changes with debris advection
      ! for zero area, glacDbr needs to keep previous non-zero soil layering so can adjust if debris-covered glacier re-appears
-     ! scale soil layer thickness with debris thickness change, keep the same number of layers 
-     layers_thick = sum(mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))
-     thick_ratio = glac_debris_thick(iglac)/layers_thick ! glac_debris_thick will be >0 since there is a positive area of debris-covered glacier
-     mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil)  = mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio
-     mLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil) = mLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio
-     iLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil) = iLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio            
-
-     ! recalculate the layer heights below soil
-     do i=nSnow+nLake+nSoil+1,nLayers
-       mLayerHeight(i) = mLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
-       iLayerHeight(i) = iLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
-     enddo
+     ! re-split the debris at its new thickness, keeping the same number of layers
+     call debrisLayering(max(glac_debris_thick(iglac), min_thickness), mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))
+     call calcHeight(indx_data,prog_data,err,cmessage)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! recalculate vertical distribution of root density
      call rootDensty(mpar_data,     & ! intent(in):    model parameters
@@ -1617,6 +1611,25 @@ subroutine updateGlacDomain(&
  end associate
 end subroutine updateGlacDomain
 
+
+! ************************************************************************************************
+! private subroutine debrisLayering: split debris of a given thickness into layers
+! ************************************************************************************************
+! The top layer is the smaller of an equal share and maxDebrisTop; the rest is shared equally below it (m).
+! ************************************************************************************************
+subroutine debrisLayering(debrisThick,layerDepth)
+  implicit none
+  real(rkind),intent(in)  :: debrisThick                ! total debris thickness (m)
+  real(rkind),intent(out) :: layerDepth(:)              ! thickness of each debris layer, top down (m)
+  integer(i4b)            :: nDebris                    ! number of debris layers
+  nDebris = size(layerDepth)
+  if(nDebris==1)then
+    layerDepth(1) = debrisThick
+  else
+    layerDepth(1) = min(debrisThick/real(nDebris,rkind), maxDebrisTop)
+    layerDepth(2:nDebris) = (debrisThick - layerDepth(1))/real(nDebris-1,rkind)
+  endif
+end subroutine debrisLayering
 
 ! ************************************************************************************************
 ! public subroutine startGlacDomain: start a glacier domain that has just gained area from a donor domain
