@@ -173,7 +173,7 @@ metric     = "rmse"
 - `basin__GlacierMassChange` is the glacier domains' total mass change over the glacier area, which is
   what a glacier-wide balance is per unit of.
 
-`acquire_glacier_mass_balance.py` in `summa_glacier`, beside this checkout, writes the USGS Benchmark
+`acquire_glacier_mass_balance.py` in `summa_glacier_workflow`, beside this checkout, writes the USGS Benchmark
 Glacier glacier-wide solutions in this form, seasonal or annual.
 
 ## Parameters that must stay in order
@@ -539,7 +539,7 @@ the first balances scored are 2011's.
 It needs `bin/summa_sundials_mizuroute_opt.exe` and takes about 9 minutes. Every trial runs, and the
 front trades the two glaciers: from 63 mm on Gulkana at 1,189 mm on Wolverine to 457 mm on Wolverine at
 1,007 mm on Gulkana. The Gulkana and Wolverine glacier cases, their builds and their full calibrations
-are in `summa_glacier`, beside this checkout.
+are in `summa_glacier_workflow`, beside this checkout.
 
 ## `multi_case_example/` -- multi-case calibration
 
