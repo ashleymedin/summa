@@ -16,8 +16,9 @@ Tests and example domains for SUMMA, grouped by what they exercise:
   `test_calibration_bow.sh`, a short DDS calibration of the Bow at Banff in
   2004 (inside the GRACE record, so streamflow and storage targets can be
   scored together); `test_calibration_bow_pareto.sh`, the same case scored on
-  discharge and GRACE by NSGA-II and by DDS on one budget; `gulkana_wolverine/`, a two-basin glacier domain with
-  GRACE storage per basin; and `multi_case_example/`, which calibrates several
+  discharge and GRACE by NSGA-II and by DDS on one budget; `test_calibration_gulkana_wolverine.sh` and
+  `test_calibration_wolverine.sh`, NSGA-II on two glacier basins, one GRU and reach each,
+  scoring discharge, GRACE, water temperature, mass balance and a synthetic well; and `multi_case_example/`, which calibrates several
   cases from one manifest on a stub dataset built from the bundled Bow domain.
 - [`test_mflow/`](test_mflow/README.md) -- SUMMA coupled to MODFLOW 6
   (needs `-DUSE_MPI=ON -DUSE_MIZUROUTE=ON -DUSE_MODFLOW6=ON`): `sagehen_calibration/`,

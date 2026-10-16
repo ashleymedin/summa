@@ -16,7 +16,7 @@ Wolverine Creek above USGS 15236900, from NHDPlus HR: the glacier GRU's reach fr
 to the gauge-map tributary, a 2.27 km2 tundra branch entering at its head, the 0.50 km2 tributary, and
 the last 454 m to the gauge:
 
-    ./add_stream_network.py ../test/test_calibration/wolverine wolverine_network wolverine_network.json
+    ./add_stream_network.py ../test/test_calibration/wolverine wolverine_network ../../../summa_glacier_workflow/wolverine_network.json
 
 writes <output>/summa_inputs/{attributes,coldState,trialParams}.nc and forcingFileList.txt, the forcing
 files to <output>/forcing, and <output>/topology.nc.  The text settings are not copied.

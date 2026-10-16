@@ -6,8 +6,10 @@ Helpful scripts for a variety of pre-processing purposes:
 - `SUMMA_merge_restarts_into_warmState.py`: combine split domain state files (with 2 dimensions, hru and gru)
 - `create_lumped_to_hru_mapping.sh`: build the lumped-to-HRU mapping used to pass SUMMA runoff to mizuRoute
 - `add_stream_hru.py`: give a single-GRU domain a stream HRU and a one-reach mizuRoute topology, for stream temperature
-- `correct_forcing_to_station.py`: correct forcing temperature (monthly offsets), humidity, shortwave and pressure toward the USGS benchmark-glacier weather stations
-- `add_stream_network.py`: split tributary GRUs off that domain, each with its own reach, from a JSON spec (`wolverine_network.json`)
+- `add_stream_network.py`: split tributary GRUs off that domain, each with its own reach, from a JSON spec
+
+The glacier setup (glacier rasters, domains, cold state, station-corrected forcing and the glacier mass-balance
+observations) lives in `../summa_glacier_workflow`, beside this checkout.
 
 ## Calibration observations
 
