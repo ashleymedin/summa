@@ -7,7 +7,7 @@ several targets, GRUs and reaches; they calibrate nothing.
 
 | | |
 | --- | --- |
-| Forcing | ERA5, Oct 2015 – Dec 2018, 39 monthly files |
+| Forcing | ERA5, Oct 2015 – Jun 2018, 33 monthly files |
 | GRU 1, Gulkana | HRUs 1–3 (26.6 km²) and stream HRU 4, draining to reach 1 |
 | GRU 2, Wolverine | HRUs 5–7 (24.7 km²) and stream HRU 8, draining to reach 2 |
 | Settings | the Wolverine glacier settings: `deepTherml = bedrockLyrs`, `hyporhTdyn = proxy` |
@@ -22,7 +22,7 @@ several targets, GRUs and reaches; they calibrate nothing.
 | `wolverine_well_hru5_daily.nc` | synthetic well: HRU 5's aquifer storage in a run at the default parameters, m | Wolverine test, HRU 5 |
 
 The calibration spins up over the year before `start_time`, from the cold state, so the tests score
-October 2016 to December 2018. A GRACE anomaly is referenced to the scored period (`baseline_start`,
+October 2016 to June 2018. A GRACE anomaly is referenced to the scored period (`baseline_start`,
 `baseline_end`), since the run cannot reproduce the product's own baseline.
 
 The reaches are estimates.

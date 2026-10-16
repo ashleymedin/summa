@@ -3,7 +3,7 @@
 # Multi-objective calibration over two GRUs: Gulkana (GRU 1) and Wolverine (GRU 2) glaciers.
 #
 # NSGA-II on each basin's routed discharge (KGE) and its GRACE storage anomaly (RMSE, relative to the run
-# period), Oct 2016 - Dec 2018 after a spin-up from Oct 2015, over six snow, glacier and groundwater
+# period), Oct 2016 - Jun 2018 after a spin-up from Oct 2015, over six snow, glacier and groundwater
 # parameters. It tests that a calibration scores several targets on several GRUs and reaches; the budget is
 # tiny, so it calibrates nothing.
 #
@@ -55,7 +55,7 @@ case_name = "gulkana_wolverine"
 
 # one spinup year (Oct 2015 - Sep 2016) precedes the simulation, which the calibration then scores
 start_time = "2016-10-01 00:00"
-end_time   = "2018-12-31 23:00"
+end_time   = "2018-06-30 23:00"
 time_zone  = "utcTime"
 
 use_mizuroute    = true
@@ -122,7 +122,7 @@ varname_length = "length"
 algorithm = "nsga2"
 
 start_date = "2016-10-01"
-end_date   = "2018-12-31"
+end_date   = "2018-06-30"
 
 n_samples = ${N_SAMPLES}
 
@@ -176,7 +176,7 @@ vname_obs = "tws_obs"
 metric    = "rmse"
 accumulate     = true
 baseline_start = "2016-10-01"
-baseline_end   = "2018-12-31"
+baseline_end   = "2018-06-30"
 
 
 [[calibration.target]]
@@ -190,7 +190,7 @@ vname_obs = "tws_obs"
 metric    = "rmse"
 accumulate     = true
 baseline_start = "2016-10-01"
-baseline_end   = "2018-12-31"
+baseline_end   = "2018-06-30"
 
 EOF
 
