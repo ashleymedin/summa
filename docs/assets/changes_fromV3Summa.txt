@@ -368,3 +368,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -83) a saturated liquid matric potential state passes its pressure to the total matric head in a mass split, commit 8b38167a Oct 15, 2026
  84) glacier debris re-split at each area update, conserving its water and enthalpy: top layer at most 5 cm, the rest growing
      geometrically, debris at least 2 cm thick, commits 39b712fb and addc9912 Oct 16, 2026
+ 85) soilLatflw decision: latflow drains upland soil laterally beside the big bucket, at each layer's temperature, commit bf8f45f8 Oct 17, 2026
