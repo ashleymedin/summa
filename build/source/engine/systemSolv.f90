@@ -25,6 +25,7 @@ USE nr_type
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:soilLateralFlow ! flag: soil layers drain laterally
 USE globalData,only:realMissing     ! missing real number
 USE globalData,only:quadMissing     ! missing quadruple precision number
 
@@ -336,7 +337,7 @@ contains
 
    ! identify the matrix solution method, using the full matrix can be slow in many-layered systems
    ! (the type of matrix used to solve the linear system A.X=B)
-   if (local_ixGroundwater==qbaseTopmodel .or. local_ixGroundwater==modLatflow .or. (nGlce>0 .and. nSoil>0) .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
+   if (soilLateralFlow .or. (nGlce>0 .and. nSoil>0) .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
      nLeadDim=nState         ! length of the leading dimension
      ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
    else
@@ -379,7 +380,7 @@ contains
    end if
 
    ! allocate space for the baseflow derivatives
-   if(ixGroundwater==qbaseTopmodel .or. ixGroundwater==modLatflow .or. (nGlce>0 .and. nSoil>0))then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
+   if(soilLateralFlow .or. (nGlce>0 .and. nSoil>0))then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
      allocate(dBaseflow_dWat(nSoil,nSoil),dBaseflow_dTk(nSoil,nSoil),stat=err)
    else
      allocate(dBaseflow_dWat(0,0),dBaseflow_dTk(0,0),stat=err)

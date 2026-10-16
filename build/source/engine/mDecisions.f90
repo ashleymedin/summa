@@ -186,6 +186,9 @@ integer(i4b),parameter,public :: bedrockLayers        = 384    ! thermal-only be
 ! look-up values for the choice of hyporheic exchange treatment in a stream domain
 integer(i4b),parameter,public :: noHyporheic          = 391    ! none: no exchange with the bed
 integer(i4b),parameter,public :: hyporheicProxy       = 392    ! a lagged return of a fraction of the flow (Wade et al., 2024)
+! look-up values for the choice of lateral flow in the soil above a big-bucket aquifer
+integer(i4b),parameter,public :: noSoilLatflow        = 401    ! none: the soil drains only downward into the aquifer
+integer(i4b),parameter,public :: soilLatflow          = 402    ! saturated soil layers also drain laterally to the channel, at their own temperature
 
 ! ----------------------------------------------------------------------------------------------------------- 
 contains
@@ -208,6 +211,7 @@ subroutine mDecisions(err,message)
   ! model decision structures
   USE globalData,only:model_decisions        ! model decision structure
   USE globalData,only:mflowCoupledGW         ! flag: groundwater is handled by a coupled MODFLOW 6 model
+  USE globalData,only:soilLateralFlow        ! flag: soil layers drain laterally
   USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
   ! forcing metadata
   USE globalData,only:forc_meta              ! metadata structures
@@ -776,9 +780,38 @@ subroutine mDecisions(err,message)
       err=10; message=trim(message)//"unknown option for hyporheic exchange [option="//trim(model_decisions(iLookDECISIONS%hyporhTdyn)%cDecision)//"]"; return
   end select
 
+  ! lateral flow in the soil above a big-bucket aquifer
+  ! NOTE: none is the default, so an existing configuration keeps the behaviour it had
+  select case(trim(model_decisions(iLookDECISIONS%soilLatflw)%cDecision))
+    case('none','notPopulatedYet'); model_decisions(iLookDECISIONS%soilLatflw)%iDecision = noSoilLatflow ! the soil drains only downward (default)
+    case('latflow'               ); model_decisions(iLookDECISIONS%soilLatflw)%iDecision = soilLatflow   ! saturated layers also drain laterally
+    case default
+      err=10; message=trim(message)//"unknown option for lateral flow in the soil [option="//trim(model_decisions(iLookDECISIONS%soilLatflw)%cDecision)//"]"; return
+  end select
+
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
   ! check for consistency among options
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
+  ! lateral soil flow beside the bucket: the bucket takes the drainage from the soil base, and the transmissivity needs a finite base
+  if(model_decisions(iLookDECISIONS%soilLatflw)%iDecision == soilLatflow)then
+    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
+      message=trim(message)//'soilLatflw = latflow adds lateral soil flow to the big bucket (set "groundwatr" to "bigBuckt"; qTopmodl and modLatflow already have it)'
+      err=20; return
+    end if
+    if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision /= localColumn)then
+      message=trim(message)//'soilLatflw = latflow needs a local aquifer below each column (set "spatial_gw" to "localColumn")'
+      err=20; return
+    end if
+    if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= constant .and. &
+       model_decisions(iLookDECISIONS%hc_profile)%iDecision /= expLaw_profile)then
+      message=trim(message)//'soilLatflw = latflow needs conductivity at the soil base to recharge the bucket (set "hc_profile" to "constant" or "exp_prof")'
+      err=20; return
+    end if
+  end if
+  soilLateralFlow = model_decisions(iLookDECISIONS%groundwatr)%iDecision == qbaseTopmodel .or. &
+                    model_decisions(iLookDECISIONS%groundwatr)%iDecision == modLatflow    .or. &
+                    model_decisions(iLookDECISIONS%soilLatflw)%iDecision == soilLatflow
+
   ! a MODFLOW aquifer has one temperature source: GWE through the coupler (aquiferTemp), or none at all
   if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == modflowCpl .or. &
      model_decisions(iLookDECISIONS%groundwatr)%iDecision == modLatflow)then

@@ -82,6 +82,7 @@ MODULE var_lookup
   integer(i4b)    :: write_buff = integerMissing     ! method used to buffer model write (none, per file)
   integer(i4b)    :: deepTherml = integerMissing     ! choice of deep thermal state below the hydrologically active soil column
   integer(i4b)    :: hyporhTdyn = integerMissing     ! choice of hyporheic exchange treatment in a stream domain
+  integer(i4b)    :: soilLatflw = integerMissing     ! choice of lateral flow in the soil above a big-bucket aquifer
 
  endtype iLook_decision
 
@@ -1050,7 +1051,7 @@ MODULE var_lookup
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
-                                                                         41, 42, 43, 44, 45, 46)
+                                                                         41, 42, 43, 44, 45, 46, 47)
  ! named variables: model time
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5,  6,  7)
  ! named variables: model forcing data

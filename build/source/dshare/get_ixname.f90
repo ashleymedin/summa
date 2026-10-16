@@ -104,6 +104,7 @@ contains
   case('write_buff'      ); get_ixdecisions=iLookDECISIONS%write_buff  ! method used to buffer writing of model output (none, full)
   case('deepTherml'      ); get_ixdecisions=iLookDECISIONS%deepTherml  ! choice of deep thermal state below the hydrologically active soil column
   case('hyporhTdyn'      ); get_ixdecisions=iLookDECISIONS%hyporhTdyn  ! choice of hyporheic exchange treatment in a stream domain
+  case('soilLatflw'      ); get_ixdecisions=iLookDECISIONS%soilLatflw  ! choice of lateral flow in the soil above a big-bucket aquifer
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing

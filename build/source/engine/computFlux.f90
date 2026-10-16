@@ -58,6 +58,8 @@ USE globalData,only:iname_soil      ! named variables for soil
 USE globalData,only:iname_glce      ! named variables for glacier ice
 USE globalData,only:iname_lake      ! named variables for lake
 USE globalData,only:stream          ! horizontal domain type for a stream reach
+USE globalData,only:upland          ! horizontal domain type for upland
+USE globalData,only:soilLateralFlow ! flag: soil layers drain laterally
 
 ! constants
 USE multiconst,only:&
@@ -322,7 +324,8 @@ subroutine computFlux(&
   deriv_data%var(iLookDERIV%dExfil_dDrive)%dat(1) = 0._rkind ! no exfiltration unless groundwatr finds a surplus
   associate(nSoilOnlyHyd => indx_data%var(iLookINDEX%nSoilOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the soil domain
     if (nSoilOnlyHyd>0) then ! check if computing soil hydrology
-      if (local_ixGroundwater/=qbaseTopmodel .and. local_ixGroundwater/=modLatflow .and. nGlce==0) then ! set baseflow fluxes to zero if nothing flows laterally
+      ! beside a big bucket only the upland drains laterally, since run_oneGRU routes column outflow from the upland alone
+      if (.not.(soilLateralFlow .and. (local_ixGroundwater/=bigBucket .or. domType==upland)) .and. nGlce==0) then ! set baseflow fluxes to zero if nothing flows laterally
         call zeroBaseflowFluxes
       else ! compute the lateral flow: topmodel-ish shallow groundwater, the soil column above MODFLOW, or glacier debris
         call initialize_groundwatr; if(err/=0)then; return; endif
