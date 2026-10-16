@@ -254,108 +254,6 @@ Each failed trial is saved as a repro case in `<output_path>/failed_trials/`, na
 `rerun.sh` writes `output/` and `rerun.log` beside itself, so the directory can be copied elsewhere and
 debugged on its own. A run from a manifest is built from a template, so its `rerun.sh` only says so.
 
-## Calibrating a MODFLOW 6 coupled case
-
-A build with `-DUSE_MODFLOW6=ON` names its calibration executable `summa_modflow6_opt.exe`.
-It is the same driver as `summa_opt.exe`; what changes is that each parameter sample can be
-evaluated as a full coupled SUMMA/MODFLOW 6 simulation rather than a plain SUMMA run. Turn
-that on per case in the TOML configuration:
-
-```toml
-[simulation]
-use_modflow = true
-
-[modflow]
-config_file = "/abs/path/to/summa_modflow6.config"   # the &coupler namelist, as for the standalone couplers
-run_dir     = "/abs/path/to/the/MODFLOW/model"       # the directory holding mfsim.nam
-```
-
-The model decisions must be the coupler's, exactly as for `summa_modflow6.exe`:
-`groundwatr = modflow` (or `modLatflow`) and `bcLowrSoiH = presHead`. The run is rejected at
-start-up otherwise.
-
-Each MPI rank is an independent model instance, so each gets its own MODFLOW run directory,
-`modflow_rank####` under the case's output path, populated once by copying `run_dir` and
-reused by every sample that rank evaluates. They are copies rather than symlinks because
-MODFLOW writes its listing, head and budget files into its working directory, and ranks
-sharing one directory would overwrite each other's output. Budget for the disk this needs:
-one copy of the MODFLOW model per rank.
-
-Within a rank, every sample runs its own complete MODFLOW simulation, started and finalized
-around the SUMMA run, so each trial sees the same aquifer initial condition and trials stay
-comparable.
-
-**The aquifer is spun up with the soil column.** The calibration's one-year cold-start spinup
-runs coupled and writes its final head field to `modflow_spinup_heads_rank####.bin` under the
-case's output path; every sample that rank evaluates then starts MODFLOW from that field in
-place of the `STRT` array in the model's own IC package, just as SUMMA starts from the spun-up
-restart file. The spinup itself still begins at `STRT`, so it is worth setting to a sensible
-water table, but the calibration period no longer depends on it.
-
-SUMMA's own aquifer follows the same rule. With `aquiferIni = emptyStart` the aquifer is
-emptied on the cold start only: the spinup's restart file records that a start has already
-happened, so each sample keeps the spun-up aquifer rather than emptying it again.
-
-### MODFLOW parameters
-
-MODFLOW's own parameters are searched with SUMMA's, each as a multiplier on numbers in the model's
-plain-text input files. Each trial rewrites the files it names in its rank's `modflow_rank####`,
-always from `run_dir`, before MODFLOW starts; MODFLOW itself is not changed.
-
-```toml
-# K and K33 of zone 4 only: a zone file is an integer array of the same shape
-[[calibration.modflow_parameter]]
-name      = "K_zone4"
-files     = ["kh1.txt", "kv1.txt"]   # OPEN/CLOSE array files, relative to run_dir
-zone_file = "kzone1.txt"
-zone      = 4
-lower     = 0.2
-upper     = 5.0
-
-# UZF's VKS, column 8 of every PACKAGEDATA row
-[[calibration.modflow_parameter]]
-name   = "uzf_vks_mult"
-files  = "sagehen.uzf"
-block  = "PACKAGEDATA"   # leave out for an OPEN/CLOSE list file holding rows only
-column = 8
-lower  = 0.1
-upper  = 10.0
-```
-
-An array parameter scales every value of its files, or those of the cells in its zone. A list
-parameter scales one column of the data rows. Several parameters may scale one file, and where they
-overlap their multipliers multiply. A file is scaled as an array or as a list, not both. Its
-multiplier is searched like any parameter, so `[calibration.parameter_transformations]` can put it on
-a log scale. The trials file and a failed trial's `rerun.sh` carry it by name. A missing file, zone
-or column is refused at start-up.
-
-The spinup runs at the model's own values, so every trial starts from heads spun up with the default
-K and Sy, as it starts from SUMMA's default-parameter spinup.
-
-### MODFLOW observations
-
-A target with `variable = "modflow_obs"` scores a `HEAD` observation of an OBS6 file the GWF name file
-lists, read from the CSV MODFLOW writes in each trial's `modflow_rank####`. Given lists, `obs_name` and
-`vname_obs` pair each observation with its observed variable, and the target scores them as one series:
-a pooled RMSE weighs every cell-day alike, so NSGA-II sees one head objective however many wells there are.
-
-```toml
-[[calibration.target]]
-name      = "heads"
-variable  = "modflow_obs"
-obs_name  = ["well1", "well2", "well3"]
-obs_path  = "/abs/path/to/observations/"
-obs_file  = "wells_daily.nc"
-vname_obs = ["h_well1", "h_well2", "h_well3"]
-metric    = "rmse"
-```
-
-**This needs mizuRoute as well**, for the same reason every other calibration does: the
-objective compares routed streamflow against gauge observations. A coupled calibration build
-is therefore `-DUSE_MPI=ON -DUSE_MIZUROUTE=ON -DUSE_MODFLOW6=ON`.
-
-`../test_mflow/sagehen_calibration/run_test.sh` is the bundled end-to-end test of this path.
-
 ## The test cases' parameters
 
 Every test case starts from the defaults in its `localParamInfo.txt` and `basinParamInfo.txt`:
@@ -368,13 +266,12 @@ which is physically distributed). Each searches one common set:
 
 with `k_soil` and `aquiferBaseflowRate` on log scales, the canopy heights ordered, and `theta_sat`
 in the five-member soil chain above with `sample_gaps = true`, which searches the other four too
-(Bow's and Sagehen's default `critSoilWilting` lies below `theta_res`). A glacier basin adds `glacierWindFactor`, `glacierTempReduction`,
+(Bow's default `critSoilWilting` lies below `theta_res`). A glacier basin adds `glacierWindFactor`, `glacierTempReduction`,
 `glacStor_kIce`, `glacStor_kSnow`, `glacStor_kFirn`, `debrisConc`, and the snow parameters
 `k_snow`, `mw_exp`, `albedoDecayRate` and `albedoMax`, which set the shortwave the snow and firn
 absorb and how fast the meltwater drains. `aquiferScaleFactor` is not searched: it enters only the
 baseflow law, Q = `aquiferBaseflowRate`·(S/`aquiferScaleFactor`)^`aquiferBaseflowExp`, so any value of
-it is a rescaling of the rate. The coupled Sagehen test in `../test_mflow/sagehen_calibration` keeps its own
-short list.
+it is a rescaling of the rate.
 
 ## `test_calibration_bow.sh`
 
