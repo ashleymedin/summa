@@ -2,8 +2,7 @@
 
 A thin BMI coupler runs SUMMA as the land model and MODFLOW 6 as the groundwater model. This folder
 holds one test of the coupling and the calibration through it, `sagehen_calibration/`, and documents
-the coupler. The coupled cases it was developed on (Sagehen from 1 to 3396 HRUs, Little River, the
-twin experiment) and the tools that build them live in `summa_modflow_workflow`.
+the coupler.
 
 ## `sagehen_calibration/`
 
@@ -60,9 +59,7 @@ it better. The calibration spins up over water year 2017 and scores October-Nove
 
 It needs `bin/summa_modflow6_opt_sundials_mizuroute.exe`, built with `-DUSE_MPI=ON -DUSE_MIZUROUTE=ON
 -DUSE_MODFLOW6=ON`, and a python3 with netCDF4. It took under 2 hours on a 10-core machine shared with another
-calibration, most of it the year of spin-up that every run repeats on every rank. The domain is built by
-`build_sagehen_calibration_test.py` in `summa_modflow_workflow`; rebuild it there after changing the
-model or the builder.
+calibration, most of it the year of spin-up that every run repeats on every rank.
 
 ## How the coupling works
 
@@ -187,8 +184,6 @@ The serial coupler runs from the MODFLOW case directory, which holds `mfsim.nam`
 The TOML is needed only with mizuRoute, whose river network it configures. `--head-restart-read` starts
 MODFLOW from a saved head field, and SUMMA from whatever restart its file manager names as
 `initConditionFile`. `--head-restart-write` writes the head field at the end, and SUMMA's restart with it.
-The cases in `summa_modflow_workflow` run it through their `coupler_commands.sh`, which resolves the
-paths and runs a spin-up first when its heads do not exist yet.
 
 ### MPI (`summa_modflow6_mpi.exe`)
 

@@ -16,8 +16,7 @@
 #     MODFLOW files must hold its last trial's multipliers.
 #
 # Needs bin/summa_modflow6_opt_sundials_mizuroute.exe, built with -DUSE_MPI=ON -DUSE_MIZUROUTE=ON
-# -DUSE_MODFLOW6=ON, and a python3 with netCDF4.  The domain is built by build_sagehen_calibration_test.py
-# in summa_modflow_workflow.
+# -DUSE_MODFLOW6=ON, and a python3 with netCDF4.
 #
 # Usage:  ./run_test.sh [population] [generations] [n_ranks]
 # ---------------------------------------------------------------------------------------
