@@ -21,10 +21,11 @@ Tests and example domains for SUMMA, grouped by what they exercise:
   scoring discharge, GRACE, water temperature, mass balance and a synthetic well; and `multi_case_example/`, which calibrates several
   cases from one manifest on a stub dataset built from the bundled Bow domain.
 - [`test_mflow/`](test_mflow/README.md) -- SUMMA coupled to MODFLOW 6
-  (needs `-DUSE_MODFLOW6=ON`): eight Sagehen cases from 1 to 3396 HRUs,
-  with and without lateral flow, a steady-state stress period, groundwater
-  ET, and mizuRoute routing. Run them all after any change to the coupling
-  or the solver and check the reported coupled water budget.
+  (needs `-DUSE_MPI=ON -DUSE_MIZUROUTE=ON -DUSE_MODFLOW6=ON`): `sagehen_run/`, ten
+  coupled days through the serial and MPI couplers, and `sagehen_calibration/`,
+  a coupled calibration of lumped Sagehen Creek against every kind of target,
+  through every MODFLOW package the coupler drives. Run them after any change
+  to the coupling or the calibration.
 - [`test_ngen/`](test_ngen/readme.md) -- example NextGen case studies (Provo,
   gauge_01073000) showing how a SUMMA setup looks under NextGen, run either
   standalone or coupled through ngen with t-route routing. Not a pass/fail
@@ -34,4 +35,5 @@ Runnable right after cloning, given a build with the options named above
 (see [docs/index.md](../../docs/index.md)): `test_mizuroute/test_mizuroute_bundled.sh`,
 `test_calibration/test_calibration_bow.sh`, `test_calibration/test_calibration_bow_pareto.sh`,
 `test_calibration/multi_case_example/make_stub_century.bash`
-followed by the run it prints, and the `test_mflow/run_sagehen*.sh` scripts.
+followed by the run it prints, and `test_mflow/sagehen_run/run_test.sh` and
+`test_mflow/sagehen_calibration/run_test.sh`.

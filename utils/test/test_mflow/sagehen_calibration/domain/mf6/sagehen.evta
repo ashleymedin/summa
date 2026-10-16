@@ -1,0 +1,17 @@
+# Groundwater ET - the coupler writes SUMMA's aquifer transpiration demand into RATE every step.
+# SUMMA has already limited the demand by the water table, so DEPTH is large: EVT must not limit it again.
+BEGIN OPTIONS
+  READASARRAYS
+  SAVE_FLOWS
+END OPTIONS
+
+BEGIN PERIOD 1
+  IEVT
+    CONSTANT  1
+  SURFACE
+    OPEN/CLOSE  evtsurf1.txt
+  RATE
+    CONSTANT  0.0
+  DEPTH
+    CONSTANT  1000.0
+END PERIOD
