@@ -27,7 +27,7 @@ S=~/Research/Symfluence/SYMFLUENCE_data/domain_Wolverine
     ../test/test_calibration/wolverine/observations/USGS_15236900_daily_flow.nc --model-utc-offset 0
 ./acquire_stream_temperature.py 15236900 2016-01-01 2019-12-31 \
     ../test/test_calibration/wolverine/observations/USGS_15236900_daily_temperature.nc --model-utc-offset 0
-./acquire_glacier_mass_balance.py $S/observations/storage/mass_balance/Output_Wolverine_Glacier_Wide_solutions_calibrated.csv \
+../../../summa_glacier/acquire_glacier_mass_balance.py $S/observations/storage/mass_balance/Output_Wolverine_Glacier_Wide_solutions_calibrated.csv \
     seasonal ../test/test_calibration/wolverine/observations/wolverine_mass_balance_seasonal.nc
 ```
 

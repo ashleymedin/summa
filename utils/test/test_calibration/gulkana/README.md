@@ -12,13 +12,14 @@ from GRACE, and the glacier's own mass balance.
 | Storage | GRACE JPL RL06.3 mascon cell holding the basin centroid, mm |
 | Mass balance | USGS Benchmark Glacier glacier-wide seasonal (winter and summer) balance, mm w.e. |
 
-The observations were written by the scripts in `utils/pre-processing/`:
+The observations were written by the scripts in `utils/pre-processing/` and, for the mass balance, `summa_glacier`
+beside this checkout:
 
 ```bash
 cd utils/pre-processing
 ./acquire_streamflow.py usgs 15478040 2008-01-01 2012-12-31 \
     ../test/test_calibration/gulkana/observations/USGS_15478040_daily_flow.nc --model-utc-offset 0
-./acquire_glacier_mass_balance.py Output_Gulkana_Glacier_Wide_solutions_calibrated.csv seasonal \
+../../../summa_glacier/acquire_glacier_mass_balance.py Output_Gulkana_Glacier_Wide_solutions_calibrated.csv seasonal \
     ../test/test_calibration/gulkana/observations/gulkana_mass_balance_seasonal.nc
 ```
 

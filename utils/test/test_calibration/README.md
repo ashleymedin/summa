@@ -173,8 +173,8 @@ metric     = "rmse"
 - `basin__GlacierMassChange` is the glacier domains' total mass change over the glacier area, which is
   what a glacier-wide balance is per unit of.
 
-`utils/pre-processing/acquire_glacier_mass_balance.py` writes the USGS Benchmark Glacier glacier-wide
-solutions in this form, seasonal or annual.
+`acquire_glacier_mass_balance.py` in `summa_glacier`, beside this checkout, writes the USGS Benchmark
+Glacier glacier-wide solutions in this form, seasonal or annual.
 
 ## Parameters that must stay in order
 
