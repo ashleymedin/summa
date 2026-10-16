@@ -25,5 +25,4 @@ The calibration spins up over the year before `start_time`, from the cold state,
 October 2016 to December 2018. A GRACE anomaly is referenced to the scored period (`baseline_start`,
 `baseline_end`), since the run cannot reproduce the product's own baseline.
 
-The domain and the synthetic well are built in `summa_glacier_workflow`, beside this checkout
-(`build_cases.py cases.yaml gulkana_wolverine`, `make_fake_well.py`); the reaches are estimates.
+The reaches are estimates.
