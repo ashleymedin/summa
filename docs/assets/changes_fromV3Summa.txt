@@ -364,4 +364,5 @@ AFTER tag of v4.0.0-exp-Sundials
 -81) change scalarRootZoneTemp to be the depth-weighed (last root layer truncated at rootingDepth) arithmatic mean, instead of non depth-weighed arithmatic mean. The variable is diagnostic only, not used in model calculations, commit 7e9eb963 and da4bf144 Oct 15, 2026
  82) glacier domains scale the forcing wind by windExposure, the surface-to-wind-station ratio (default 1), commit e5380f28 and d0be07e4 Oct 15, 2026
 -83) a saturated liquid matric potential state passes its pressure to the total matric head in a mass split, commit 8b38167a Oct 15, 2026
- 84) glacier debris re-split at each area update, top layer at most 5 cm and debris at least 2 cm thick, commit 39b712fb Oct 16, 2026
+ 84) glacier debris re-split at each area update, conserving its water and enthalpy: top layer at most 5 cm, the rest growing
+     geometrically, debris at least 2 cm thick, commits 39b712fb and addc9912 Oct 16, 2026
