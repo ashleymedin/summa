@@ -95,7 +95,7 @@ for any plausible error. The network carries a temperature only when some GRU ha
 name      = "stream_temperature"
 variable  = "T_reach"
 reach     = 9
-obs_file  = "USGS_10343500_daily_temperature.nc"   # from utils/pre-processing/acquire_stream_temperature.py
+obs_file  = "USGS_10343500_daily_temperature.nc"
 vname_obs = "t_obs"
 metric    = "rmse"
 ```
@@ -110,8 +110,7 @@ Every target reads its observations the same way, from a NetCDF file shaped like
 record: a `time` coordinate with CF units, and the named variable carrying its own units. Each time
 stamps the **end** of the span the value covers, on the clock the forcing is on, as SUMMA stamps its own
 time steps; the simulation is averaged over the span since the observation before it, so a monthly product, whose months are 28 to 31 days long, aligns like a daily
-gauge record. Getting data into that form is a pre-processing job - see `utils/pre-processing/`, whose
-acquisition scripts write it. `obs_units` overrides the units the file states.
+gauge record. `obs_units` overrides the units the file states.
 
 ### Comparing things that are not measured the way the model carries them
 
@@ -172,9 +171,6 @@ metric     = "rmse"
   over the glacier and one over a ~300 km mascon, and on Gulkana they pull the parameters apart.
 - `basin__GlacierMassChange` is the glacier domains' total mass change over the glacier area, which is
   what a glacier-wide balance is per unit of.
-
-`acquire_glacier_mass_balance.py` in `summa_glacier_workflow`, beside this checkout, writes the USGS Benchmark
-Glacier glacier-wide solutions in this form, seasonal or annual.
 
 ## Parameters that must stay in order
 
@@ -448,21 +444,11 @@ down, below 11 m of UZF. The 2017 snowmelt reaches it in October, 0.67 m above i
 is held at land surface by the drains. Its record is the head there in a
 reference coupled run at the default parameters, written by
 `utils/test/test_mflow/tools/make_sagehen_synthetic_well.py` as a saved USGS daily-values response
-(`sagehen/observations/SYNTHETIC-SAGEHEN-1_daily_values.json`). `acquire_groundwater_level.py --features`
-turns that into the observation file exactly as it would a real well's. The target scores departures
+(`sagehen/observations/SYNTHETIC-SAGEHEN-1_daily_values.json`), from which the observation file
+`SYNTHETIC-SAGEHEN-1_daily_level.nc` was written as a real well's would be. The target scores departures
 from the water-year mean, since a well's datum is not the model's. The builder's `sagehen.obs` names the
 cell as OBS6 observation `well1`, beside nine more cells the twin experiment below scores, and the target (`variable = "modflow_obs"`, `obs_name = "well1"`) reads
 its head from the CSV MODFLOW writes in each trial's directory.
-
-To remake the record, run the lumped domain once for water years 2017-2018 from its settled
-`strt1.txt`, with the coupler and the MODFLOW OC saving `HEAD FREQUENCY 6`, then
-
-```bash
-make_sagehen_synthetic_well.py <run>/sagehen.hds "2016-10-01 00:00" sagehen/observations/SYNTHETIC-SAGEHEN-1_daily_values.json
-../../pre-processing/acquire_groundwater_level.py SYNTHETIC-SAGEHEN-1 2016-10-01 2018-09-30 \
-    sagehen/observations/SYNTHETIC-SAGEHEN-1_daily_level.nc --model-utc-offset 0 --gauge-utc-offset -8 \
-    --features sagehen/observations/SYNTHETIC-SAGEHEN-1_daily_values.json
-```
 
 ```bash
 ./test_calibration_sagehen.sh [lumped|grid] [population] [generations] [n_ranks]   # defaults: lumped, 6, 3, 7
@@ -542,8 +528,7 @@ calibrate nothing.
 ```
 
 Each needs `bin/summa_sundials_mizuroute_opt.exe` and checks the trials file and the front the way
-`test_calibration_bow_pareto.sh` does. The glacier calibrations themselves are in `summa_glacier_workflow`,
-beside this checkout.
+`test_calibration_bow_pareto.sh` does.
 
 ## `multi_case_example/` -- multi-case calibration
 
