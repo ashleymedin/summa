@@ -4,7 +4,7 @@
 #
 # NSGA-II on Wolverine's routed discharge (KGE) and water temperature (RMSE, degC) at the outlet of reach 2,
 # its glacier-wide seasonal mass balance (RMSE) and a synthetic well (RMSE, the aquifer storage of HRU 5 in a
-# reference run at the default parameters), Oct 2016 - Jun 2018 after a spin-up from Oct 2015. The domain
+# reference run at the default parameters), Oct 2016 - Jul 2018 after a spin-up from Oct 2015. The domain
 # runs both GRUs; only Wolverine's records are scored. The budget is tiny, so it calibrates nothing.
 #
 # Needs an executable built with -DUSE_MPI=ON -DUSE_MIZUROUTE=ON. Each GRU drains to its own reach:
@@ -55,7 +55,7 @@ case_name = "gulkana_wolverine"
 
 # one spinup year (Oct 2015 - Sep 2016) precedes the simulation, which the calibration then scores
 start_time = "2016-10-01 00:00"
-end_time   = "2018-06-30 23:00"
+end_time   = "2018-07-31 23:00"
 time_zone  = "utcTime"
 
 use_mizuroute    = true
@@ -122,7 +122,7 @@ varname_length = "length"
 algorithm = "nsga2"
 
 start_date = "2016-10-01"
-end_date   = "2018-06-30"
+end_date   = "2018-07-31"
 
 n_samples = ${N_SAMPLES}
 

@@ -323,7 +323,7 @@ It calibrates the common parameters.
 ## `test_calibration_gulkana_wolverine.sh` and `test_calibration_wolverine.sh`
 
 Two tests on the `gulkana_wolverine/` domain: Gulkana and Wolverine glaciers as two GRUs, each draining to
-its own mizuRoute reach, scored October 2016 to June 2018 after a spin-up from October 2015. They test
+its own mizuRoute reach, scored October 2016 to July 2018 after a spin-up from October 2015. They test
 that a calibration runs, scores and ranks trials on several targets; with the tiny default budget they
 calibrate nothing.
 
