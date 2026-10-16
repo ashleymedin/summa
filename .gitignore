@@ -102,6 +102,7 @@ utils/test/test_mizuroute/bow_real_data/mizuroute_inputs/topology_new.nc
 
 # MODFLOW 6 test run output
 utils/test/test_mflow/sagehen_calibration/run/
+utils/test/test_mflow/sagehen_run/run/
 build/cmake_build_mpi
 build/cmake_build_nosun
 
