@@ -11,13 +11,13 @@ several GRUs (`../test_calibration_gulkana_wolverine.sh`): each target names its
 | Mass balance | USGS Benchmark Glacier glacier-wide seasonal and annual balances, mm w.e. |
 | Storage | GRACE JPL mass anomaly per basin, mm equivalent water thickness, 2002-04 to 2025-11 |
 
-The domain is written by `build_cases.py cases.yaml gulkana_wolverine` in `summa_glacier`, beside this
+The domain is written by `build_cases.py cases.yaml gulkana_wolverine` in `summa_glacier_workflow`, beside this
 checkout, which also builds the Gulkana and Wolverine glacier cases: the two glacier domains side by
 side, their HRUs, glacier grids and forcing concatenated, Wolverine's HRUs renumbered 4–6. The cold
 state starts the soil and debris 1.5 °C above each HRU's mean air temperature over its first year,
 October 2008 to September 2009. The text settings and `trialParams.nc` are this folder's own.
 
-The mass balances were written by `acquire_glacier_mass_balance.py` (in `summa_glacier`) and the GRACE
+The mass balances were written by `acquire_glacier_mass_balance.py` (in `summa_glacier_workflow`) and the GRACE
 records by `utils/pre-processing/acquire_grace_tws.py`, the JPL RL06.3 CRI mascon cell holding each
 GRU's centroid:
 

@@ -9,7 +9,7 @@ Helpful scripts for a variety of pre-processing purposes:
 - `add_stream_network.py`: split tributary GRUs off that domain, each with its own reach, from a JSON spec
 
 The glacier setup (glacier rasters, domains, cold state, station-corrected forcing and the glacier mass-balance
-observations) lives in `../summa_glacier`, beside this checkout.
+observations) lives in `../summa_glacier_workflow`, beside this checkout.
 
 ## Calibration observations
 

@@ -5,7 +5,7 @@
 # NSGA-II on each glacier's glacier-wide seasonal mass balance (RMSE), scored on its own GRU,
 # Oct 2009 - Dec 2011 after a spin-up from Oct 2008, over six snow and glacier parameters. It is the
 # minimal test of multi-objective calibration over several GRUs; the glacier cases themselves are
-# built and calibrated in summa_glacier, beside this checkout. The script checks the front the way
+# built and calibrated in summa_glacier_workflow, beside this checkout. The script checks the front the way
 # test_calibration_bow_pareto.sh does and prints it.
 #
 # Needs an executable built with -DUSE_MPI=ON. No mizuRoute topology is used.
