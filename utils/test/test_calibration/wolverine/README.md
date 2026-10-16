@@ -40,9 +40,10 @@ of HRU 1, the lowest land HRU.
 of thermal-only bedrock under the soil, and the groundwater reaching the channel leaves at its base;
 with the default, it leaves at the base of the 4 m soil column, near freezing, and the water entering
 the reach in July is 0.07 °C against 1.37 °C at the gauge. The cold state starts each land HRU's
-soil 1.5 °C above its 2016–2019 mean annual air temperature (2.5, 1.2 and −0.7 °C), and the bedrock
-starts from the deepest soil layer. Its base moves less than 0.2 °C by 2019, so that start sets the
-groundwater temperature.
+soil 1.5 °C above its 2008–2022 mean annual air temperature (1.25, −0.05 and −1.99 °C), and the
+bedrock starts from the deepest soil layer. Its base moves less than 0.2 °C by 2019, so that start sets
+the groundwater temperature. `summa_glacier`, beside this checkout, writes the cold state, with two
+debris layers over the glacier ice.
 `hyporhTdyn = proxy` returns part of the reach flow at the temperature it had earlier, which damps the
 daily swing.
 
