@@ -1,8 +1,25 @@
 # SUMMA / MODFLOW 6 coupling
 
 A thin BMI coupler runs SUMMA as the land model and MODFLOW 6 as the groundwater model. This folder
-holds one test of the coupling and the calibration through it, `sagehen_calibration/`, and documents
-the coupler.
+holds two tests, `sagehen_run/` of the coupled run and `sagehen_calibration/` of the calibration through
+it, and documents the coupler.
+
+## `sagehen_run/`
+
+Ten days of the `sagehen_calibration/` domain from a cold start, through the serial and the MPI couplers:
+
+1. the serial coupler with mizuRoute, whose coupled budget must show water or heat through every package
+   and conserve drainage across the HRU-to-cell map, with flow leaving reach 9;
+2. the serial coupler without mizuRoute and the MPI coupler on 2 ranks, whose SUMMA output must agree
+   bit for bit, HRU by HRU and GRU by GRU. The MPI coupler takes no TOML, so neither routes.
+
+```bash
+./run_test.sh
+```
+
+It needs `bin/summa_modflow6_sundials_mizuroute.exe` and `bin/summa_modflow6_mpi_sundials_mizuroute.exe`,
+built with `-DUSE_MPI=ON -DUSE_MIZUROUTE=ON -DUSE_MODFLOW6=ON`, and a python3 with netCDF4. It takes about
+2 minutes.
 
 ## `sagehen_calibration/`
 
