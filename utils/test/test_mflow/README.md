@@ -1,10 +1,10 @@
 # SUMMA / MODFLOW 6 coupling
 
 A thin BMI coupler runs SUMMA as the land model and MODFLOW 6 as the groundwater model. This folder
-holds two tests, `sagehen_run/` of the coupled run and `sagehen_calibration/` of the calibration through
+holds two tests, `sagehen_coupling/` of the coupled run and `sagehen_calibration/` of the calibration through
 it, and documents the coupler.
 
-## `sagehen_run/`
+## `sagehen_coupling/`
 
 Ten days of the `sagehen_calibration/` domain from a cold start, through the serial and the MPI couplers:
 
