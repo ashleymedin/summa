@@ -95,7 +95,7 @@ for any plausible error. The network carries a temperature only when some GRU ha
 name      = "stream_temperature"
 variable  = "T_reach"
 reach     = 9
-obs_file  = "USGS_10343500_daily_temperature.nc"   # from utils/pre-processing/acquire_stream_temperature.py
+obs_file  = "USGS_10343500_daily_temperature.nc"
 vname_obs = "t_obs"
 metric    = "rmse"
 ```
@@ -110,8 +110,7 @@ Every target reads its observations the same way, from a NetCDF file shaped like
 record: a `time` coordinate with CF units, and the named variable carrying its own units. Each time
 stamps the **end** of the span the value covers, on the clock the forcing is on, as SUMMA stamps its own
 time steps; the simulation is averaged over the span since the observation before it, so a monthly product, whose months are 28 to 31 days long, aligns like a daily
-gauge record. Getting data into that form is a pre-processing job - see `utils/pre-processing/`, whose
-acquisition scripts write it. `obs_units` overrides the units the file states.
+gauge record. `obs_units` overrides the units the file states.
 
 ### Comparing things that are not measured the way the model carries them
 
@@ -172,9 +171,6 @@ metric     = "rmse"
   over the glacier and one over a ~300 km mascon, and on Gulkana they pull the parameters apart.
 - `basin__GlacierMassChange` is the glacier domains' total mass change over the glacier area, which is
   what a glacier-wide balance is per unit of.
-
-`acquire_glacier_mass_balance.py` in `summa_glacier_workflow`, beside this checkout, writes the USGS Benchmark
-Glacier glacier-wide solutions in this form, seasonal or annual.
 
 ## Parameters that must stay in order
 
@@ -342,8 +338,7 @@ calibrate nothing.
 ```
 
 Each needs `bin/summa_sundials_mizuroute_opt.exe` and checks the trials file and the front the way
-`test_calibration_bow_pareto.sh` does. The glacier calibrations themselves are in `summa_glacier_workflow`,
-beside this checkout.
+`test_calibration_bow_pareto.sh` does.
 
 ## `multi_case_example/` -- multi-case calibration
 
