@@ -59,7 +59,8 @@ it better. The calibration spins up over water year 2017 and scores October-Nove
 ```
 
 It needs `bin/summa_modflow6_opt_sundials_mizuroute.exe`, built with `-DUSE_MPI=ON -DUSE_MIZUROUTE=ON
--DUSE_MODFLOW6=ON`, and a python3 with netCDF4. @TIMING@ The domain is built by
+-DUSE_MODFLOW6=ON`, and a python3 with netCDF4. It took under 2 hours on a 10-core machine shared with another
+calibration, most of it the year of spin-up that every run repeats on every rank. The domain is built by
 `build_sagehen_calibration_test.py` in `summa_modflow_workflow`; rebuild it there after changing the
 model or the builder.
 

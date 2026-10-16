@@ -61,10 +61,12 @@ implicit none
 real(rkind),parameter :: flat_threshold=1.e-6_rkind  ! tan slope below which terrain is treated as flat for aspect
 real(rkind),parameter :: deg2rad=PI_D/180._rkind     ! factor to convert degrees to radians
 real(rkind),parameter :: rad2deg=180._rkind/PI_D     ! factor to convert radians to degrees
+real(rkind),parameter :: min_thickness=0.02_rkind    ! minimum thickness of debris cover to be considered as debris cover (m)
+real(rkind),parameter :: maxDebrisTop=0.05_rkind     ! maximum thickness of the top debris layer (m)
 
 ! privacy
 private::run_flowModel,run_debrisModel,diffusion_MUSCL,advection_MUSCL,static_emergElev_latRockfall
-private::fit_massBalanceCurve,cell_slopeAspect,argsort_desc
+private::fit_massBalanceCurve,cell_slopeAspect,argsort_desc,debrisLayering,debrisResplit
 private::superbee,flux,SIA,midpt,pluss,minus
 public::glacAreaChange
 public::time_updateGlacArea
@@ -185,7 +187,6 @@ subroutine glacAreaChange(&
   integer(i4b)                       :: i, j, k, n, dbr                 ! loop indices
   integer(i4b)                       :: iGlac, iGrid, iDOM, iHRU        ! loop indices
   character(len=256)                 :: cmessage                        ! error message of downwind routine
-  real(rkind),parameter              :: min_thickness=0.02_rkind        ! minimum thickness of debris cover to be considered as debris cover (m)
   logical(lgt),parameter             :: printFlag=.false.               ! flag to print details for debugging
 
   ! ----------------------------------------------------------------------------------------------
@@ -1495,8 +1496,10 @@ subroutine updateGlacDomain(&
                   nLake,               & ! intent(in):    number of lake layers
                   nSoil,               & ! intent(in):    number of soil layers
                   nGlce,               & ! intent(in):    number of glacier ice layers
+                  use_lookup,          & ! intent(in):    flag to use the lookup table for soil enthalpy
                   ! data structures
                   mpar_data,           & ! intent(in):    model parameters
+                  lookup_data,         & ! intent(in):    lookup tables
                   indx_data,           & ! intent(in):    model indices
                   prog_data,           & ! intent(inout): model prognostic variables
                   diag_data,           & ! intent(inout): model diagnostic variables
@@ -1504,8 +1507,10 @@ subroutine updateGlacDomain(&
                   ! error control
                   err, message)         ! intent(out):   error control
   ! ----- define downstream subroutines -----------------------------------------------------------------------------------
+  USE data_types,only:zLookup            ! x%z(:)%var(:)%lookup(:)
   USE var_derive_module,only:rootDensty  ! module to calculate the vertical distribution of roots
   USE var_derive_module,only:satHydCond  ! module to calculate the saturated hydraulic conductivity in each soil layer
+  USE var_derive_module,only:calcHeight  ! layer heights from layer depths
   ! ----- define dummy variables ------------------------------------------------------------------------------------------
   implicit none
   integer(i4b), intent(inout)     :: iglac                   ! glacier domain index
@@ -1521,7 +1526,9 @@ subroutine updateGlacDomain(&
   integer(i4b), intent(in)        :: nLake                    ! number of lake layers　(should be 0)
   integer(i4b), intent(in)        :: nSoil                    ! number of soil layers
   integer(i4b), intent(in)        :: nGlce                    ! number of glacier ice layers
+  logical(lgt), intent(in)        :: use_lookup               ! flag to use the lookup table for soil enthalpy
   type(var_dlength),intent(in)    :: mpar_data                ! model parameters
+  type(zLookup),intent(in)        :: lookup_data              ! lookup tables
   type(var_ilength),intent(in)    :: indx_data                ! model indices
   type(var_dlength),intent(inout) :: prog_data                ! model prognostic variables
   type(var_dlength),intent(inout) :: diag_data                ! model diagnostic variables
@@ -1567,18 +1574,12 @@ subroutine updateGlacDomain(&
    ! update glacier layering
    if(dom_type==glacDbr .and. DOMarea>0._rkind)then ! thickness of average debris cover in HRU changes with debris advection
      ! for zero area, glacDbr needs to keep previous non-zero soil layering so can adjust if debris-covered glacier re-appears
-     ! scale soil layer thickness with debris thickness change, keep the same number of layers 
-     layers_thick = sum(mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))
-     thick_ratio = glac_debris_thick(iglac)/layers_thick ! glac_debris_thick will be >0 since there is a positive area of debris-covered glacier
-     mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil)  = mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio
-     mLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil) = mLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio
-     iLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil) = iLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio            
-
-     ! recalculate the layer heights below soil
-     do i=nSnow+nLake+nSoil+1,nLayers
-       mLayerHeight(i) = mLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
-       iLayerHeight(i) = iLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
-     enddo
+     ! re-split the debris at its new thickness, keeping the same number of layers
+     call debrisResplit(use_lookup, max(glac_debris_thick(iglac), min_thickness), nSnow+nLake, nSoil, mpar_data, lookup_data, &
+                        prog_data, diag_data, err, cmessage)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     call calcHeight(indx_data,prog_data,err,cmessage)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! recalculate vertical distribution of root density
      call rootDensty(mpar_data,     & ! intent(in):    model parameters
@@ -1617,6 +1618,171 @@ subroutine updateGlacDomain(&
  end associate
 end subroutine updateGlacDomain
 
+
+! ************************************************************************************************
+! private subroutine debrisLayering: split debris of a given thickness into layers
+! ************************************************************************************************
+! The top layer is the smaller of an equal share and maxDebrisTop; below it each layer is r times the one
+! above, with r >= 1 the growth that fills the thickness, so thin debris splits evenly (m).
+! ************************************************************************************************
+subroutine debrisLayering(debrisThick,layerDepth)
+  implicit none
+  real(rkind),intent(in)  :: debrisThick                ! total debris thickness (m)
+  real(rkind),intent(out) :: layerDepth(:)              ! thickness of each debris layer, top down (m)
+  integer(i4b)            :: nDebris                    ! number of debris layers
+  integer(i4b)            :: iLayer,iter                ! loop indices
+  real(rkind)             :: rLow,rHigh,ratio           ! bracket and value of the growth ratio (-)
+  nDebris = size(layerDepth)
+  layerDepth(1) = min(debrisThick/real(nDebris,rkind), maxDebrisTop)
+  if(nDebris==1 .or. layerDepth(1) >= debrisThick/real(nDebris,rkind))then
+    layerDepth(:) = debrisThick/real(nDebris,rkind)
+    return
+  endif
+  rLow = 1._rkind
+  rHigh = 2._rkind
+  do while(fillDepth(rHigh) < debrisThick)
+    rHigh = 2._rkind*rHigh
+  enddo
+  do iter=1,200
+    ratio = 0.5_rkind*(rLow + rHigh)
+    if(fillDepth(ratio) < debrisThick)then; rLow = ratio; else; rHigh = ratio; endif
+  enddo
+  ratio = 0.5_rkind*(rLow + rHigh)
+  do iLayer=2,nDebris
+    layerDepth(iLayer) = layerDepth(iLayer-1)*ratio
+  enddo
+  layerDepth(nDebris) = debrisThick - sum(layerDepth(1:nDebris-1)) ! close the total exactly
+contains
+  function fillDepth(r)
+    real(rkind),intent(in) :: r
+    real(rkind)            :: fillDepth
+    integer(i4b)           :: k
+    fillDepth = layerDepth(1)*sum([(r**k, k=0,nDebris-1)])
+  end function fillDepth
+end subroutine debrisLayering
+
+! ************************************************************************************************
+! private subroutine debrisResplit: re-split the debris layers at a new debris thickness
+! ************************************************************************************************
+! The old layers are first stretched to the new thickness, keeping their intensive states, so the change of
+! thickness adds or removes debris as it is. Total water and total enthalpy are then carried to the new split
+! by depth overlap, so the split conserves both; each new layer's matric head follows from its water and its
+! temperature from its enthalpy.
+! ************************************************************************************************
+subroutine debrisResplit(use_lookup,debrisThick,iTop,nSoil,mpar_data,lookup_data,prog_data,diag_data,err,message)
+  USE data_types,only:zLookup                                 ! x%z(:)%var(:)%lookup(:)
+  USE var_lookup,only:iLookPARAM,iLookDIAG                    ! named variables for structure elements
+  USE multiconst,only:LH_fus                                  ! latent heat of fusion (J kg-1)
+  USE soil_utils_module,only:matricHead                       ! matric suction from total water (m)
+  USE updatState_module,only:updatSoil                        ! phase partitioning
+  USE convertEnthalpyTemp_module,only:T2enthTemp_soil         ! temperature component of enthalpy, soil
+  implicit none
+  logical(lgt),intent(in)         :: use_lookup               ! flag to use the lookup table for soil enthalpy
+  real(rkind),intent(in)          :: debrisThick              ! new total debris thickness (m)
+  integer(i4b),intent(in)         :: iTop                     ! number of snow and lake layers above the debris
+  integer(i4b),intent(in)         :: nSoil                    ! number of debris layers
+  type(var_dlength),intent(in)    :: mpar_data                ! model parameters
+  type(zLookup),intent(in)        :: lookup_data              ! lookup tables
+  type(var_dlength),intent(inout) :: prog_data                ! model prognostic variables
+  type(var_dlength),intent(inout) :: diag_data                ! model diagnostic variables
+  integer(i4b),intent(out)        :: err                      ! error code
+  character(*),intent(out)        :: message                  ! error message
+  real(rkind)                     :: dOld(nSoil),dNew(nSoil)  ! stretched old and new layer thicknesses (m)
+  real(rkind)                     :: zOld(0:nSoil),zNew(0:nSoil) ! interface depths below the debris surface (m)
+  real(rkind)                     :: watOld(nSoil),enthOld(nSoil),tempOld(nSoil),psiOld(nSoil) ! old layer states
+  real(rkind)                     :: wat,enth,psi,temp,overlap ! remapped states of a new layer
+  real(rkind)                     :: tLow,tHigh,enthTemp,volWat,volLiq,volIce ! bisection on temperature
+  real(rkind)                     :: vGn_m                    ! van Genuchten "m" parameter (-)
+  logical(lgt)                    :: saturated                ! every overlapping old layer is at or above saturation
+  integer(i4b)                    :: iLayer,jLayer,iter       ! loop indices
+  character(len=256)              :: cmessage                 ! error message of downwind routine
+  err=0; message='debrisResplit/'
+  associate(&
+   mLayerDepth    => prog_data%var(iLookPROG%mLayerDepth)%dat,        & ! thickness of each layer (m)
+   mLayerTemp     => prog_data%var(iLookPROG%mLayerTemp)%dat,         & ! temperature (K)
+   mLayerWat      => prog_data%var(iLookPROG%mLayerVolFracWat)%dat,   & ! volumetric fraction of total water (-)
+   mLayerLiq      => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,   & ! volumetric fraction of liquid water (-)
+   mLayerIce      => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,   & ! volumetric fraction of ice (-)
+   mMatricHead    => prog_data%var(iLookPROG%mLayerMatricHead)%dat,   & ! total water matric head (m)
+   mLayerEnth     => prog_data%var(iLookPROG%mLayerEnthalpy)%dat,     & ! enthalpy (J m-3)
+   mLayerEnthTemp => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat,     & ! temperature component of enthalpy (J m-3)
+   soil_dens_intr => mpar_data%var(iLookPARAM%soil_dens_intr)%dat,    & ! intrinsic soil density (kg m-3)
+   vGn_alpha      => mpar_data%var(iLookPARAM%vGn_alpha)%dat,         & ! van Genuchten "alpha" parameter (m-1)
+   vGn_n          => mpar_data%var(iLookPARAM%vGn_n)%dat,             & ! van Genuchten "n" parameter (-)
+   theta_sat      => mpar_data%var(iLookPARAM%theta_sat)%dat,         & ! soil porosity (-)
+   theta_res      => mpar_data%var(iLookPARAM%theta_res)%dat          & ! soil residual volumetric water content (-)
+   )
+   dOld = mLayerDepth(iTop+1:iTop+nSoil)*debrisThick/sum(mLayerDepth(iTop+1:iTop+nSoil))
+   call debrisLayering(debrisThick, dNew)
+   zOld(0) = 0._rkind; zNew(0) = 0._rkind
+   do iLayer=1,nSoil
+     zOld(iLayer) = zOld(iLayer-1) + dOld(iLayer)
+     zNew(iLayer) = zNew(iLayer-1) + dNew(iLayer)
+     vGn_m = 1._rkind - 1._rkind/vGn_n(iLayer)
+     tempOld(iLayer) = mLayerTemp(iTop+iLayer)
+     psiOld(iLayer)  = mMatricHead(iLayer)
+     watOld(iLayer)  = mLayerWat(iTop+iLayer)
+     call T2enthTemp_soil(use_lookup, soil_dens_intr(iLayer), vGn_alpha(iLayer), vGn_n(iLayer), theta_sat(iLayer), theta_res(iLayer), &
+                          vGn_m, iLayer, lookup_data, realMissing, tempOld(iLayer), psiOld(iLayer), enthTemp, err, cmessage)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     enthOld(iLayer) = enthTemp - iden_water*LH_fus*mLayerIce(iTop+iLayer)
+   enddo
+   if(maxval(abs(zNew - zOld)) < verySmall*debrisThick)then ! the split is unchanged: only the stretch
+     mLayerDepth(iTop+1:iTop+nSoil) = dNew
+     return
+   endif
+
+   do iLayer=1,nSoil
+     wat = 0._rkind; enth = 0._rkind; psi = 0._rkind; temp = 0._rkind
+     saturated = .true.
+     do jLayer=1,nSoil
+       overlap = max(0._rkind, min(zNew(iLayer),zOld(jLayer)) - max(zNew(iLayer-1),zOld(jLayer-1)))/dNew(iLayer)
+       if(overlap <= 0._rkind) cycle
+       wat  = wat  + overlap*watOld(jLayer)
+       enth = enth + overlap*enthOld(jLayer)
+       temp = temp + overlap*tempOld(jLayer)
+       psi  = psi  + overlap*max(psiOld(jLayer),0._rkind)
+       saturated = saturated .and. psiOld(jLayer) >= 0._rkind
+     enddo
+     vGn_m = 1._rkind - 1._rkind/vGn_n(iLayer)
+     if(.not.saturated) psi = matricHead(min(wat,theta_sat(iLayer)), vGn_alpha(iLayer), theta_res(iLayer), theta_sat(iLayer), vGn_n(iLayer), vGn_m)
+
+     ! temperature where the layer's total enthalpy, sensible less the latent heat of its ice, matches the remapped one
+     tLow = minval(tempOld) - 10._rkind; tHigh = maxval(tempOld) + 10._rkind
+     do iter=1,100
+       temp = 0.5_rkind*(tLow + tHigh)
+       call layerState(temp)
+       if(err/=0) return
+       if(enthTemp - iden_water*LH_fus*volIce < enth)then; tLow = temp; else; tHigh = temp; endif
+       if(tHigh - tLow < 1.e-10_rkind) exit
+     enddo
+     temp = 0.5_rkind*(tLow + tHigh)
+     call layerState(temp)
+     if(err/=0) return
+     mLayerTemp(iTop+iLayer) = temp
+     mMatricHead(iLayer)     = psi
+     mLayerWat(iTop+iLayer)  = volWat
+     mLayerLiq(iTop+iLayer)  = volLiq
+     mLayerIce(iTop+iLayer)  = volIce
+     mLayerEnthTemp(iTop+iLayer) = enthTemp
+     mLayerEnth(iTop+iLayer) = enthTemp - iden_water*LH_fus*volIce
+   enddo
+   mLayerDepth(iTop+1:iTop+nSoil) = dNew
+  end associate
+contains
+  subroutine layerState(tk)
+    ! water phases and temperature component of enthalpy of the new layer at temperature tk
+    real(rkind),intent(in) :: tk
+    call updatSoil(tk, psi, mpar_data%var(iLookPARAM%vGn_alpha)%dat(iLayer), mpar_data%var(iLookPARAM%vGn_n)%dat(iLayer), &
+                   mpar_data%var(iLookPARAM%theta_sat)%dat(iLayer), mpar_data%var(iLookPARAM%theta_res)%dat(iLayer), vGn_m, &
+                   volWat, volLiq, volIce, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call T2enthTemp_soil(use_lookup, mpar_data%var(iLookPARAM%soil_dens_intr)%dat(iLayer), mpar_data%var(iLookPARAM%vGn_alpha)%dat(iLayer), &
+                         mpar_data%var(iLookPARAM%vGn_n)%dat(iLayer), mpar_data%var(iLookPARAM%theta_sat)%dat(iLayer), &
+                         mpar_data%var(iLookPARAM%theta_res)%dat(iLayer), vGn_m, iLayer, lookup_data, realMissing, tk, psi, enthTemp, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end subroutine layerState
+end subroutine debrisResplit
 
 ! ************************************************************************************************
 ! public subroutine startGlacDomain: start a glacier domain that has just gained area from a donor domain

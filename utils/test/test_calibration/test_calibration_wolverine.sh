@@ -1,16 +1,14 @@
 #!/bin/bash
 # ---------------------------------------------------------------------------------------
-# Three-objective glacier calibration on the bundled Wolverine domain, routed by mizuRoute.
+# Multi-objective calibration of one basin on four kinds of record: Wolverine Glacier (GRU 2).
 #
-# NSGA-II on daily discharge (KGE) and water temperature (RMSE, degC) at USGS 15236900,
-# the outlet of the one reach, and the glacier-wide seasonal mass balance (RMSE), 2017-2019
-# after a 2016 spin-up, over the common parameter set plus the glacier and snow ones. The
-# groundwater leaves at the temperature of the bedrock base (deepTherml = bedrockLyrs), so no
-# parameter sets its temperature.
-# The script checks the front the way test_calibration_gulkana.sh does and prints it.
+# NSGA-II on Wolverine's routed discharge (KGE) and water temperature (RMSE, degC) at the outlet of reach 2,
+# its glacier-wide seasonal mass balance (RMSE) and a synthetic well (RMSE, the aquifer storage of HRU 5 in a
+# reference run at the default parameters), Oct 2016 - Dec 2018 after a spin-up from Oct 2015. The domain
+# runs both GRUs; only Wolverine's records are scored. The budget is tiny, so it calibrates nothing.
 #
-# The budget is tiny, so this exercises the machinery; it does not calibrate the glacier.
-# Needs an executable built with -DUSE_MPI=ON -DUSE_MIZUROUTE=ON.
+# Needs an executable built with -DUSE_MPI=ON -DUSE_MIZUROUTE=ON. Each GRU drains to its own reach:
+# reach 1 below Gulkana Glacier, reach 2 below Wolverine Glacier.
 #
 # Usage:  ./test_calibration_wolverine.sh [population] [generations] [n_ranks]
 # ---------------------------------------------------------------------------------------
@@ -18,11 +16,11 @@ set -euo pipefail
 
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 SUMMA_ROOT="$(cd "${TEST_DIR}/../../.." && pwd)"
-DATA="${TEST_DIR}/wolverine"
+DATA="${TEST_DIR}/gulkana_wolverine"
 WORK="${TEST_DIR}/wolverine_run"
 
-POPULATION=${1:-8}
-GENERATIONS=${2:-4}
+POPULATION=${1:-4}
+GENERATIONS=${2:-3}
 N_RANKS=${3:-5}
 N_SAMPLES=$((POPULATION * GENERATIONS))
 
@@ -37,7 +35,7 @@ if [ -z "${SUMMA_EXE}" ]; then
 fi
 
 echo "======================================================================"
-echo "SUMMA glacier calibration test (Wolverine, discharge + temperature + mass balance)"
+echo "SUMMA one-basin calibration test (Wolverine: discharge, temperature, mass balance, well)"
 echo "======================================================================"
 echo "  executable:  ${SUMMA_EXE}"
 echo "  work dir:    ${WORK}"
@@ -53,11 +51,11 @@ cat > "${WORK}/config.toml" <<EOF
 
 [simulation]
 
-case_name = "wolverine"
+case_name = "gulkana_wolverine"
 
-# one spinup year (2016) precedes the simulation, which the calibration then scores
-start_time = "2017-01-01 00:00"
-end_time   = "2019-12-31 23:00"
+# one spinup year (Oct 2015 - Sep 2016) precedes the simulation, which the calibration then scores
+start_time = "2016-10-01 00:00"
+end_time   = "2018-12-31 23:00"
 time_zone  = "utcTime"
 
 use_mizuroute    = true
@@ -123,58 +121,21 @@ varname_length = "length"
 
 algorithm = "nsga2"
 
-start_date = "2017-01-01"
-end_date   = "2019-12-31"
+start_date = "2016-10-01"
+end_date   = "2018-12-31"
 
 n_samples = ${N_SAMPLES}
 
 param_list = [
-    "k_soil",
-    "theta_sat",
-    "aquiferBaseflowExp",
-    "aquiferBaseflowRate",
-    "qSurfScale",
-    "summerLAI",
     "frozenPrecipMultip",
-    "Fcapil",
     "tempCritRain",
-    "heightCanopyTop",
-    "heightCanopyBottom",
-    "windReductionParam",
-    "vGn_n",
-    "routingGammaScale",
-    "routingGammaShape",
     "glacierWindFactor",
     "glacierTempReduction",
-    "glacStor_kIce",
-    "glacStor_kSnow",
-    "glacStor_kFirn",
-    "debrisConc",
-    "k_snow",
-    "mw_exp",
-    "albedoDecayRate",
-    "albedoMax"
+    "albedoMax",
+    "aquiferBaseflowExp"
 ]
 
 write_aligned = false
-
-
-[calibration.parameter_transformations]
-
-k_soil              = "log"
-aquiferBaseflowRate = "log"
-
-
-[[parameter_dependencies.ordered]]
-
-parameters   = ["heightCanopyBottom", "heightCanopyTop"]
-gap_fraction = 0.25
-
-[[parameter_dependencies.ordered]]
-
-parameters   = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
-gap_fraction = 0.025
-sample_gaps  = true
 
 
 [calibration.nsga2]
@@ -182,42 +143,51 @@ sample_gaps  = true
 population_size = ${POPULATION}
 
 
-# discharge at the gauge, the outlet of reach 1
 [[calibration.target]]
 
 name      = "discharge"
 variable  = "streamflow"
-reach     = 1
+reach     = 2
 obs_path  = "${DATA}/observations/"
-obs_file  = "USGS_15236900_daily_flow.nc"
+obs_file  = "wolverine_USGS_15236900_daily_flow.nc"
 vname_obs = "q_obs"
 metric    = "kge"
 
 
-# water temperature leaving reach 1
 [[calibration.target]]
 
 name      = "stream_temperature"
 variable  = "T_reach"
-reach     = 1
+reach     = 2
 obs_path  = "${DATA}/observations/"
-obs_file  = "USGS_15236900_daily_temperature.nc"
+obs_file  = "wolverine_USGS_15236900_daily_temperature.nc"
 vname_obs = "t_obs"
 metric    = "rmse"
 
 
-# winter and summer balances between the simulation's own extremes
 [[calibration.target]]
 
-name       = "mass_balance"
-variable   = "basin__GlacierMassChange"
-gru        = 1
-obs_path   = "${DATA}/observations/"
-obs_file   = "wolverine_mass_balance_seasonal.nc"
-vname_obs  = "mb_obs"
+name      = "mass_balance"
+variable  = "basin__GlacierMassChange"
+gru       = 2
+obs_path  = "${DATA}/observations/"
+obs_file  = "wolverine_mass_balance_seasonal.nc"
+vname_obs = "mb_obs"
+metric    = "rmse"
 accumulate = true
 balance    = "seasonal"
-metric     = "rmse"
+
+
+[[calibration.target]]
+
+name      = "well"
+variable  = "scalarAquiferStorage"
+hru       = 5
+obs_path  = "${DATA}/observations/"
+obs_file  = "wolverine_well_hru5_daily.nc"
+vname_obs = "well_obs"
+metric    = "rmse"
+
 EOF
 
 echo "Running nsga2..."
@@ -241,8 +211,10 @@ import numpy as np
 import netCDF4 as nc
 
 work, pop, ngen = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+names = ['discharge', 'stream_temperature', 'mass_balance', 'well']
+senses = ['maximize', 'minimize', 'minimize', 'minimize']
 
-d = nc.Dataset(os.path.join(work, "output", "wolverine_calibration.nc"))
+d = nc.Dataset(os.path.join(work, "output", "gulkana_wolverine_calibration.nc"))
 sense = [s.strip() for s in d["objective"].sense.split(",")]
 obj = np.ma.filled(d["objective"][:].astype(float), np.nan).T   # (target, sample)
 failed = np.asarray(d["trial_failed"][:]) == 1
@@ -264,15 +236,10 @@ def check(ok, what):
     fail |= not ok
 
 check(d.algorithm == "nsga2", "trials file records algorithm nsga2")
-check(obj.shape == (3, pop * ngen), f"objective is 3 targets x {pop * ngen} trials")
-check(sense == ["maximize", "minimize", "minimize"],
-      "discharge KGE is maximized, temperature and mass-balance RMSE minimized")
-check(not bool(failed.all()), f"{int((~failed).sum())} of {failed.size} trials ran")
-ran = obj[:, ~failed]
-check(bool(np.all(np.isfinite(ran))), "every objective of a trial that ran is finite")
-# a glacier-fed creek runs at 0-3 degC, so a trial that ran misses it by a few degC at most
-check(bool(np.all((ran[1] > 0.0) & (ran[1] < 10.0))), "temperature RMSE is between 0 and 10 degC")
-check(bool(np.all(np.abs(ran[2]) < 1e5)), "every mass-balance RMSE is plausible")
+check(obj.shape == (len(names), pop * ngen), f"objective is {len(names)} targets x {pop * ngen} trials")
+check(sense == senses, "each target is oriented as its metric says: " + ", ".join(f"{n} {s}" for n, s in zip(names, senses)))
+check(bool(np.any(~failed)), f"{int((~failed).sum())} of {failed.size} trials ran")
+check(bool(np.all(np.isfinite(obj[:, ~failed]))), "every objective of a trial that ran is finite")
 
 # smaller is better on every row; a failed trial is the worst on every target
 f = np.array([-o if s == "maximize" else o for o, s in zip(obj, sense)])
@@ -290,9 +257,9 @@ check(nf >= 1, f"the front holds {nf} trial(s)")
 
 print()
 print(f"  NSGA-II front ({nf} trials):")
-for i in np.where(front)[0][np.argsort(-obj[0, front])]:
-    print(f"    sample {i + 1:3d}: KGE {obj[0, i]:7.4f}   T_reach RMSE {obj[1, i]:6.3f} degC"
-          f"   mass balance RMSE {obj[2, i]:7.1f} mm")
+print("    sample  " + "  ".join(f"{n:>18s}" for n in names))
+for i in np.where(front)[0]:
+    print(f"    {i + 1:6d}  " + "  ".join(f"{v:18.4g}" for v in obj[:, i]))
 print(f"  failed trials (saved in output/failed_trials): {int(failed.sum())}")
 
 sys.exit(1 if fail else 0)

@@ -173,8 +173,8 @@ metric     = "rmse"
 - `basin__GlacierMassChange` is the glacier domains' total mass change over the glacier area, which is
   what a glacier-wide balance is per unit of.
 
-`utils/pre-processing/acquire_glacier_mass_balance.py` writes the USGS Benchmark Glacier glacier-wide
-solutions in this form, seasonal or annual.
+`acquire_glacier_mass_balance.py` in `summa_glacier_workflow`, beside this checkout, writes the USGS Benchmark
+Glacier glacier-wide solutions in this form, seasonal or annual.
 
 ## Parameters that must stay in order
 
@@ -435,31 +435,26 @@ package the coupler drives, with SUMMA and MODFLOW parameters searched together;
 [`../test_mflow/README.md`](../test_mflow/README.md). The longer Sagehen calibration and the twin experiment
 live in `summa_modflow_workflow`.
 
-## `test_calibration_wolverine.sh`
+## `test_calibration_gulkana_wolverine.sh` and `test_calibration_wolverine.sh`
 
-A glacier calibration routed by mizuRoute, scoring discharge (KGE) and water temperature (RMSE, degC)
-at USGS 15236900, and the glacier-wide seasonal mass balance (RMSE), on the bundled `wolverine/`
-domain: three glacier land HRUs and a stream HRU for the one reach. It spins up over 2016 and scores
-2017–2019, over the common parameters and the glacier and snow ones. `aquiferBaseflowRate` has a
-lower bound of 10⁻⁸ m s⁻¹ in `wolverine/` and `gulkana/` so it can be searched on a log scale. Under
-`deepTherml = bedrockLyrs` the groundwater leaves at the bedrock base, whose temperature no parameter
-sets; with `deepTherml = airTempGW` the search would add `C_ATGW` and `gwTempWindow`. The stream width
-is left at the gauge's: searching `streamWidthMultip` instead gives about the same temperature and a
-worse mass balance.
-`hypFrac` and `hypLag` are left at their defaults: the hyporheic proxy damps the daily swing, which a
-daily-mean target cannot see, and halving `hypLag` leaves the RMSE unchanged.
+Two tests on the `gulkana_wolverine/` domain: Gulkana and Wolverine glaciers as two GRUs, each draining to
+its own mizuRoute reach, scored October 2016 to December 2018 after a spin-up from October 2015. They test
+that a calibration runs, scores and ranks trials on several targets; with the tiny default budget they
+calibrate nothing.
+
+| Test | Targets |
+| --- | --- |
+| `test_calibration_gulkana_wolverine.sh` | discharge (KGE) at reaches 1 and 2, GRACE storage (RMSE) on GRUs 1 and 2 |
+| `test_calibration_wolverine.sh` | Wolverine only: discharge (KGE) and water temperature (RMSE) at reach 2, seasonal mass balance (RMSE) on GRU 2, a synthetic well (RMSE) at HRU 5 |
 
 ```bash
-./test_calibration_wolverine.sh [population] [generations] [n_ranks]   # defaults: 8, 4, 5
+./test_calibration_gulkana_wolverine.sh [population] [generations] [n_ranks]   # defaults: 4, 3, 5
+./test_calibration_wolverine.sh         [population] [generations] [n_ranks]
 ```
 
-It needs `bin/summa_sundials_mizuroute_opt.exe`. At the defaults it takes about 10 minutes, and every
-trial runs. The front runs from KGE 0.88 at 0.78 degC and 602 mm, through KGE 0.81 at 0.84 degC and
-248 mm, to 0.71 degC at KGE 0.67 and 1,557 mm. Every trial runs 0.5–1 degC cold from July to
-September. Glacier runoff enters the reach at freezing; the water
-warms from the groundwater of the unglaciated third of the basin, which leaves at the bedrock's
-starting temperature, and from the heat friction dissipates down the reach.
-`wolverine/README.md` says how the domain and observations were built.
+Each needs `bin/summa_sundials_mizuroute_opt.exe` and checks the trials file and the front the way
+`test_calibration_bow_pareto.sh` does. The glacier calibrations themselves are in `summa_glacier_workflow`,
+beside this checkout.
 
 ## `multi_case_example/` -- multi-case calibration
 

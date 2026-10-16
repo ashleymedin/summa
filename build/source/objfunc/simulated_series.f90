@@ -47,6 +47,7 @@ module simulated_series
 
   USE var_lookup, only: iLookATTR              ! named variables for the local attributes
   USE var_lookup, only: iLookBVAR              ! named variables for the basin-average variables
+  USE var_lookup, only: iLookPROG              ! named variables for the prognostic variables
 
   implicit none
   private
@@ -371,6 +372,8 @@ contains
     real(rkind)  :: total                                  ! area-weighted sum over the unit
     real(rkind)  :: area                                   ! total weighting area
     real(rkind)  :: wt                                     ! weight of one contribution
+    real(rkind)  :: domTotal                               ! total domain area of an HRU (m2)
+    real(rkind)  :: domWt                                  ! share of one domain in its HRU (-)
 
     err=0
     message='collect_simulated_series/'
@@ -401,7 +404,7 @@ contains
             area =area +wt
           enddo
 
-        ! everything else is per HRU and domain, weighted by HRU area
+        ! everything else is per HRU and domain, weighted by HRU area and, within an HRU, by domain area
         case default
           do iGRU=gruFirst,gruLast
             if(series(iSeries)%ix_unit == ix_unit_hru)then
@@ -414,9 +417,20 @@ contains
             do jHRU=hruFirst,hruLast
               wt=summa_struct%attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
               if(wt <= 0._rkind) wt=1._rkind
+              domTotal=0._rkind
               do iDOM=1,gru_struc(iGRU)%hruInfo(jHRU)%domCount
-                total=total+wt*series_value(summa_struct,series(iSeries),iGRU,jHRU,iDOM)
-                area =area +wt
+                domTotal=domTotal+max(summa_struct%progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1),0._rkind)
+              enddo
+              do iDOM=1,gru_struc(iGRU)%hruInfo(jHRU)%domCount
+                ! a domain without area holds no state worth counting, unless no domain has area
+                if(domTotal > 0._rkind)then
+                  domWt=max(summa_struct%progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1),0._rkind)/domTotal
+                else
+                  domWt=1._rkind/real(gru_struc(iGRU)%hruInfo(jHRU)%domCount,rkind)
+                endif
+                if(domWt <= 0._rkind) cycle
+                total=total+wt*domWt*series_value(summa_struct,series(iSeries),iGRU,jHRU,iDOM)
+                area =area +wt*domWt
               enddo
             enddo
           enddo
