@@ -524,22 +524,26 @@ K (18.4%) and VKS (27.5%). The trial with the best heads (0.021 m) had Sy within
 recoverable below its truth: every good trial sat at 0.11, since the targets see VKS only when it is too
 high.
 
-## `test_calibration_gulkana_wolverine.sh`
+## `test_calibration_gulkana_wolverine.sh` and `test_calibration_wolverine.sh`
 
-The minimal test of a multi-objective calibration over several GRUs: Gulkana (GRU 1) and Wolverine
-(GRU 2) as one domain, each glacier's glacier-wide seasonal mass balance (RMSE) scored on its own GRU
-by NSGA-II over six snow and glacier parameters. It spins up from October 2008 and scores October 2009
-to December 2011: a seasonal balance takes the opposite extreme from a year before its observation, so
-the first balances scored are 2011's.
+Two tests on the `gulkana_wolverine/` domain: Gulkana and Wolverine glaciers as two GRUs, each draining to
+its own mizuRoute reach, scored October 2016 to December 2018 after a spin-up from October 2015. They test
+that a calibration runs, scores and ranks trials on several targets; with the tiny default budget they
+calibrate nothing.
+
+| Test | Targets |
+| --- | --- |
+| `test_calibration_gulkana_wolverine.sh` | discharge (KGE) at reaches 1 and 2, GRACE storage (RMSE) on GRUs 1 and 2 |
+| `test_calibration_wolverine.sh` | Wolverine only: discharge (KGE) and water temperature (RMSE) at reach 2, seasonal mass balance (RMSE) on GRU 2, a synthetic well (RMSE) at HRU 5 |
 
 ```bash
 ./test_calibration_gulkana_wolverine.sh [population] [generations] [n_ranks]   # defaults: 4, 3, 5
+./test_calibration_wolverine.sh         [population] [generations] [n_ranks]
 ```
 
-It needs `bin/summa_sundials_mizuroute_opt.exe` and takes about 9 minutes. Every trial runs, and the
-front trades the two glaciers: from 63 mm on Gulkana at 1,189 mm on Wolverine to 457 mm on Wolverine at
-1,007 mm on Gulkana. The Gulkana and Wolverine glacier cases, their builds and their full calibrations
-are in `summa_glacier_workflow`, beside this checkout.
+Each needs `bin/summa_sundials_mizuroute_opt.exe` and checks the trials file and the front the way
+`test_calibration_bow_pareto.sh` does. The glacier calibrations themselves are in `summa_glacier_workflow`,
+beside this checkout.
 
 ## `multi_case_example/` -- multi-case calibration
 

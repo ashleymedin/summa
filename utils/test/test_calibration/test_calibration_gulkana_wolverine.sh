@@ -1,14 +1,14 @@
 #!/bin/bash
 # ---------------------------------------------------------------------------------------
-# Two-objective calibration of a two-GRU domain: Gulkana (GRU 1) and Wolverine (GRU 2).
+# Multi-objective calibration over two GRUs: Gulkana (GRU 1) and Wolverine (GRU 2) glaciers.
 #
-# NSGA-II on each glacier's glacier-wide seasonal mass balance (RMSE), scored on its own GRU,
-# Oct 2009 - Dec 2011 after a spin-up from Oct 2008, over six snow and glacier parameters. It is the
-# minimal test of multi-objective calibration over several GRUs; the glacier cases themselves are
-# built and calibrated in summa_glacier_workflow, beside this checkout. The script checks the front the way
-# test_calibration_bow_pareto.sh does and prints it.
+# NSGA-II on each basin's routed discharge (KGE) and its GRACE storage anomaly (RMSE, relative to the run
+# period), Oct 2016 - Dec 2018 after a spin-up from Oct 2015, over six snow, glacier and groundwater
+# parameters. It tests that a calibration scores several targets on several GRUs and reaches; the budget is
+# tiny, so it calibrates nothing.
 #
-# Needs an executable built with -DUSE_MPI=ON. No mizuRoute topology is used.
+# Needs an executable built with -DUSE_MPI=ON -DUSE_MIZUROUTE=ON. Each GRU drains to its own reach:
+# reach 1 below Gulkana Glacier, reach 2 below Wolverine Glacier.
 #
 # Usage:  ./test_calibration_gulkana_wolverine.sh [population] [generations] [n_ranks]
 # ---------------------------------------------------------------------------------------
@@ -25,17 +25,17 @@ N_RANKS=${3:-5}
 N_SAMPLES=$((POPULATION * GENERATIONS))
 
 SUMMA_EXE=""
-for exe in summa_sundials_mizuroute_opt.exe summa_sundials_opt.exe summa_mizuroute_opt.exe summa_opt.exe; do
+for exe in summa_sundials_mizuroute_opt.exe summa_mizuroute_opt.exe; do
   if [ -x "${SUMMA_ROOT}/bin/${exe}" ]; then SUMMA_EXE="${SUMMA_ROOT}/bin/${exe}"; break; fi
 done
 if [ -z "${SUMMA_EXE}" ]; then
-  echo "ERROR: no calibration executable found in ${SUMMA_ROOT}/bin"
-  echo "       build one with -DUSE_MPI=ON"
+  echo "ERROR: no calibration executable with mizuRoute found in ${SUMMA_ROOT}/bin"
+  echo "       build one with -DUSE_MPI=ON -DUSE_MIZUROUTE=ON"
   exit 1
 fi
 
 echo "======================================================================"
-echo "SUMMA two-GRU calibration test (Gulkana and Wolverine mass balance)"
+echo "SUMMA two-GRU calibration test (discharge + GRACE on Gulkana and Wolverine)"
 echo "======================================================================"
 echo "  executable:  ${SUMMA_EXE}"
 echo "  work dir:    ${WORK}"
@@ -53,12 +53,12 @@ cat > "${WORK}/config.toml" <<EOF
 
 case_name = "gulkana_wolverine"
 
-# one spinup year (Oct 2008 - Sep 2009) precedes the simulation, which the calibration then scores
-start_time = "2009-10-01 00:00"
-end_time   = "2011-12-31 23:00"
+# one spinup year (Oct 2015 - Sep 2016) precedes the simulation, which the calibration then scores
+start_time = "2016-10-01 00:00"
+end_time   = "2018-12-31 23:00"
 time_zone  = "utcTime"
 
-use_mizuroute    = false
+use_mizuroute    = true
 write_timeseries = false
 
 work_path = "${WORK}/output"
@@ -87,12 +87,42 @@ general_table    = "TBL_GENPARM.TBL"
 noahmp_table     = "TBL_MPTABLE.TBL"
 
 
+[mizuRoute]
+
+namelist_path = "${DATA}/"
+namelist_file = "mizuroute.param"
+
+methods = "3"
+dt      = 3600
+
+write_qbasin = false
+write_Qreach = false
+
+
+[hydrofabric]
+
+hfabric_path = "${DATA}/"
+hfabric_file = "topology.nc"
+
+dname_seg = "seg"
+dname_hru = "hru"
+
+varname_HRUid     = "hruId"
+varname_segId     = "segId"
+varname_hruSegId  = "hruToSegId"
+varname_downSegId = "downSegId"
+
+varname_area   = "area"
+varname_slope  = "slope"
+varname_length = "length"
+
+
 [calibration]
 
 algorithm = "nsga2"
 
-start_date = "2009-10-01"
-end_date   = "2011-12-31"
+start_date = "2016-10-01"
+end_date   = "2018-12-31"
 
 n_samples = ${N_SAMPLES}
 
@@ -102,7 +132,7 @@ param_list = [
     "glacierWindFactor",
     "glacierTempReduction",
     "albedoMax",
-    "albedoDecayRate"
+    "aquiferBaseflowExp"
 ]
 
 write_aligned = false
@@ -113,32 +143,55 @@ write_aligned = false
 population_size = ${POPULATION}
 
 
-# Gulkana's winter and summer balances, between GRU 1's own extremes
 [[calibration.target]]
 
-name       = "gulkana_mass_balance"
-variable   = "basin__GlacierMassChange"
-gru        = 1
-obs_path   = "${DATA}/observations/"
-obs_file   = "gulkana_mass_balance_seasonal.nc"
-vname_obs  = "mb_obs"
-accumulate = true
-balance    = "seasonal"
-metric     = "rmse"
+name      = "gulkana_discharge"
+variable  = "streamflow"
+reach     = 1
+obs_path  = "${DATA}/observations/"
+obs_file  = "gulkana_USGS_15478040_daily_flow.nc"
+vname_obs = "q_obs"
+metric    = "kge"
 
 
-# Wolverine's, on GRU 2
 [[calibration.target]]
 
-name       = "wolverine_mass_balance"
-variable   = "basin__GlacierMassChange"
-gru        = 2
-obs_path   = "${DATA}/observations/"
-obs_file   = "wolverine_mass_balance_seasonal.nc"
-vname_obs  = "mb_obs"
-accumulate = true
-balance    = "seasonal"
-metric     = "rmse"
+name      = "wolverine_discharge"
+variable  = "streamflow"
+reach     = 2
+obs_path  = "${DATA}/observations/"
+obs_file  = "wolverine_USGS_15236900_daily_flow.nc"
+vname_obs = "q_obs"
+metric    = "kge"
+
+
+[[calibration.target]]
+
+name      = "gulkana_grace"
+variable  = "basin__StorageChange"
+gru       = 1
+obs_path  = "${DATA}/observations/"
+obs_file  = "gulkana_grace_tws.nc"
+vname_obs = "tws_obs"
+metric    = "rmse"
+accumulate     = true
+baseline_start = "2016-10-01"
+baseline_end   = "2018-12-31"
+
+
+[[calibration.target]]
+
+name      = "wolverine_grace"
+variable  = "basin__StorageChange"
+gru       = 2
+obs_path  = "${DATA}/observations/"
+obs_file  = "wolverine_grace_tws.nc"
+vname_obs = "tws_obs"
+metric    = "rmse"
+accumulate     = true
+baseline_start = "2016-10-01"
+baseline_end   = "2018-12-31"
+
 EOF
 
 echo "Running nsga2..."
@@ -162,6 +215,8 @@ import numpy as np
 import netCDF4 as nc
 
 work, pop, ngen = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+names = ['gulkana_discharge', 'wolverine_discharge', 'gulkana_grace', 'wolverine_grace']
+senses = ['maximize', 'maximize', 'minimize', 'minimize']
 
 d = nc.Dataset(os.path.join(work, "output", "gulkana_wolverine_calibration.nc"))
 sense = [s.strip() for s in d["objective"].sense.split(",")]
@@ -185,11 +240,10 @@ def check(ok, what):
     fail |= not ok
 
 check(d.algorithm == "nsga2", "trials file records algorithm nsga2")
-check(obj.shape == (2, pop * ngen), f"objective is 2 targets x {pop * ngen} trials")
-check(sense == ["minimize", "minimize"], "both mass-balance RMSEs are minimized")
-check(bool(np.any(~failed)), "at least one trial ran")
+check(obj.shape == (len(names), pop * ngen), f"objective is {len(names)} targets x {pop * ngen} trials")
+check(sense == senses, "each target is oriented as its metric says: " + ", ".join(f"{n} {s}" for n, s in zip(names, senses)))
+check(bool(np.any(~failed)), f"{int((~failed).sum())} of {failed.size} trials ran")
 check(bool(np.all(np.isfinite(obj[:, ~failed]))), "every objective of a trial that ran is finite")
-check(bool(np.all(np.abs(obj[:, ~failed]) < 1e5)), "every objective of a trial that ran is plausible")
 
 # smaller is better on every row; a failed trial is the worst on every target
 f = np.array([-o if s == "maximize" else o for o, s in zip(obj, sense)])
@@ -207,8 +261,9 @@ check(nf >= 1, f"the front holds {nf} trial(s)")
 
 print()
 print(f"  NSGA-II front ({nf} trials):")
-for i in np.where(front)[0][np.argsort(obj[0, front])]:
-    print(f"    sample {i + 1:3d}: Gulkana RMSE {obj[0, i]:7.1f} mm   Wolverine RMSE {obj[1, i]:7.1f} mm")
+print("    sample  " + "  ".join(f"{n:>18s}" for n in names))
+for i in np.where(front)[0]:
+    print(f"    {i + 1:6d}  " + "  ".join(f"{v:18.4g}" for v in obj[:, i]))
 print(f"  failed trials (saved in output/failed_trials): {int(failed.sum())}")
 
 sys.exit(1 if fail else 0)
