@@ -518,6 +518,7 @@ subroutine fluxJacAdd(&
     dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow)%dat              ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. water state in the layer below
     ! derivative in the advective energy source of the lake layers w.r.t. the layer temperature
     dLakeAdvNrgFlux_dTemp        => deriv_data%var(iLookDERIV%dLakeAdvNrgFlux_dTemp)%dat           ,& ! intent(in): [dp(:)]  derivative of the lake advective energy source w.r.t. temperature
+    dLatInflowNrg_dTemp          => deriv_data%var(iLookDERIV%dLatInflowNrg_dTemp)%dat             ,& ! intent(in): [dp(:)]  derivative of the lateral inflow energy source w.r.t. temperature
     dLakeAdvNrgFlux_dLiq         => deriv_data%var(iLookDERIV%dLakeAdvNrgFlux_dLiq)%dat            ,& ! intent(in): [dp(:)]  derivative of the lake energy source w.r.t. liquid water at fixed liquid depth
     dLakeAdvNrgFlux_dDepth       => deriv_data%var(iLookDERIV%dLakeAdvNrgFlux_dDepth)%dat          ,& ! intent(in): [dp(:)]  derivative of the lake energy source w.r.t. the column liquid depth
     nLakeFrz                     => indx_data%var(iLookINDEX%nLakeFrz)%dat(1)                      ,& ! intent(in): [i4b]    number of frozen (ice cover) lake layers at the top of the lake
@@ -637,6 +638,9 @@ subroutine fluxJacAdd(&
         ! - heat carried by the reach flow through a lake layer (a volumetric source, so no interface terms)
         if(iLayer>nSnow .and. iLayer<=nSnow+nLake) &
           aJac(ixInd(full,nrgState,nrgState),nrgState) = aJac(ixInd(full,nrgState,nrgState),nrgState) - dt*dLakeAdvNrgFlux_dTemp(iLayer-nSnow)
+        ! - heat carried by lateral inflow into a soil layer (a volumetric source, so no interface terms)
+        if(iLayer>nSnow+nLake .and. iLayer<=nSnow+nLake+nSoil) &
+          aJac(ixInd(full,nrgState,nrgState),nrgState) = aJac(ixInd(full,nrgState,nrgState),nrgState) - dt*dLatInflowNrg_dTemp(iLayer-nSnow-nLake)
 
         ! - super-diagonal elements
         if(iLayer>1)then

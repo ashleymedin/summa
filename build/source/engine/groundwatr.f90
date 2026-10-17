@@ -137,6 +137,8 @@ subroutine groundwatr(&
     ! output: diagnostic variables
     scalarExfiltration  => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1), & ! intent(out):   [dp]    exfiltration from the soil profile (m s-1)
     mLayerColumnOutflow => flux_data%var(iLookFLUX%mLayerColumnOutflow)%dat,   & ! intent(out):   [dp(:)] column outflow from each soil layer (m3 s-1)
+    mLayerColumnInflow  => flux_data%var(iLookFLUX%mLayerColumnInflow)%dat,    & ! intent(in):    [dp(:)] lateral inflow into each soil layer (m3 s-1)
+    area                => prog_data%var(iLookPROG%DOMarea)%dat(1),            & ! intent(in):    [dp]    domain area (m2)
     ! output: baseflow
     mLayerBaseflow      => out_groundwatr % mLayerBaseflow,                    & ! intent(out):   [dp(:)]   baseflow from each soil layer (m s-1)
     dBaseflow_dWat      => out_groundwatr % dBaseflow_dWat,                    & ! intent(out):   [dp(:,:)] derivative in baseflow w.r.t. soil water characteristic
@@ -169,7 +171,7 @@ subroutine groundwatr(&
       scalarExfiltration     = 0._rkind   ! exfiltration from the soil profile (m s-1)
       out_groundwatr%dExfil_dDrive = 0._rkind ! derivative of exfiltration w.r.t. the column surplus it returns (-)
       mLayerColumnOutflow(:) = 0._rkind   ! column outflow from each soil layer (m3 s-1)
-      mLayerBaseflow(:)      = 0._rkind   ! baseflow from each soil layer (m s-1)
+      mLayerBaseflow(1:nSoil) = -mLayerColumnInflow(1:nSoil)/area ! nothing drains out, but lateral inflow still arrives (m s-1)
       dBaseflow_dWat(:,:)    = 0._rkind   ! derivative in baseflow w.r.t. soil water characteristic
       dBaseflow_dTk(:,:)     = 0._rkind   ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
       return

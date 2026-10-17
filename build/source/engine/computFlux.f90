@@ -64,6 +64,7 @@ USE globalData,only:soilLateralFlow ! flag: soil layers drain laterally
 ! constants
 USE multiconst,only:&
                     Tfreeze,      & ! temperature at freezing              (K)
+                    Cp_water,     & ! specific heat of liquid water        (J kg-1 K-1)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
@@ -611,7 +612,12 @@ contains
    mLayerLakeAdvNrgFlux         => flux_data%var(iLookFLUX%mLayerLakeAdvNrgFlux)%dat, & ! intent(in): [dp] advective energy source in each lake layer (J m-3 s-1)
    mLayerNrgFlux                => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat, & ! intent(out): [dp] net energy flux for each layer within the layer domains (J m-3 s-1)
    iLayerNrgFlux                => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat, & ! intent(in):  [dp(0:)] vertical energy flux at the interface of layers
-   mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat    ) ! intent(in):  [dp(:)]  depth of each layer in the layer domains (m)
+   mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat,   & ! intent(in):  [dp(:)]  depth of each layer in the layer domains (m)
+   DOMarea                      => prog_data%var(iLookPROG%DOMarea)%dat(1),    & ! intent(in):  [dp]     domain area (m2)
+   mLayerColumnInflow           => flux_data%var(iLookFLUX%mLayerColumnInflow)%dat,     & ! intent(in):  [dp(:)] lateral inflow to each soil layer (m3 s-1)
+   mLayerColumnInflowNrg        => flux_data%var(iLookFLUX%mLayerColumnInflowNrg)%dat,  & ! intent(in):  [dp(:)] heat that inflow carries, above freezing (W)
+   mLayerLatInflowNrgFlux       => flux_data%var(iLookFLUX%mLayerLatInflowNrgFlux)%dat, & ! intent(out): [dp(:)] energy source from the lateral inflow (J m-3 s-1)
+   dLatInflowNrg_dTemp          => deriv_data%var(iLookDERIV%dLatInflowNrg_dTemp)%dat   ) ! intent(out): [dp(:)] its derivative w.r.t. layer temperature (J m-3 s-1 K-1)
    ! calculate net energy fluxes for each layer (J m-3 s-1)
    do iLayer=1,nLayers
      mLayerNrgFlux(iLayer) = -(iLayerNrgFlux(iLayer) - iLayerNrgFlux(iLayer-1))/mLayerDepth(iLayer)
@@ -619,6 +625,19 @@ contains
    ! add the heat carried into and out of the lake layers by the reach flow (zero unless a stream domain)
    do iLayer=nSnow+1,nSnow+nLake
      mLayerNrgFlux(iLayer) = mLayerNrgFlux(iLayer) + mLayerLakeAdvNrgFlux(iLayer-nSnow)
+   end do
+   ! lateral inflow arrives at its own temperature and mixes to the layer's, so a soil layer gains rho*c*Q*(T_in - T)
+   do iLayer=1,nSoil
+     if(mLayerColumnInflow(iLayer) > 0._rkind .and. DOMarea > 0._rkind)then
+       associate(depth => mLayerDepth(nSnow+nLake+iLayer), temp => mLayerTempTrial(nSnow+nLake+iLayer))
+         mLayerLatInflowNrgFlux(iLayer) = (mLayerColumnInflowNrg(iLayer) - iden_water*Cp_water*mLayerColumnInflow(iLayer)*(temp - Tfreeze))/(DOMarea*depth)
+         dLatInflowNrg_dTemp(iLayer)    = -iden_water*Cp_water*mLayerColumnInflow(iLayer)/(DOMarea*depth)
+       end associate
+     else
+       mLayerLatInflowNrgFlux(iLayer) = 0._rkind
+       dLatInflowNrg_dTemp(iLayer)    = 0._rkind
+     end if
+     mLayerNrgFlux(nSnow+nLake+iLayer) = mLayerNrgFlux(nSnow+nLake+iLayer) + mLayerLatInflowNrgFlux(iLayer)
    end do
   end associate
  end subroutine finalize_snowLakeSoilGlceNrgFlux

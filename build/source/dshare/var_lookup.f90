@@ -698,6 +698,8 @@ MODULE var_lookup
   integer(i4b)    :: scalarAquiferSeepage            = integerMissing ! groundwater seepage at land surface from the coupled aquifer (m s-1)
   integer(i4b)    :: scalarLowerBoundNrgFlux         = integerMissing ! conductive energy flux across the lower boundary of the column, positive down (W m-2)
   integer(i4b)    :: scalarStreamFrictionHeat        = integerMissing ! heat the reach flow dissipates falling through the reach, per unit reach area (W m-2)
+  integer(i4b)    :: mLayerColumnInflowNrg           = integerMissing ! heat the lateral inflow carries into each soil layer, above freezing (W)
+  integer(i4b)    :: mLayerLatInflowNrgFlux          = integerMissing ! energy source in each soil layer from the lateral inflow, at its own temperature (J m-3 s-1)
  endtype iLook_flux
 
  ! ***********************************************************************************************************
@@ -810,6 +812,8 @@ MODULE var_lookup
   integer(i4b)    :: dLakeAdvNrgFlux_dDepth          = integerMissing ! derivative of the lake energy source w.r.t. the column liquid depth (J m-4 s-1)
   ! derivative of the exfiltration
   integer(i4b)    :: dExfil_dDrive                   = integerMissing ! derivative of exfiltration w.r.t. the column surplus it returns (-)
+  ! derivative of the lateral inflow energy source
+  integer(i4b)    :: dLatInflowNrg_dTemp             = integerMissing ! derivative of the lateral inflow energy source w.r.t. the layer temperature (J m-3 s-1 K-1)
  endtype iLook_deriv
 
  ! ***********************************************************************************************************
@@ -1114,7 +1118,7 @@ MODULE var_lookup
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
-                                                                        101,102,103,104,105)
+                                                                        101,102,103,104,105,106,107)
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1124,7 +1128,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82, 83, 84, 85, 86)
+                                                                         81, 82, 83, 84, 85, 86, 87)
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =iLook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
