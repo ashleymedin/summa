@@ -300,6 +300,7 @@ subroutine run_oneGRU(&
         if(typeDOM==wetland)then; err=20; message=trim(message)//'ERROR:  wetland fluxes not yet implemented'; return; endif
         if(typeDOM==stream .and. DOMarea>0._rkind) ixStreamHRU = iHRU ! the reach water column, run in the network pass (at most one per GRU)
         fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._rkind
+        fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerColumnInflowNrg)%dat(:) = 0._rkind
         if(typeDOM/=glacCln1 .and. typeDOM/=glacCln2 .and. typeDOM/=glacDbr) cycle
         nglacDOM = nglacDOM + 1
         if(.not.hasGlacier) nglacHRU = nglacHRU + 1
@@ -479,6 +480,11 @@ subroutine run_oneGRU(&
         if(typeDOM==upland)then
           if(kHRU > 0)then
             fluxHRU%hru(kHRU)%dom(1)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = fluxHRU%hru(kHRU)%dom(1)%var(iLookFLUX%mLayerColumnInflow)%dat(:) + flux(iLookFLUX%mLayerColumnOutflow)%dat(:)
+            ! the water carries the temperature of the layer it left, as liquid water no colder than freezing
+            associate(inflowNrg => fluxHRU%hru(kHRU)%dom(1)%var(iLookFLUX%mLayerColumnInflowNrg)%dat)
+              inflowNrg(1:nSoil) = inflowNrg(1:nSoil) + iden_water*Cp_water*flux(iLookFLUX%mLayerColumnOutflow)%dat(1:nSoil) &
+                                                        *(max(mLayerTemp(nSnow+nLake+1:nSnow+nLake+nSoil), Tfreeze) - Tfreeze)
+            end associate
           else
             bvar(iLookBVAR%basin__ColumnOutflow)%dat(1) = bvar(iLookBVAR%basin__ColumnOutflow)%dat(1) + sum(flux(iLookFLUX%mLayerColumnOutflow)%dat(:))
             ! the water leaving each soil layer carries that layer's temperature to the channel (W m-2 over the GRU),
