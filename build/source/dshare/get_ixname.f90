@@ -828,6 +828,7 @@ contains
   case('scalarStreamFrictionHeat'       ); get_ixFlux = iLookFLUX%scalarStreamFrictionHeat         ! heat the reach flow dissipates falling through the reach (W m-2)
   case('mLayerColumnInflowNrg'          ); get_ixFlux = iLookFLUX%mLayerColumnInflowNrg            ! heat the lateral inflow carries into each soil layer, above freezing (W)
   case('mLayerLatInflowNrgFlux'         ); get_ixFlux = iLookFLUX%mLayerLatInflowNrgFlux           ! energy source in each soil layer from the lateral inflow (J m-3 s-1)
+  case('mLayerSoilAdvNrgFlux'           ); get_ixFlux = iLookFLUX%mLayerSoilAdvNrgFlux             ! energy source in each soil layer from water entering from above and below (J m-3 s-1)
   ! return missing if variable not found
   case default
    get_ixFlux = integerMissing
@@ -950,6 +951,9 @@ contains
   case('dLakeAdvNrgFlux_dDepth'         ); get_ixDeriv = iLookDERIV%dLakeAdvNrgFlux_dDepth         ! derivative of the lake energy source w.r.t. the column liquid depth
   case('dExfil_dDrive'                  ); get_ixDeriv = iLookDERIV%dExfil_dDrive                  ! derivative of exfiltration w.r.t. the column surplus it returns
   case('dLatInflowNrg_dTemp'            ); get_ixDeriv = iLookDERIV%dLatInflowNrg_dTemp            ! derivative of the lateral inflow energy source w.r.t. layer temperature
+  case('dSoilAdv_dTemp'                 ); get_ixDeriv = iLookDERIV%dSoilAdv_dTemp                 ! derivative of the soil advective energy source w.r.t. layer temperature
+  case('dSoilAdv_dTempAbove'            ); get_ixDeriv = iLookDERIV%dSoilAdv_dTempAbove            ! derivative of the soil advective energy source w.r.t. temperature above
+  case('dSoilAdv_dTempBelow'            ); get_ixDeriv = iLookDERIV%dSoilAdv_dTempBelow            ! derivative of the soil advective energy source w.r.t. temperature below
 
   case default
    get_ixDeriv = integerMissing

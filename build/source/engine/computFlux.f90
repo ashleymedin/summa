@@ -337,6 +337,9 @@ subroutine computFlux(&
     end if
   end associate
 
+  ! *** HEAT CARRIED BY THE WATER MOVING BETWEEN SOIL LAYERS ***
+  if (indx_data%var(iLookINDEX%nSnLaSoGlNrg)%dat(1)>0 .and. nSoilHyd>0) call soilAdvection
+
   ! *** CALCULATE FLUXES FOR THE DEEP AQUIFER ***
   associate(ixAqWat => indx_data%var(iLookINDEX%ixAqWat)%dat(1)) ! intent(in): [i4b] index of water storage in the aquifer
     if (ixAqWat/=integerMissing) then ! check if computing aquifer fluxes
@@ -456,6 +459,36 @@ contains
    scalarSoilBaseflow     = 0._rkind  ! total baseflow from the soil profile (m s-1)
   end associate
  end subroutine zeroBaseflowFluxes
+
+ subroutine soilAdvection
+  ! water entering a soil layer from the layer above or below arrives at that layer's temperature, so it gains rho*c*q*(T_from - T);
+  ! water leaving at the layer's own temperature changes nothing, and the soil surface and base keep their boundary treatment
+  integer(i4b) :: kLayer      ! index of soil layer
+  real(rkind)  :: qDown,qUp   ! water entering from above, and from below (m s-1)
+  associate(&
+   iLayerLiqFluxSoil    => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,    & ! intent(in):    [dp(0:)] liquid flux at soil layer interfaces, positive down (m s-1)
+   mLayerSoilAdvNrgFlux => flux_data%var(iLookFLUX%mLayerSoilAdvNrgFlux)%dat, & ! intent(out):   [dp(:)] energy source from water entering from above and below (J m-3 s-1)
+   mLayerNrgFlux        => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat,        & ! intent(inout): [dp(:)] net energy flux for each layer (J m-3 s-1)
+   dSoilAdv_dTemp       => deriv_data%var(iLookDERIV%dSoilAdv_dTemp)%dat,      & ! intent(out):   [dp(:)] derivative w.r.t. the layer temperature
+   dSoilAdv_dTempAbove  => deriv_data%var(iLookDERIV%dSoilAdv_dTempAbove)%dat, & ! intent(out):   [dp(:)] derivative w.r.t. the temperature of the layer above
+   dSoilAdv_dTempBelow  => deriv_data%var(iLookDERIV%dSoilAdv_dTempBelow)%dat, & ! intent(out):   [dp(:)] derivative w.r.t. the temperature of the layer below
+   mLayerDepth          => prog_data%var(iLookPROG%mLayerDepth)%dat            ) ! intent(in):    [dp(:)] depth of each layer (m)
+   mLayerSoilAdvNrgFlux(:) = 0._rkind; dSoilAdv_dTemp(:) = 0._rkind; dSoilAdv_dTempAbove(:) = 0._rkind; dSoilAdv_dTempBelow(:) = 0._rkind
+   do kLayer=1,nSoilHyd
+     qDown = 0._rkind; qUp = 0._rkind
+     if(kLayer>1)        qDown = max( iLayerLiqFluxSoil(kLayer-1), 0._rkind)
+     if(kLayer<nSoilHyd) qUp   = max(-iLayerLiqFluxSoil(kLayer),   0._rkind)
+     associate(T => mLayerTempTrial(nSnow+nLake+kLayer), scale => iden_water*Cp_water/mLayerDepth(nSnow+nLake+kLayer))
+       if(qDown>0._rkind) mLayerSoilAdvNrgFlux(kLayer) = mLayerSoilAdvNrgFlux(kLayer) + scale*qDown*(mLayerTempTrial(nSnow+nLake+kLayer-1) - T)
+       if(qUp  >0._rkind) mLayerSoilAdvNrgFlux(kLayer) = mLayerSoilAdvNrgFlux(kLayer) + scale*qUp  *(mLayerTempTrial(nSnow+nLake+kLayer+1) - T)
+       dSoilAdv_dTemp(kLayer)      = -scale*(qDown + qUp)
+       dSoilAdv_dTempAbove(kLayer) =  scale*qDown
+       dSoilAdv_dTempBelow(kLayer) =  scale*qUp
+     end associate
+     mLayerNrgFlux(nSnow+nLake+kLayer) = mLayerNrgFlux(nSnow+nLake+kLayer) + mLayerSoilAdvNrgFlux(kLayer)
+   end do
+  end associate
+ end subroutine soilAdvection
 
  subroutine computBaseflowRunoff
   ! compute total baseflow from the soil zone (needed for mass balance checks) and total runoff, before aquifer fluxes

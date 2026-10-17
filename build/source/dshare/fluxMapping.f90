@@ -194,6 +194,7 @@ contains
  flux2state_orig(iLookFLUX%mLayerLakeAdvNrgFlux)            = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerColumnInflowNrg)           = flux2state(state1=integerMissing,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerLatInflowNrgFlux)          = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%mLayerSoilAdvNrgFlux)            = flux2state(state1=iname_nrgLayer,  state2=iname_matLayer)
  flux2state_orig(iLookFLUX%scalarStreamRunoff)              = flux2state(state1=iname_watLake,   state2=iname_watLayer)
 
  ! ** copy across flux metadata

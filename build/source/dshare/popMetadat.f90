@@ -683,6 +683,7 @@ subroutine popMetadat(err,message)
   flux_meta(iLookFLUX%scalarStreamFrictionHeat)        = var_info('scalarStreamFrictionHeat'       , 'heat the reach flow dissipates falling through the reach'         , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%mLayerColumnInflowNrg)           = var_info('mLayerColumnInflowNrg'          , 'heat the lateral inflow carries into each soil layer, above freezing', 'W'          , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   flux_meta(iLookFLUX%mLayerLatInflowNrgFlux)          = var_info('mLayerLatInflowNrgFlux'         , 'energy source in each soil layer from the lateral inflow, at its own temperature', 'J m-3 s-1', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+  flux_meta(iLookFLUX%mLayerSoilAdvNrgFlux)            = var_info('mLayerSoilAdvNrgFlux'           , 'energy source in each soil layer from the water entering it from above and below', 'J m-3 s-1', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local flux derivatives...
   ! ---------------------------
@@ -791,6 +792,9 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%dLakeAdvNrgFlux_dDepth)        = var_info('dLakeAdvNrgFlux_dDepth'       , 'derivative of the lake energy source w.r.t. the column liquid depth', 'J m-4 s-1', get_ixVarType('midLake'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dExfil_dDrive)                 = var_info('dExfil_dDrive'                , 'derivative of exfiltration w.r.t. the column surplus it returns', '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dLatInflowNrg_dTemp)           = var_info('dLatInflowNrg_dTemp'          , 'derivative of the lateral inflow energy source w.r.t. layer temperature', 'J m-3 s-1 K-1', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dSoilAdv_dTemp)                = var_info('dSoilAdv_dTemp'               , 'derivative of the soil advective energy source w.r.t. layer temperature', 'J m-3 s-1 K-1', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dSoilAdv_dTempAbove)           = var_info('dSoilAdv_dTempAbove'          , 'derivative of the soil advective energy source w.r.t. temperature of the layer above', 'J m-3 s-1 K-1', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dSoilAdv_dTempBelow)           = var_info('dSoilAdv_dTempBelow'          , 'derivative of the soil advective energy source w.r.t. temperature of the layer below', 'J m-3 s-1 K-1', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin-wide runoff and aquifer fluxes...
   ! -----------------------------------------
