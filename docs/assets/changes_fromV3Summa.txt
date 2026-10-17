@@ -370,3 +370,4 @@ AFTER tag of v4.0.0-exp-Sundials
      geometrically, debris at least 2 cm thick, commits 39b712fb and addc9912 Oct 16, 2026
  85) soilLatflw decision: latflow drains upland soil laterally beside the big bucket, at each layer's temperature, commit bf8f45f8 Oct 17, 2026
  86) parameter overrides and calibration parameters can target one domain type, name@upland etc., commit bb98db98 Oct 17, 2026
+-87) lateral soil inflow carries the temperature of the layer it left, and enters a column with no saturated layer instead of being dropped, commit 5ab0019c Oct 17, 2026
