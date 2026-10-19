@@ -187,6 +187,27 @@ contains
     enddo
 
     ! -----------------------------------------------------------------------------------------------
+    ! Replace the parameter files' bounds with configured ones; a default outside them moves inside
+    ! -----------------------------------------------------------------------------------------------
+    if(allocated(config%calib%param_bounds))then
+      do i=1,size(config%calib%param_bounds)
+        ix = find_parameter(trim(config%calib%param_bounds(i)%name), param_names(1:nParam))
+        if(ix == 0)then
+          message=trim(message)//'bounds given for a parameter that is not calibrated: '// &
+                  trim(config%calib%param_bounds(i)%name)
+          err=20; return
+        endif
+        if(config%calib%param_bounds(i)%lower > config%calib%param_bounds(i)%upper)then
+          message=trim(message)//'invalid bounds for parameter: '//trim(config%calib%param_bounds(i)%name)
+          err=20; return
+        endif
+        spec%params(ix)%lower       = config%calib%param_bounds(i)%lower
+        spec%params(ix)%upper       = config%calib%param_bounds(i)%upper
+        spec%params(ix)%trial_value = min(max(spec%params(ix)%trial_value, spec%params(ix)%lower), spec%params(ix)%upper)
+      enddo
+    endif
+
+    ! -----------------------------------------------------------------------------------------------
     ! Apply configured parameter transformations, which are meaningful only for sampled parameters
     ! -----------------------------------------------------------------------------------------------
     if(allocated(config%calib%param_transform))then
