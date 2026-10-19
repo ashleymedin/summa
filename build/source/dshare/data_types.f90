@@ -81,6 +81,13 @@ MODULE data_types
  end type param_transform_info
 
  ! -----------------------------------------------------------------------------------------------------------
+ type :: param_bounds_info
+  character(len=64)              :: name               ! parameter name, optionally name@domainType
+  real(rkind)                    :: lower              ! lower bound replacing the parameter file's
+  real(rkind)                    :: upper              ! upper bound replacing the parameter file's
+ end type param_bounds_info
+
+ ! -----------------------------------------------------------------------------------------------------------
  type :: ordered_constraint
   character(len=64), allocatable :: parameters(:)      ! Ordered parameter names
   real(rkind)                    :: gap_fraction       ! Minimum adjacent gap as fraction of total range
@@ -155,6 +162,7 @@ MODULE data_types
   character(len=:),  allocatable :: end_date           ! end of the calibration time period
   character(len=64), allocatable :: param_list(:)      ! Parameters included in optimization
   type(param_transform_info), allocatable :: param_transform(:)  ! parameter transformations
+  type(param_bounds_info),    allocatable :: param_bounds(:)     ! bounds that replace the parameter files'
   type(ordered_constraint),   allocatable :: ordered(:)          ! ordered parameter constraints
   type(target_info),          allocatable :: targets(:)          ! calibration targets, one per objective
   type(mf6_param_info),       allocatable :: mf6_params(:)       ! MODFLOW 6 parameters searched with SUMMA's
