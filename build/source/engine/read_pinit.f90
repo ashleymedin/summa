@@ -305,6 +305,16 @@ contains
   if (parFallback(iLookPARAM%lakeMixingThermalC)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%lakeMixingThermalC)%default_val = 1000._rkind ! large, so a multi-layer stream column stays well mixed (W m-1 K-1)
   end if
+  if (parFallback(iLookPARAM%wetlandStorageK)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandStorageK)%default_val = 3600._rkind ! one hour (s)
+    parFallback(iLookPARAM%wetlandStorageK)%lower_limit = 600._rkind
+    parFallback(iLookPARAM%wetlandStorageK)%upper_limit = 864000._rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandMinDepth)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandMinDepth)%default_val = 0.05_rkind ! water left standing when the wetland stops draining (m)
+    parFallback(iLookPARAM%wetlandMinDepth)%lower_limit = 0.01_rkind
+    parFallback(iLookPARAM%wetlandMinDepth)%upper_limit = 2._rkind
+  end if
   if (parFallback(iLookPARAM%lakeIceMinThick)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%lakeIceMinThick)%default_val = 0.005_rkind ! 5 mm: the minimum ice thickness of flowing water in Wanders et al. (2019), below which the cover breaks up (m)
   end if

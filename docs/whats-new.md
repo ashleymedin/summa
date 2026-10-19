@@ -164,6 +164,10 @@ covers the user-facing highlights.
   applies to the vertical conductivity, with the matching derivatives. Before this, a frozen
   layer still drained laterally at its full rate, since the transmissivity profile is built from
   the saturated conductivity alone. Affects `groundwatr = qTopmodl` runs with frozen soil.
+- The wetland domain now runs: a water column over soil inside an HRU, its water a linear reservoir updated once
+  per data step (`wetlandStorageK`, `wetlandMinDepth`), with the column's energy solved like a stream's. A GRU's routed
+  glacier runoff passes through its wetland, entering at the freezing point, and the wetland's outflow reaches the
+  channel at the column temperature. A wetland frozen nearly solid keeps 1 cm of liquid, taken from its outflow.
 - New `soilLatflw` decision: `latflow` lets the upland soil above a `bigBuckt` aquifer drain laterally
   to the channel, at each layer's own temperature, as `qTopmodl` and `modLatflow` do, while its
   base still recharges the bucket. The default `none` is the previous behaviour, bit for bit.

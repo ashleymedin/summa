@@ -58,6 +58,7 @@ USE globalData,only:iname_soil      ! named variables for soil
 USE globalData,only:iname_glce      ! named variables for glacier ice
 USE globalData,only:iname_lake      ! named variables for lake
 USE globalData,only:stream          ! horizontal domain type for a stream reach
+USE globalData,only:wetland         ! horizontal domain type for a wetland
 USE globalData,only:upland          ! horizontal domain type for upland
 USE globalData,only:soilLateralFlow ! flag: soil layers drain laterally
 
@@ -841,14 +842,14 @@ contains
      mLayerLiqFluxSnLaGl(iLayer+nStart) = -(iLayerLiqFluxSnLaGl(iLayer+nStart) - iLayerLiqFluxSnLaGl(iLayer-1+nStart))/mLayerDepth(iLayer+nStart)
    end do
    ! the liquid layers of a stream hold the water the river network routes: what arrives at their top (snow drainage, ice melt) joins the flow, so it is not stored in them
-   if(domType==stream) mLayerLiqFluxSnLaGl(nStart+nLakeFrz+1:nStart+nLake) = 0._rkind
+   if(domType==stream .or. domType==wetland) mLayerLiqFluxSnLaGl(nStart+nLakeFrz+1:nStart+nLake) = 0._rkind
    ! no ice melt if there is no ice cover; with one, the reach gets the rain and snowmelt that ran off the ice, less what a
    ! bare cover sublimates (with snow on it, the snow sublimates). The melt of the cover itself is not runoff: the ice is
    ! part of the reach volume the river network carries, and its melt only moves from the cover to the flow beneath
    if(nLakeFrz==0)then
      scalarSurfaceIceMelt      = 0._rkind
      scalarSurfaceIceMeltDeriv = 0._rkind
-   else if(domType==stream)then
+   else if(domType==stream .or. domType==wetland)then
      scalarStreamRunoff = scalarRainPlusMelt
      if(nSnow==0) scalarStreamRunoff = scalarStreamRunoff - scalarGroundSublimation/iden_water
    end if
