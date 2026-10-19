@@ -467,7 +467,7 @@ subroutine fit_massBalanceCurve(nPts, elev, massChange, slope, intercept, ELA)
   slope = 0._rkind
   intercept = 0._rkind
   if(nPts == 1)then
-    intercept(1) = massChange(1)
+    intercept(1:2) = massChange(1)
     if(massChange(1) > 0._rkind)then
       ELA = allAcc
     else
@@ -645,7 +645,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
 
   ! one-time debris geometry setup from initial S and ELA for this yearly run
   if(sum(debris)>0._rkind)then
-    call static_emergElev_latRockfall(S, B, ELA, latMoraineWidth, debrisConc, wallErosionRate, nx, ny, dx, dy, &
+    call static_emergElev_latRockfall(S, B, debris, ELA, latMoraineWidth, debrisConc, wallErosionRate, nx, ny, dx, dy, &
                                       emergenceMask, lat_rockfall, l, lp, lm, k, kp, km)
   else
     emergenceMask = 0_i4b
@@ -737,28 +737,10 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
       S_k_dn = midpt(Skl, Skml)
       slope_k= (S_k_up - S_k_dn) / dx ! (m m-1)
 
-      ! remove debris downslope of where slope is too steep to hold debris, > yield stress following Mayer and Licciulli (2021)
+      ! remove debris where the slope is too steep to hold it, > yield stress following Mayer and Licciulli (2021)
       slope_g = merge(sqrt(slope_k**2_i4b + slope_l**2_i4b), 0._rkind, S>B) ! Slope in m/m, set to zero where no glacier
       drivingStress = (iden_soil*(1._rkind - theta_sat)) * gravity * debris * (abs(slope_g)/sqrt(slope_g**2_i4b + 1_i4b)) ! driving stress in Pa
-      do j = 1, ny
-        do i = 1, nx
-          if(drivingStress(i,j) > debrisCritStress)then ! yield stress
-            if(slope_k(i,j) > 0._rkind .and. slope_l(i,j) > 0._rkind)then
-              debris(i:nx,j:ny) = 0._rkind
-              exit
-            elseif(slope_k(i,j) > 0._rkind .and. slope_l(i,j) < 0._rkind)then
-              debris(i:nx, 1:j) = 0._rkind
-              exit
-            elseif(slope_l(i,j) < 0._rkind .and. slope_k(i,j) > 0._rkind)then
-              debris(1:i ,j:ny) = 0._rkind
-              exit
-            elseif(slope_k(i,j) < 0._rkind .and. slope_k(i,j) < 0._rkind)then
-              debris(1:i , 1:j) = 0._rkind
-              exit
-            endif
-          endif
-        enddo
-      enddo
+      where(drivingStress > debrisCritStress) debris = 0._rkind
     else
       debris = 0._rkind
     endif
@@ -1001,11 +983,11 @@ function massBalance(S, debris, glacierMask, slope, intercept, t_total, validEle
       else
         ! set debris
         dbr = 0
-        if(debris(k,j) > 0._rkind) dbr = 1
+        if(debris(k,j) >= min_thickness) dbr = 1
         ! find the index of the elevation in the validElev array
-        ind = validCount(dbr+1)+1 ! elevation above the valid elevation, extrapolate up
+        ind = 1 ! segment 1 extrapolates above the highest point
         do i = 1, validCount(dbr+1)
-          if(S(k,j) <= validElev(i,dbr+1)) ind = i
+          if(S(k,j) <= validElev(i,dbr+1)) ind = i+1 ! segment i+1 joins points i and i+1
         enddo
         massBalance(k,j) = (slope(ind,dbr+1) * S(k,j) + intercept(ind,dbr+1))/ t_total
       endif
@@ -1063,7 +1045,7 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
   slope_k= (S_k_up - S_k_dn) / dx ! (m m-1)
 
   ! Use one-time masks/rockfall map computed from initial S for this yearly run.
-  englacial_emerg = -merge(m_dot, 0._rkind, emergenceMask==1_i4b) * debrisConc ! (kg m-2 s-1)
+  englacial_emerg = merge(max(-m_dot, 0._rkind), 0._rkind, emergenceMask==1_i4b) * iden_water/iden_ice * debrisConc ! (kg m-2 s-1)
 
   ! Sum for total debris influx in m/s
   influx = lat_rockfall + englacial_emerg/(iden_soil*(1._rkind - theta_sat)) 
@@ -1100,11 +1082,11 @@ end subroutine run_debrisModel
 ! private subroutine static_emergElev_latRockfall: build one-time debris geometry fields from initial 
 !   yearly glacier surface S and ELA (for simplification, we assume these fields do not change over the year)
 ! ************************************************************************************************
-subroutine static_emergElev_latRockfall(S, B, ELA, latMoraineWidth, debrisConc, wallErosionRate, nx, ny, dx, dy, &
+subroutine static_emergElev_latRockfall(S, B, debris, ELA, latMoraineWidth, debrisConc, wallErosionRate, nx, ny, dx, dy, &
                                         emergenceMask, lat_rockfall, l, lp, lm, k, kp, km)
   implicit none
   ! Arguments
-  real(rkind), intent(in) :: S(nx,ny), B(nx,ny), ELA, latMoraineWidth, debrisConc, wallErosionRate, dx, dy
+  real(rkind), intent(in) :: S(nx,ny), B(nx,ny), debris(nx,ny), ELA, latMoraineWidth, debrisConc, wallErosionRate, dx, dy
   integer(i4b), intent(in) :: nx, ny, l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx)
   real(rkind), intent(out) :: lat_rockfall(nx,ny)
   integer(i4b), intent(out) :: emergenceMask(nx,ny)
@@ -1150,7 +1132,7 @@ subroutine static_emergElev_latRockfall(S, B, ELA, latMoraineWidth, debrisConc, 
       topElev = maxval(merge(S, 0._rkind, S>B))
       emergenceElev = 2._rkind*ELA - topElev + latMoraineWidth * mean_slope
       if(emergenceElev > ELA) emergenceElev = ELA
-      emergenceMask = merge(1_i4b, 0_i4b, S<emergenceElev .and. S>B)
+      emergenceMask = merge(1_i4b, 0_i4b, S<emergenceElev .and. S>B .and. debris>=min_thickness) ! debris septa crop out under existing debris
     endif
   else
     emergenceMask = 0_i4b
