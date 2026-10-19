@@ -393,9 +393,9 @@ contains
     parFallback(iLookBPAR%debrisConc)%upper_limit = 10._rkind
   endif
   if (parFallback(iLookBPAR%wallErosionRate)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%wallErosionRate)%default_val = 8.0_rkind ! in mm yr-1 following Anderson and Anderson (2016)
+    parFallback(iLookBPAR%wallErosionRate)%default_val = 1.0_rkind ! rock wall backwearing in mm yr-1, 0.5 to 2 following Anderson and Anderson (2016)
     parFallback(iLookBPAR%wallErosionRate)%lower_limit = 0._rkind
-    parFallback(iLookBPAR%wallErosionRate)%upper_limit = 15._rkind
+    parFallback(iLookBPAR%wallErosionRate)%upper_limit = 2._rkind
   endif
   if (parFallback(iLookBPAR%debrisCritStress)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%debrisCritStress)%default_val = 80000._rkind ! in Pa follow Mayer and Licciulli (2021)
