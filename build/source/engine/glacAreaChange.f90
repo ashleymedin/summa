@@ -63,6 +63,7 @@ real(rkind),parameter :: deg2rad=PI_D/180._rkind     ! factor to convert degrees
 real(rkind),parameter :: rad2deg=180._rkind/PI_D     ! factor to convert radians to degrees
 real(rkind),parameter :: min_thickness=0.02_rkind    ! minimum thickness of debris cover to be considered as debris cover (m)
 real(rkind),parameter :: maxDebrisTop=0.05_rkind     ! maximum thickness of the top debris layer (m)
+real(rkind),parameter :: wallSearchDist=500._rkind   ! distance from a glacier margin searched for the top of its rock face (m)
 
 ! privacy
 private::run_flowModel,run_debrisModel,diffusion_MUSCL,advection_MUSCL,static_emergElev_latRockfall
@@ -1096,8 +1097,10 @@ subroutine static_emergElev_latRockfall(S, B, debris, ELA, latMoraineWidth, debr
   real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skl(nx,ny), Skpl(nx,ny), Skml(nx,ny)
   real(rkind) :: S_l_up(nx,ny), S_l_dn(nx,ny), S_k_up(nx,ny), S_k_dn(nx,ny)
   real(rkind) :: slope_l(nx,ny), slope_k(nx,ny)
-  real(rkind) :: rockface_len(nx,ny), rockface_len_local(nx,ny), sin_slope(nx,ny)
-  real(rkind) :: local_drop, src_sum, mean_slope, topElev, emergenceElev
+  real(rkind) :: rockface_len(nx,ny), rockface_len_local(nx,ny)
+  real(rkind) :: wall_rise, wall_run, run ! height (m) and horizontal distance (m) to the top of a margin's rock face
+  real(rkind) :: src_sum, mean_slope, topElev, emergenceElev
+  integer(i4b) :: ii, jj, nwx, nwy
   logical(lgt) :: nearDebris(nx,ny)     ! .true. under debris or beside it
   integer(i4b) :: i, j, iter, nsrc, countGlac
   logical(lgt) :: updated
@@ -1190,21 +1193,27 @@ subroutine static_emergElev_latRockfall(S, B, debris, ELA, latMoraineWidth, debr
       enddo
     enddo 
 
-    ! get rockface length
-    sin_slope = 0._rkind
+    ! rock face of each margin cell below the ELA: slope length up to the highest ground within wallSearchDist
     rockface_len = 0._rkind
+    nwx = int(wallSearchDist/dx)
+    nwy = int(wallSearchDist/dy)
     do j = 1, ny
       do i = 1, nx
         if(edgeMatrix(i,j)==0_i4b .and. S(i,j)<ELA .and. S(i,j)>B(i,j))then
-          local_drop = 0._rkind
-          if(i>1 )then; if(edgeMatrix(i-1,j)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i-1,j))); endif
-          if(i<nx)then; if(edgeMatrix(i+1,j)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i+1,j))); endif
-          if(j>1 )then; if(edgeMatrix(i,j-1)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i,j-1))); endif
-          if(j<ny)then; if(edgeMatrix(i,j+1)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i,j+1))); endif
-          if(local_drop>0._rkind .and. slope0(i,j)>verySmall)then
-            sin_slope(i,j) = max(2._rkind*slope0(i,j)/sqrt((2._rkind*slope0(i,j))**2_i4b + 1._rkind), verySmall)
-            rockface_len(i,j) = local_drop/sin_slope(i,j)
-          endif
+          wall_rise = 0._rkind
+          wall_run = 0._rkind
+          do jj = max(1, j-nwy), min(ny, j+nwy)
+            do ii = max(1, i-nwx), min(nx, i+nwx)
+              if(zeroMask(ii,jj)==1_i4b)then
+                run = sqrt((real(ii-i, rkind)*dx)**2_i4b + (real(jj-j, rkind)*dy)**2_i4b)
+                if(run<=wallSearchDist .and. B(ii,jj)-S(i,j)>wall_rise)then
+                  wall_rise = B(ii,jj) - S(i,j)
+                  wall_run = run
+                endif
+              endif
+            enddo
+          enddo
+          if(wall_rise>0._rkind) rockface_len(i,j) = sqrt(wall_rise**2_i4b + wall_run**2_i4b)
         endif
       enddo
     enddo
