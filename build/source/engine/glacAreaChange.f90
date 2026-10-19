@@ -1098,6 +1098,7 @@ subroutine static_emergElev_latRockfall(S, B, debris, ELA, latMoraineWidth, debr
   real(rkind) :: slope_l(nx,ny), slope_k(nx,ny)
   real(rkind) :: rockface_len(nx,ny), rockface_len_local(nx,ny), sin_slope(nx,ny)
   real(rkind) :: local_drop, src_sum, mean_slope, topElev, emergenceElev
+  logical(lgt) :: nearDebris(nx,ny)     ! .true. under debris or beside it
   integer(i4b) :: i, j, iter, nsrc, countGlac
   logical(lgt) :: updated
   logical(lgt) :: isEdge                ! .true. if a glacier cell borders a non-glacier cell
@@ -1132,7 +1133,17 @@ subroutine static_emergElev_latRockfall(S, B, debris, ELA, latMoraineWidth, debr
       topElev = maxval(merge(S, 0._rkind, S>B))
       emergenceElev = 2._rkind*ELA - topElev + latMoraineWidth * mean_slope
       if(emergenceElev > ELA) emergenceElev = ELA
-      emergenceMask = merge(1_i4b, 0_i4b, S<emergenceElev .and. S>B .and. debris>=min_thickness) ! debris septa crop out under existing debris
+      ! debris septa crop out under existing debris and in the cells beside it, so the cover spreads a cell at a time
+      nearDebris = debris>=min_thickness
+      if(nx > 1)then
+        nearDebris(2:nx,:)   = nearDebris(2:nx,:)   .or. debris(1:nx-1,:)>=min_thickness
+        nearDebris(1:nx-1,:) = nearDebris(1:nx-1,:) .or. debris(2:nx,:)  >=min_thickness
+      endif
+      if(ny > 1)then
+        nearDebris(:,2:ny)   = nearDebris(:,2:ny)   .or. debris(:,1:ny-1)>=min_thickness
+        nearDebris(:,1:ny-1) = nearDebris(:,1:ny-1) .or. debris(:,2:ny)  >=min_thickness
+      endif
+      emergenceMask = merge(1_i4b, 0_i4b, S<emergenceElev .and. S>B .and. nearDebris)
     endif
   else
     emergenceMask = 0_i4b
