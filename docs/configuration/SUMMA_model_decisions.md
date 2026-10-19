@@ -38,7 +38,7 @@ There are 44 model decisions. Defaults (used for `notPopulatedYet` where accepte
 | 14 | [LAI_method](#lai_method) | monTable, specified | source of LAI/SAI |
 | 15 | [cIntercept](#cintercept) | **notPopulatedYet**, sparseCanopy, storageFunc | canopy interception |
 | 16 | [f_Richards](#f_richards) | **mixdform** | form of Richards' equation |
-| 17 | [groundwatr](#groundwatr) | qTopmodl, bigBuckt, noXplict, modflow, modLatflow | groundwater parameterization |
+| 17 | [groundwatr](#groundwatr) | qTopmodl, bigBuckt, bbLatflow, noXplict, modflow, modLatflow | groundwater parameterization |
 | 18 | [hc_profile](#hc_profile) | constant, pow_prof, exp_prof | hydraulic-conductivity profile with depth |
 | 19 | [bcUpprTdyn](#bcupprtdyn) | presTemp, nrg_flux, zeroFlux | upper boundary condition, thermodynamics |
 | 20 | [bcLowrTdyn](#bclowrtdyn) | presTemp, zeroFlux, presFlux | lower boundary condition, thermodynamics |
@@ -68,7 +68,6 @@ There are 44 model decisions. Defaults (used for `notPopulatedYet` where accepte
 | 44 | [write_buff](#write_buff) | **writePerStep**, writeFullSeries | how model output is buffered before writing |
 | 45 | [deepTherml](#deeptherml) | **none**, aquiferTemp, airTempGW, bedrockLyrs | deep thermal state below the hydrologically active soil column |
 | 46 | [hyporhTdyn](#hyporhtdyn) | **none**, proxy | hyporheic exchange in a stream domain |
-| 47 | [soilLatflw](#soillatflw) | **none**, latflow | lateral flow in the soil above a big-bucket aquifer |
 
 ---
 
@@ -227,6 +226,7 @@ The moisture-based form was removed; `mixdform` (or `notPopulatedYet`) is the on
 |---|---|
 | qTopmodl | TOPMODEL-style baseflow from a per-column store |
 | bigBuckt | lumped "big bucket" aquifer model |
+| bbLatflow | lumped "big bucket" aquifer model but allow lateral flow in the soil column |
 | noXplict | no explicit groundwater; soil drainage leaves the column |
 | modflow | couple with MODFLOW 6 (no aquifer modelled in SUMMA) |
 | modLatflow | couple with MODFLOW 6 but allow lateral flow in the soil column (no aquifer modelled in SUMMA) |
@@ -251,6 +251,17 @@ below it, and the exponential profile is the one that integrates to a finite bas
 than assuming a shallow aquifer of its own. That in turn requires
 [`infRateMax`](#infratemax) `= topmodel_GA` (or `noInfExc`). The lateral flow appears as
 `basin__ColumnOutflow` and is added to total runoff alongside the MODFLOW baseflow.
+
+`bbLatflow` is `bigBuckt` plus the same lateral flow through the soil column. With `bigBuckt`
+the whole soil column drains down into the bucket, and the water reaches the channel at the
+aquifer's temperature. With `bbLatflow` the layers above field capacity, counted up from the base
+of the hydrologically active soil, drain sideways through the transmissivity of the conductivity
+profile (`kAnisotropic`, `f_hydCond`), while the base still recharges the bucket. That water goes
+to the channel at the temperature of the layer it leaves, so a wet, sunlit upper soil reaches the
+stream warmer than the aquifer. It **requires** [`spatial_gw`](#spatial_gw) `= localColumn` and
+[`hc_profile`](#hc_profile) `= constant` or `exp_prof`, since the bucket is recharged through the
+conductivity at the soil base. The stream, wetland and glacier domains are unchanged, and every
+option that accepts `bigBuckt` accepts `bbLatflow`.
 
 <a id="hc_profile"></a>
 ## 18. hc_profile — hydraulic-conductivity profile
@@ -676,22 +687,4 @@ The mechanism is not blocked by permafrost, since streams usually keep an unfroz
 under continuous permafrost, but it has not been validated there. `hypFrac` and `hypLag` are an
 empirical fit rather than derived SUMMA physics, which is why this is opt-in and separate from
 [`deepTherml`](#deeptherml): the two compose, and either can be used without the other.
-
-<a id="soillatflw"></a>
-## 47. soilLatflw — lateral flow in the soil above a big-bucket aquifer
-
-| Option | Description |
-|---|---|
-| none | the soil drains only downward, into the aquifer (default; also selected by `notPopulatedYet`) |
-| latflow | saturated soil layers also drain laterally to the channel, each at its own temperature |
-
-With `groundwatr = bigBuckt` the whole soil column drains down into the bucket, and the water
-reaches the channel at the aquifer's temperature. `latflow` adds the lateral flow of `qTopmodl` and
-`modLatflow` to the upland domain: the layers above field capacity, counted up from the base of the
-hydrologically active soil, drain sideways through the transmissivity of the conductivity profile
-(`kAnisotropic`, `f_hydCond`), while the base still recharges the bucket. That water goes to the
-channel at the temperature of the layer it leaves, so a wet, sunlit upper soil reaches the stream
-warmer than the aquifer. Needs `spatial_gw = localColumn` and `hc_profile = constant` or `exp_prof`,
-since the bucket is recharged through the conductivity at the soil base. The stream, wetland and
-glacier domains are unchanged.
 

@@ -81,6 +81,7 @@ hyporhTdyn                      proxy           ! (34) hyporheic exchange in a s
 ! (08) choice of groundwater parameterization
 ! qTopmodl   ! topmodel parameterization
 ! bigBuckt   ! a big bucket (lumped aquifer model)
+! bbLatflow  ! a big bucket (lumped aquifer model) but allow lateral flow in soil column
 ! noXplict   ! no explicit groundwater parameterization
 ! modflow    ! couple with MODFLOW6 (no aquifer modelled in SUMMA)
 ! modLatflow ! couple with MODFLOW6 but allow lateral flow in soil column (no aquifer modelled in SUMMA)

@@ -168,9 +168,9 @@ covers the user-facing highlights.
   per data step (`wetlandStorageK`, `wetlandMinDepth`), with the column's energy solved like a stream's. A GRU's routed
   glacier runoff passes through its wetland, entering at the freezing point, and the wetland's outflow reaches the
   channel at the column temperature. A wetland frozen nearly solid keeps 1 cm of liquid, taken from its outflow.
-- New `soilLatflw` decision: `latflow` lets the upland soil above a `bigBuckt` aquifer drain laterally
+- New `groundwatr` option `bbLatflow`: as `bigBuckt`, but the upland soil also drains laterally
   to the channel, at each layer's own temperature, as `qTopmodl` and `modLatflow` do, while its
-  base still recharges the bucket. The default `none` is the previous behaviour, bit for bit.
+  base still recharges the bucket. `bigBuckt` is unchanged, bit for bit.
 - New `hyporhTdyn` decision adds the conceptual hyporheic exchange of Wade et al. (2024) to a
   stream domain: `proxy` returns a fraction `hypFrac` of the reach flow at the temperature the
   reach had `hypLag` hours ago, written as one more inflow exchange so no water moves. It damps
