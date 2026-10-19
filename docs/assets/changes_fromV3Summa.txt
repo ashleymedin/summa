@@ -377,3 +377,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -91) lateral soil inflow carries the temperature of the layer it left, and enters a column with no saturated layer instead of being dropped, commit 5ab0019c Oct 17, 2026
 -92) soil layers gain the heat carried by water entering from the layer above or below, commit 3415be91 Oct 17, 2026
  93) wetland domain runs: a linear-reservoir water column over soil that takes the GRU glacier runoff, commit fb35bd65 Oct 19, 2026
+-94) wallErosionRate default 1 mm yr-1, bounds 0-2 (backwearing, not deposition rate), commit 3a97562b Oct 20, 2026
