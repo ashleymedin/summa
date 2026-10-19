@@ -372,3 +372,4 @@ AFTER tag of v4.0.0-exp-Sundials
  86) parameter overrides and calibration parameters can target one domain type, name@upland etc., commit bb98db98 Oct 17, 2026
 -87) lateral soil inflow carries the temperature of the layer it left, and enters a column with no saturated layer instead of being dropped, commit 5ab0019c Oct 17, 2026
 -88) soil layers gain the heat carried by water entering from the layer above or below, commit 3415be91 Oct 17, 2026
+ 89) wetland domain runs: a linear-reservoir water column over soil that takes the GRU glacier runoff, commit fb35bd65 Oct 19, 2026
