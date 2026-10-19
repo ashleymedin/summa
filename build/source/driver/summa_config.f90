@@ -192,6 +192,14 @@ contains
           cycle
         endif
 
+        ! ----- parameter bounds are parsed as a complete sub-table -----
+        if(trim(sections(i)%key) == "calibration" .and. &
+           trim(keys(j)%key)     == "parameter_bounds")then
+          call parse_parameter_bounds(subtable, config, err, cmessage)
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+          cycle
+        endif
+
         ! ----- NSGA-II settings are parsed as a complete sub-table -----
         if(trim(sections(i)%key) == "calibration" .and. &
            trim(keys(j)%key)     == "nsga2")then
@@ -1296,6 +1304,71 @@ contains
     enddo
   
   end subroutine parse_parameter_transformations
+
+  ! **************************************************************************************************
+  ! Parse [calibration.parameter_bounds]: name = [lower, upper], replacing the bounds the parameter
+  !  files give; a name@domainType key bounds that domain type's parameter apart from the others
+  ! **************************************************************************************************
+  subroutine parse_parameter_bounds(calib_table, config, ierr, message)
+    use tomlf_all, only: toml_table, toml_array, toml_key, get_value, len
+    implicit none
+
+    type(toml_table), pointer, intent(in)    :: calib_table
+    type(config_info),         intent(inout) :: config
+    integer(i4b),              intent(out)   :: ierr
+    character(*),              intent(out)   :: message
+    type(toml_table), pointer :: bounds_table
+    type(toml_array), pointer :: pair
+    type(toml_key), allocatable :: keys(:)
+    integer(i4b) :: i
+    integer(i4b) :: istat
+
+    ierr = 0
+    message = 'parse_parameter_bounds/'
+
+    call get_value(calib_table, 'parameter_bounds', bounds_table, stat=istat)
+    if(istat/=0 .or. .not.associated(bounds_table))then
+      message=trim(message)//'unable to read parameter_bounds table'
+      ierr=20; return
+    endif
+
+    ! a multi-case run reuses one config structure, so release the previous case's bounds
+    if(allocated(config%calib%param_bounds)) deallocate(config%calib%param_bounds)
+    call bounds_table%get_keys(keys)
+    if(.not.allocated(keys))then
+      allocate(config%calib%param_bounds(0))
+      return
+    endif
+    allocate(config%calib%param_bounds(size(keys)),stat=ierr)
+    if(ierr/=0)then
+      message=trim(message)//'unable to allocate parameter bounds'
+      return
+    endif
+
+    do i=1,size(keys)
+      if(len_trim(keys(i)%key) > len(config%calib%param_bounds(i)%name))then
+        write(message,'(A,I0)') trim(message)//'parameter name exceeds maximum character length, i = ',i
+        ierr=20; return
+      endif
+      config%calib%param_bounds(i)%name = trim(keys(i)%key)
+      call get_value(bounds_table, trim(keys(i)%key), pair, stat=istat)
+      if(istat/=0 .or. .not.associated(pair))then
+        message=trim(message)//'bounds of '//trim(keys(i)%key)//' must be [lower, upper]'
+        ierr=20; return
+      endif
+      if(len(pair)/=2)then
+        message=trim(message)//'bounds of '//trim(keys(i)%key)//' must be [lower, upper]'
+        ierr=20; return
+      endif
+      call get_value(pair, 1, config%calib%param_bounds(i)%lower, stat=istat)
+      if(istat==0) call get_value(pair, 2, config%calib%param_bounds(i)%upper, stat=istat)
+      if(istat/=0)then
+        message=trim(message)//'bounds of '//trim(keys(i)%key)//' must be two numbers'
+        ierr=20; return
+      endif
+    enddo
+
+  end subroutine parse_parameter_bounds
 
   ! **************************************************************************************************
   ! Parse the NSGA-II settings in [calibration.nsga2].  Keys left out keep their defaults.
