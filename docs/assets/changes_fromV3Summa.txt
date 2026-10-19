@@ -371,3 +371,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -85) scalar solve waives the matric head increment test where the residual and water content change meet the liquid tolerance, commit e828262b Oct 19, 2026
 -86) glacAreaChange.f90 debris emerges only under debris, mass-balance lookup one segment lower, yield stress clears only failing cells, commit dc8f8910 Oct 19, 2026
 -87) glacAreaChange.f90 debris also emerges beside existing debris, so the cover spreads a cell at a time, commit bfaadb73 Oct 19, 2026
+-88) glacAreaChange.f90 rockfall rock face from the ice up to the highest ground within 500 m, not the drop to the next cell, commit acfc9c44 Oct 19, 2026
