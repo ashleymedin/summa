@@ -224,6 +224,12 @@ USE globalData,only:gru_struc                           ! gru-hru mapping struct
              err=20; message=trim(message)//'a stream domain needs DOMarea > 0 (the reach planform area)'; return
            endif
          end if
+         ! a wetland is a water column too, filled by the glacier runoff it takes
+         if (typeDOM==wetland .and. DOMarea > 0._rkind) then
+           if(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake < 1)then
+             err=20; message=trim(message)//'a wetland domain needs at least one lake layer (nLake >= 1)'; return
+           endif
+         end if
        end associate
      end do
      if(has_stream .and. remaining_area > xTol*attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea))then

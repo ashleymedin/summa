@@ -374,6 +374,9 @@ MODULE var_lookup
   integer(i4b)    :: hypLag                = integerMissing    ! residence time of the hyporheic flow paths (h)
   ! glacier surface wind relative to the forcing's wind station
   integer(i4b)    :: windExposure          = integerMissing    ! glacier surface wind as a fraction of the wind station's (-)
+  ! wetland water column, drained as a linear reservoir
+  integer(i4b)    :: wetlandStorageK       = integerMissing    ! storage time constant of the wetland outflow (s)
+  integer(i4b)    :: wetlandMinDepth       = integerMissing    ! liquid depth below which a wetland does not drain (m)
  endtype iLook_param
 
  ! ***********************************************************************************************************
@@ -1092,7 +1095,7 @@ MODULE var_lookup
                                                                         171,172,173,174,175,176,177,178,179,180,&
                                                                         181,182,183,184,185,186,187,188,189,190,&
                                                                         191,192,193,194,195,196,197,198,199,200,&
-                                                                        201,202,203,204,205,206)
+                                                                        201,202,203,204,205,206,207,208)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
