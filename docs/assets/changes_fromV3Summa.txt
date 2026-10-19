@@ -369,7 +369,7 @@ AFTER tag of v4.0.0-exp-Sundials
  84) glacier debris re-split at each area update, conserving its water and enthalpy: top layer at most 5 cm, the rest growing
      geometrically, debris at least 2 cm thick, commits 39b712fb and addc9912 Oct 16, 2026
 -85) scalar solve waives the matric head increment test where the residual and water content change meet the liquid tolerance, commit e828262b Oct 19, 2026
- 86) soilLatflw decision: latflow drains upland soil laterally beside the big bucket, at each layer's temperature, commit bf8f45f8 Oct 17, 2026
+ 86) bbLatflow groundwatr option: big bucket plus lateral flow from upland soil at each layer's temperature, commits bf8f45f8 Oct 17 and 36804ccd Oct 20, 2026
  87) parameter overrides and calibration parameters can target one domain type, name@upland etc., commit bb98db98 Oct 17, 2026
 -88) lateral soil inflow carries the temperature of the layer it left, and enters a column with no saturated layer instead of being dropped, commit 5ab0019c Oct 17, 2026
 -89) advective heat: soil layers gain the heat carried by water entering from the layer above or below, commit 3415be91 Oct 17, 2026
