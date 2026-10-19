@@ -35,7 +35,7 @@ USE globalData,only:maxVolIceContent       ! snow maximum volumetric ice content
 USE globalData,only:iceResidWaterFrac      ! residual volumetric liquid water content in ice (-)
 
 ! horizontal domain types
-USE globalData,only:wetland                ! sub-GRU lake or pothole: mass balance solved here (not yet implemented)
+USE globalData,only:wetland                ! sub-GRU lake or pothole: mass balance in a linear reservoir once per data step
 USE globalData,only:stream                 ! reach water column: mass balance solved by the coupled river network
 
 ! named variables
@@ -256,8 +256,8 @@ end subroutine snowIceLiqFlux
 !            depth is prescribed from the reach volume once per data step. What arrives at the top joins the
 !            reach flow at once and is passed on so that its heat can be added to the water column;
 !            evaporation leaves the same way.
-!  * wetland: a sub-GRU lake or pothole whose water balance would be solved here (inflow at the top, spill
-!            over the outlet, seepage to the soil through the bottom flux). Not yet implemented.
+!  * wetland: a sub-GRU lake or pothole whose water is a linear reservoir updated once per data step (coupled_em),
+!            so its column is treated like a stream's here.
 subroutine lakeLiqFlux(&
                        ! input: model control, forcing, and model state vector
                        in_snowLakeGlceLiqFlux,  & ! intent(in):    model control, forcing, and model state vector
@@ -314,8 +314,8 @@ subroutine lakeLiqFlux(&
     err=0; message='lakeLiqFlux/'
 
     ! NOTE: the domain types are module variables rather than parameters, so no select case
-    if(domType==stream)then
-      ! ***** stream: the reach water column, mass handled by the river network
+    if(domType==stream .or. domType==wetland)then
+      ! ***** stream or wetland: the water column, its mass held outside the solver
       ! what arrives at the top joins the flow at once rather than entering the column: no interface flux carries it down
       ! (the interface above, index nStart, keeps the drainage the layer above computed, since that layer needs its bottom flux)
       do iLayer=nStart+1,nStart+nLayers
@@ -336,11 +336,6 @@ subroutine lakeLiqFlux(&
       ! above loses it, and the ice branch sets the runoff)
       scalarStreamRunoff = surface_flux - scalarGroundEvaporation/iden_water
       if(nStart==0) scalarStreamRunoff = scalarStreamRunoff - scalarGroundSublimation/iden_water
-
-    else if(domType==wetland)then
-      ! ***** wetland: sub-GRU lake or pothole, mass balance solved here
-      ! surface_flux is the inflow, the interior fluxes are zero, the bottom flux is seepage, spill leaves the top layer
-      err=20; message=trim(message)//'wetland lake mass balance not implemented'; return
 
     else
       err=20; message=trim(message)//'lake layers are only expected in stream or wetland domains'; return

@@ -372,3 +372,8 @@ AFTER tag of v4.0.0-exp-Sundials
 -86) glacAreaChange.f90 debris emerges only under debris, mass-balance lookup one segment lower, yield stress clears only failing cells, commit dc8f8910 Oct 19, 2026
 -87) glacAreaChange.f90 debris also emerges beside existing debris, so the cover spreads a cell at a time, commit bfaadb73 Oct 19, 2026
 -88) glacAreaChange.f90 rockfall rock face from the ice up to the highest ground within 500 m, not the drop to the next cell, commit acfc9c44 Oct 19, 2026
+ 89) soilLatflw decision: latflow drains upland soil laterally beside the big bucket, at each layer's temperature, commit bf8f45f8 Oct 17, 2026
+ 90) parameter overrides and calibration parameters can target one domain type, name@upland etc., commit bb98db98 Oct 17, 2026
+-91) lateral soil inflow carries the temperature of the layer it left, and enters a column with no saturated layer instead of being dropped, commit 5ab0019c Oct 17, 2026
+-92) soil layers gain the heat carried by water entering from the layer above or below, commit 3415be91 Oct 17, 2026
+ 93) wetland domain runs: a linear-reservoir water column over soil that takes the GRU glacier runoff, commit fb35bd65 Oct 19, 2026
