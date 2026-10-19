@@ -172,6 +172,15 @@ metric     = "rmse"
 - `basin__GlacierMassChange` is the glacier domains' total mass change over the glacier area, which is
   what a glacier-wide balance is per unit of.
 
+## Parameters for one domain type
+
+A name in `param_list` sets that parameter in every domain of every HRU. `name@type` sets it only in the
+domains of that type: `upland`, `glacCln1`, `glacCln2`, `glacDbr`, `wetland` or `stream`. For example,
+`"k_soil@upland"` calibrates the tundra soil and leaves the glacier debris at its parameter-file value.
+It takes the bounds and default of the parameter it names, and a transformation is given under the full
+name (`"k_soil@upland" = "log"`). Basin parameters have no domains and take no suffix. `--param` on the
+command line accepts the same form.
+
 ## Parameters that must stay in order
 
 Some parameters are only valid in order: SUMMA refuses a soil unless

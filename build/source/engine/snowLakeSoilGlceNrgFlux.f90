@@ -48,6 +48,7 @@ USE globalData,only:iname_lake      ! named variables for lake
 
 ! horizontal domain types
 USE globalData,only:stream          ! stream domain: reach water column with advection from the river network
+USE globalData,only:wetland         ! wetland domain: water column with advection from the glacier runoff it takes
 
 ! named variables
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
@@ -319,10 +320,10 @@ subroutine snowLakeSoilGlceNrgFlux(&
       dLakeAdvNrgFlux_dTemp(:)  = 0._rkind
       dLakeAdvNrgFlux_dLiq(:)   = 0._rkind
       dLakeAdvNrgFlux_dDepth(:) = 0._rkind
-      if(domType==stream)then
+      if(domType==stream .or. domType==wetland)then
         ! a fraction of the reach flow returns at the temperature it had hypLag ago (Wade et al. 2024, EMS, eqs. 11-12)
         hypFlow = 0._rkind
-        if(ix_hyporhTdyn==hyporheicProxy .and. scalarHypTemp > 0._rkind) hypFlow = hypFrac*(scalarStreamInflow + scalarStreamLatInflow)
+        if(domType==stream .and. ix_hyporhTdyn==hyporheicProxy .and. scalarHypTemp > 0._rkind) hypFlow = hypFrac*(scalarStreamInflow + scalarStreamLatInflow)
         lakeLiqDepth = sum(mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake)*mLayerVolFracLiqTrial(nSnow+nLakeFrz+1:nSnow+nLake))
         if(lakeLiqDepth > verySmall .and. DOMarea > 0._rkind)then
           advScale = Cp_water*iden_water/(DOMarea*lakeLiqDepth)
