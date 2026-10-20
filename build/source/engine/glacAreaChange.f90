@@ -1348,9 +1348,7 @@ end subroutine static_emergElev_latRockfall
 
 
 ! ************************************************************************************************
-! private subroutine advection_upwind: first-order upwind advection of debris thickness in flux form,
-!   Mayer and Licciulli (2021) eq. 3. u and v are face velocities to cell l+1 and k+1 (m s-1), zero on closed faces;
-!   div_uD = -div(uD) (m s-1). Each face flux is taken from its upwind cell and shared by both cells.
+! private subroutine advection_upwind: first-order upwind advection for debris movement with ice velocity
 ! ************************************************************************************************
 subroutine advection_upwind(u, v, D, nx, ny, dx, dy, div_uD)
   implicit none
@@ -1363,10 +1361,11 @@ subroutine advection_upwind(u, v, D, nx, ny, dx, dy, div_uD)
 
   f_l = 0._rkind
   f_k = 0._rkind
+  ! Mayer and Licciulli (2021) eq. 3., u and v are face velocities to cell l+1 and k+1 (m s-1), zero on closed faces
   if(ny > 1) f_l(:,1:ny-1) = merge(u(:,1:ny-1)*D(:,1:ny-1), u(:,1:ny-1)*D(:,2:ny), u(:,1:ny-1) > 0._rkind)
   if(nx > 1) f_k(1:nx-1,:) = merge(v(1:nx-1,:)*D(1:nx-1,:), v(1:nx-1,:)*D(2:nx,:), v(1:nx-1,:) > 0._rkind)
 
-  div_uD = -f_l/dy - f_k/dx
+  div_uD = -f_l/dy - f_k/dx ! -div(uD) (m s-1), each face flux is taken from its upwind cell and shared by both cells
   div_uD(:,2:ny) = div_uD(:,2:ny) + f_l(:,1:ny-1)/dy
   div_uD(2:nx,:) = div_uD(2:nx,:) + f_k(1:nx-1,:)/dx
 
