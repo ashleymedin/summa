@@ -701,7 +701,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
       return
     endif
 
-    ! get mass balance rate over surface (m s-1) and remove debris from glacier surface for flow calculation
+    ! get mass balance rate over surface (m ice s-1) and remove debris from glacier surface for flow calculation
     m_dot = massBalance(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny)
     S = S - debris
     S_stepStart = S
@@ -1042,8 +1042,8 @@ function massBalance(S, debris, glacierMask, slope, intercept, t_total, validEle
     enddo
   enddo
 
-  ! convert mass balance to m s-1 from kg m-2 s-1
-  massBalance = massBalance / iden_water
+  ! convert mass balance to m ice s-1 from kg m-2 s-1
+  massBalance = massBalance / iden_ice
 
 end function massBalance
 
@@ -1093,7 +1093,7 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
   slope_k= (S_k_up - S_k_dn) / dx ! (m m-1)
 
   ! Use one-time masks/rockfall map computed from initial S for this yearly run.
-  englacial_emerg = merge(max(-m_dot, 0._rkind), 0._rkind, emergenceMask==1_i4b) * iden_water/iden_ice * debrisConc ! (kg m-2 s-1)
+  englacial_emerg = merge(max(-m_dot, 0._rkind), 0._rkind, emergenceMask==1_i4b) * debrisConc ! (kg m-2 s-1)
 
   ! Sum for total debris influx in m/s
   influx = lat_rockfall + englacial_emerg/(iden_soil*(1._rkind - theta_sat)) 
