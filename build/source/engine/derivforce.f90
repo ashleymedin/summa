@@ -67,7 +67,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine derivforce: compute derived forcing data
  ! ************************************************************************************************
- subroutine derivforce(is_glac, forc_data,attr_data,mpar_data, prog_data,diag_data,flux_data,tmZoneOffsetFracDay,err,message)
+ subroutine derivforce(is_glac, has_canopy, forc_data,attr_data,mpar_data, prog_data,diag_data,flux_data,tmZoneOffsetFracDay,err,message)
  USE sunGeomtry_module,only:clrsky_rad                            ! compute cosine of the solar zenith angle
  USE convert_funcs_module,only:vapPress                           ! compute vapor pressure of air (Pa)
  USE convert_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP   ! conversion functions
@@ -79,6 +79,7 @@ contains
  implicit none
  ! input variables
  logical(lgt),intent(in)              :: is_glac                       ! flag to indicate if is a glacier domain
+ logical(lgt),intent(in)              :: has_canopy                    ! flag to indicate if the domain can have a vegetation canopy
  type(var_d),intent(inout)            :: forc_data                     ! vector of forcing data for a given time step
  type(var_d),intent(in)               :: attr_data                     ! vector of model attributes
  type(var_dlength),intent(in)         :: mpar_data                     ! vector of model parameters
@@ -119,6 +120,7 @@ contains
  real(rkind),parameter                :: pahautDenWindScal=0.5_rkind   ! Scalar parameter for wind impacts on density using Pahaut (1976) function (-)
  real(rkind)                          :: airpres_base                  ! air pressure at the base elevation (Pa)
  real(rkind)                          :: exposure                      ! glacier surface wind as a fraction of the wind station's (-)
+ real(rkind)                          :: katabaticCooling              ! air temperature removed by the glacier surface layer (K)
  real(rkind),parameter                :: lapseRate=0.006871_rkind      ! lapse rate (K m-1), 6.5C/1km is the standard environmental lapse rate
  ! ************************************************************************************************
  ! associate local variables with the information in the data structures
@@ -144,6 +146,7 @@ contains
  glacierWindFactor       => mpar_data%var(iLookPARAM%glacierWindFactor)%dat(1)    , & ! wind speed increase to account for glacier katabatic wind profile (-)
  glacierTempReduction    => mpar_data%var(iLookPARAM%glacierTempReduction)%dat(1) , & ! air temperature decrease to account for down-glacier katabatic wind (-)
  windExposure            => mpar_data%var(iLookPARAM%windExposure)%dat(1)         , & ! glacier surface wind as a fraction of the wind station's (-)
+ precipElevGrad          => mpar_data%var(iLookPARAM%precipElevGrad)%dat(1)       , & ! fractional change in precipitation per metre above the HRU elevation (m-1)
  ! radiation geometry variables
  latitude                => attr_data%var(iLookATTR%latitude)                     , & ! latitude (degrees north)
  longitude               => attr_data%var(iLookATTR%longitude)                    , & ! longitude (degrees east)
@@ -207,11 +210,13 @@ contains
  ! NOTE: Eventually want to have a separate katabatic wind model, but this is a simple first-order approach 
  ! see e.g. Radic et al., 2017, https://doi.org/10.5194/tc-11-2897-2017, following Oerlemans and Grisogono (2002)
  ! NOTE2: Should make dependent on the glacier geometry so wind speed increases and temperature decreases are larger down-glacier
+ katabaticCooling = 0._rkind
  if (is_glac .and. airtemp>Tfreeze) then 
+  katabaticCooling = glacierTempReduction
   windspd   = windspd   * glacierWindFactor
   windspd_x = windspd_x * glacierWindFactor
   windspd_y = windspd_y * glacierWindFactor
-  airtemp   = airtemp   - glacierTempReduction
+  airtemp   = airtemp   - katabaticCooling
  endif
 
  ! check spectral dimension
@@ -223,7 +228,7 @@ contains
  ! adjust the measurement height for the vegetation canopy
  ! NOTE: could return an error or a warning
  ! NOTE: this does not need to be done every time step -- doing here for consistency with the snow adjustment
- if(mHeight < heightCanopyTop)then
+ if(has_canopy .and. mHeight < heightCanopyTop)then
   adjMeasHeight = heightCanopyTop+minMeasHeight  ! measurement height at least minMeasHeight above the canopy
  else
   adjMeasHeight = mHeight
@@ -309,6 +314,8 @@ contains
 
  ! adjust the air temperature to the domain mean elevation
  airtemp = airtemp - (DOMelev - elevation) * lapseRate
+ ! linear in elevation, so the area-weighted domains keep the HRU's precipitation
+ pptrate = pptrate * max(0._rkind, 1._rkind + precipElevGrad * (DOMelev - elevation))
 
  ! compute relative humidity (-)
  relhum   = SPHM2RELHM(spechum, airpres, airtemp)
@@ -321,8 +328,12 @@ contains
  ! compute vapor pressure of the air above the vegetation canopy (Pa)
  VPair = vapPress(spechum,airpres)
 
- ! compute wet bulb temperature (K)
- twetbulb = WETBULBTMP(airtemp, relhum, airpres)
+ ! compute wet bulb temperature (K), above the shallow glacier surface layer that sets the phase
+ if(katabaticCooling > 0._rkind)then
+  twetbulb = WETBULBTMP(airtemp + katabaticCooling, min(1._rkind, SPHM2RELHM(spechum, airpres, airtemp + katabaticCooling)), airpres)
+ else
+  twetbulb = WETBULBTMP(airtemp, relhum, airpres)
+ end if
 
  ! compute the maximum temperature of snow when the snow is predominantely frozen (K)
  maxFrozenSnowTemp = templiquid(unfrozenLiq,snowfrz_scale)
