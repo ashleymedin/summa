@@ -941,6 +941,10 @@ MODULE var_lookup
   integer(i4b)    :: C_ATGW                     = integerMissing ! air temperature to groundwater temperature coefficient (-)
   ! geometry of the reach a stream domain stands for
   integer(i4b)    :: streamWidthMultip          = integerMissing ! multiplier on the reach width and the stream domain area (-)
+  ! glacier flow and the mass balance it is given
+  integer(i4b)    :: glenAFactor                = integerMissing ! multiplier on Glen's rate factor A (-)
+  integer(i4b)    :: mbGradAbove                = integerMissing ! mass balance gradient above the highest glacier domain, 0 to extend the fit (mm w.e. m-1 yr-1)
+  integer(i4b)    :: mbGradBelow                = integerMissing ! mass balance gradient below the lowest glacier domain, 0 to extend the fit (mm w.e. m-1 yr-1)
  endtype iLook_bpar
 
  ! ***********************************************************************************************************
@@ -1147,7 +1151,7 @@ MODULE var_lookup
                                                                          71, 72, 73, 74)
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =iLook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8, 9,  10,&
-                                                                          11, 12, 13, 14)
+                                                                          11, 12, 13, 14, 15, 16, 17)
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =iLook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
