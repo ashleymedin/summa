@@ -67,7 +67,7 @@ real(rkind),parameter :: wallSearchDist=500._rkind   ! distance from a glacier m
 real(rkind),parameter :: wallMinSlope=40._rkind      ! slope above which ground is bare rock that sheds onto the ice, above scree's angle of repose (degrees)
 
 ! privacy
-private::run_flowModel,run_debrisModel,diffusion_MUSCL,advection_MUSCL,static_emergElev_latRockfall
+private::run_flowModel,run_debrisModel,diffusion_MUSCL,advection_upwind,static_emergElev_latRockfall
 private::fit_massBalanceCurve,cell_slopeAspect,argsort_desc,debrisLayering,debrisResplit
 private::superbee,flux,SIA,midpt,pluss,minus
 public::glacAreaChange
@@ -1068,10 +1068,13 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
   real(rkind),parameter :: cfl= 0.5 ! Courant-Friedrichs-Lewy condition
   real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skl(nx,ny), Skpl(nx,ny), Skml(nx,ny)
   real(rkind) :: S_l_up(nx,ny), S_l_dn(nx,ny), S_k_up(nx,ny), S_k_dn(nx,ny)
-  real(rkind) :: slope_l(nx,ny), slope_k(nx,ny), u(nx,ny), v(nx,ny)
+  real(rkind) :: slope_l(nx,ny), slope_k(nx,ny), H(nx,ny)
+  real(rkind) :: u(nx,ny), v(nx,ny)     ! surface velocity on the face to cell l+1 and to cell k+1 (m s-1)
+  real(rkind) :: outRate(nx,ny)         ! rate debris can leave a cell through its faces (s-1)
+  real(rkind) :: slope_n, slope_c       ! surface slope across and along a face (m m-1)
   real(rkind) :: influx(nx,ny), englacial_emerg(nx, ny)
   real(rkind) :: min_dt, div_uD(nx,ny), t, max_dt, dt, dt_cfl, deltat
-  integer(i4b) :: mask(nx,ny)
+  integer(i4b) :: mask(nx,ny), i, j
 
   max_dt = 7._rkind * secprday ! maximum timestep in seconds, 1 week
   min_dt = 3600._rkind ! min timestep in seconds, 1 hour
@@ -1098,27 +1101,51 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
   ! Sum for total debris influx in m/s
   influx = lat_rockfall + englacial_emerg/(iden_soil*(1._rkind - theta_sat)) 
 
-  ! Calculate surface velocity using SIA, will be zero where no glacier
-  u = gamma * (n + 2_i4b)/(n + 1_i4b) * abs(slope_l)**(n-1_i4b) * slope_l *(S-B)**(n + 1_i4b) ! (m s-1)
-  v = gamma * (n + 2_i4b)/(n + 1_i4b) * abs(slope_k)**(n-1_i4b) * slope_k *(S-B)**(n + 1_i4b) ! (m s-1)
-
   mask = merge(1_i4b, 0_i4b, S>B) ! mask for glacier on subgrid
-  
+  H = S - B
+
+  ! SIA surface velocity down the surface slope on each face between two ice cells, zero on faces beside no ice
+  u = 0._rkind
+  do j = 1, ny-1
+    do i = 1, nx
+      if(mask(i,j)==0_i4b .or. mask(i,j+1)==0_i4b) cycle
+      slope_n = (S(i,j+1) - S(i,j)) / dy
+      slope_c = 0.5_rkind*(slope_k(i,j) + slope_k(i,j+1))
+      u(i,j) = -gamma * (n + 2_i4b)/(n + 1_i4b) * (slope_n**2_i4b + slope_c**2_i4b)**(0.5_rkind*(n - 1_i4b)) * slope_n &
+               * (0.5_rkind*(H(i,j) + H(i,j+1)))**(n + 1_i4b)
+    enddo
+  enddo
+  v = 0._rkind
+  do j = 1, ny
+    do i = 1, nx-1
+      if(mask(i,j)==0_i4b .or. mask(i+1,j)==0_i4b) cycle
+      slope_n = (S(i+1,j) - S(i,j)) / dx
+      slope_c = 0.5_rkind*(slope_l(i,j) + slope_l(i+1,j))
+      v(i,j) = -gamma * (n + 2_i4b)/(n + 1_i4b) * (slope_n**2_i4b + slope_c**2_i4b)**(0.5_rkind*(n - 1_i4b)) * slope_n &
+               * (0.5_rkind*(H(i,j) + H(i+1,j)))**(n + 1_i4b)
+    enddo
+  enddo
+
+  ! time step that lets no cell send out more than cfl of its debris
+  outRate = max(u, 0._rkind)/dy + max(v, 0._rkind)/dx
+  outRate(:,2:ny) = outRate(:,2:ny) + max(-u(:,1:ny-1), 0._rkind)/dy
+  outRate(2:nx,:) = outRate(2:nx,:) + max(-v(1:nx-1,:), 0._rkind)/dx
+  dt_cfl = max_dt
+  if(maxval(outRate) > 0._rkind) dt_cfl = cfl / maxval(outRate)
+
   ! ** movement with grid **
   do while (t < t_total)
     dt = t_total - t
 
     ! Call a step of the advection scheme
-    call advection_MUSCL(u, v, debris, mask, cfl, max_dt, nx, ny, dx, dy, div_uD, dt_cfl, &
-                         l, lp, lm, k, kp, km)
- 
-    ! update time step
-    deltat = min(dt_cfl, dt)
-    if(deltat > max_dt) deltat = max_dt
-    if(deltat < min_dt) deltat = min_dt
-    t = t + deltat 
+    call advection_upwind(u, v, debris, nx, ny, dx, dy, div_uD)
 
-    ! update debris thickness (with time discretization D_t+1 - D_t /dt  = div(uD_t) + influx_t, so D_t+1 = D_t + (div(uD_t) + influx)*dt)
+    ! update time step
+    deltat = min(dt_cfl, dt, max_dt)
+    if(dt_cfl >= min_dt .and. deltat < min_dt) deltat = min_dt
+    t = t + deltat
+
+    ! update debris thickness (with time discretization D_t+1 - D_t /dt  = -div(uD_t) + influx_t)
     debris = debris + (div_uD + influx)* deltat
     debris = merge(debris, 0._rkind, debris > 0._rkind) ! prevent negative debris
   enddo
@@ -1321,56 +1348,29 @@ end subroutine static_emergElev_latRockfall
 
 
 ! ************************************************************************************************
-! private function advection_MUSCL: mass conserving advection scheme for debris movement with ice velocity
+! private subroutine advection_upwind: first-order upwind advection of debris thickness in flux form,
+!   Mayer and Licciulli (2021) eq. 3. u and v are face velocities to cell l+1 and k+1 (m s-1), zero on closed faces;
+!   div_uD = -div(uD) (m s-1). Each face flux is taken from its upwind cell and shared by both cells.
 ! ************************************************************************************************
-subroutine advection_MUSCL(u, v, D, mask, cfl, max_dt, nx, ny, dx, dy, div_uD, dt_cfl,&
-                          l, lp, lm, k, kp, km)
+subroutine advection_upwind(u, v, D, nx, ny, dx, dy, div_uD)
   implicit none
   ! Arguments
-  real(rkind), intent(in) :: u(nx,ny), v(nx,ny), D(nx,ny), cfl, max_dt, dx, dy
-  integer(i4b), intent(in) :: mask(nx,ny), nx, ny, l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx)
-  real(rkind), intent(out) :: div_uD(nx,ny), dt_cfl
+  real(rkind), intent(in) :: u(nx,ny), v(nx,ny), D(nx,ny), dx, dy
+  integer(i4b), intent(in) :: nx, ny
+  real(rkind), intent(out) :: div_uD(nx,ny)
   ! Local variables
-  real(rkind) :: D_l_up(nx,ny), D_l_dn(nx,ny), D_k_up(nx,ny), D_k_dn(nx,ny)
-  real(rkind) :: u_l_up(nx,ny), u_l_dn(nx,ny)
-  real(rkind) :: v_k_up(nx,ny), v_k_dn(nx,ny)
-  real(rkind) :: div_k(nx,ny), div_l(nx,ny)
-  real(rkind) :: divisor, dt_u, dt_v
+  real(rkind) :: f_l(nx,ny), f_k(nx,ny) ! debris flux on the face to cell l+1 and to cell k+1 (m2 s-1)
 
-  ! MUSCL slope reconstruction for D, u, and v
-  D_l_up = pluss(D(k,lm), D(k,l), D(k,lp)) ! D at l+1/2
-  D_l_dn = minus(D(k,lm), D(k,l), D(k,lp)) ! D at l-1/2
-  D_k_up = pluss(D(km,l), D(k,l), D(kp,l)) ! D at k+1/2
-  D_k_dn = minus(D(km,l), D(k,l), D(kp,l)) ! D at k-1/2
-  !
-  u_l_up = pluss(u(k,lm), u(k,l), u(k,lp)) ! u at l+1/2
-  u_l_dn = minus(u(k,lm), u(k,l), u(k,lp)) ! u at l-1/2
-  !
-  v_k_up = pluss(v(km,l), v(k,l), v(kp,l)) ! v at k+1/2
-  v_k_dn = minus(v(km,l), v(k,l), v(kp,l)) ! v at k-1/2
+  f_l = 0._rkind
+  f_k = 0._rkind
+  if(ny > 1) f_l(:,1:ny-1) = merge(u(:,1:ny-1)*D(:,1:ny-1), u(:,1:ny-1)*D(:,2:ny), u(:,1:ny-1) > 0._rkind)
+  if(nx > 1) f_k(1:nx-1,:) = merge(v(1:nx-1,:)*D(1:nx-1,:), v(1:nx-1,:)*D(2:nx,:), v(1:nx-1,:) > 0._rkind)
 
-  ! Calculate divergence of fluxes
-  div_l = (u_l_dn * D_l_dn - u_l_up * D_l_up) / dy
-  div_k = (v_k_dn * D_k_dn - v_k_up * D_k_up) / dx
+  div_uD = -f_l/dy - f_k/dx
+  div_uD(:,2:ny) = div_uD(:,2:ny) + f_l(:,1:ny-1)/dy
+  div_uD(2:nx,:) = div_uD(2:nx,:) + f_k(1:nx-1,:)/dx
 
-  ! enforce zero advection outside the mask
-  div_l = merge(0._rkind, div_l, mask==0_i4b)
-  div_k = merge(0._rkind, div_k, mask==0_i4b)
-  div_uD = div_k + div_l ! change in debris thickness with time
-
-  ! calculate delta t from face speeds used in the advection fluxes
-  dt_u = max_dt
-  dt_v = max_dt
-  divisor = max(maxval(abs(u_l_up)), maxval(abs(u_l_dn)))
-  if(divisor > 0._rkind) dt_u = cfl * dy / divisor
-  divisor = max(maxval(abs(v_k_up)), maxval(abs(v_k_dn)))
-  if(divisor > 0._rkind) dt_v = cfl * dx / divisor
-  dt_cfl = min(dt_u, dt_v)
-  if(dt_cfl <= 0._rkind)then
-    dt_cfl = max_dt
-  endif
-
-end subroutine advection_MUSCL
+end subroutine advection_upwind
 
 ! ************************************************************************************************
 ! private functions to assist in calculations
