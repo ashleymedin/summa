@@ -1042,7 +1042,7 @@ end function massBalance
 ! ************************************************************************************************
 ! private subroutine run_debrisModel: set up englacial debris advection transport model and run
 !   for one sub-time step. Debris input is from englacial debris emergence and lateral moraine rockfall,
-!   and output from terminus slumping and ice velocity.
+!   and output from terminus slumping and ice velocity (done in the main flow model).
 !   Follows the implementation of Mayer and Licciulli (2021), from Anderson and Anderson (2016).
 ! ************************************************************************************************
 subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask, lat_rockfall, &
