@@ -375,3 +375,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -88) lateral soil inflow carries the temperature of the layer it left, and enters a column with no saturated layer instead of being dropped, commit 5ab0019c Oct 17, 2026
 -89) advective heat: soil layers gain the heat carried by water entering from the layer above or below, commit 3415be91 Oct 17, 2026
  90) Added wetland domain: a linear-reservoir water column over soil that takes the GRU glacier runoff, commit fb35bd65 Oct 19, 2026
+ 91) precipElevGrad scales precipitation linearly with a domain's height above its HRU (default 0), commit a41db815 Oct 20, 2026
