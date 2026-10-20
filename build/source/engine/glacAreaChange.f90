@@ -876,8 +876,8 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   H_l_dn_p = max(H_l_dn_p, 0._rkind)
 
   ! calculate l flux
-  f_l_p = flux(Xkpl, Xkml, Xkplp, Xkmlp, Sklp, Skl, dy, dx, n)
-  f_l_m = flux(Xkpl, Xkml, Xkplm, Xkmlm, Skl, Sklm, dy, dx, n)
+  f_l_p = flux(Xkpl, Xkml, Xkplp, Xkmlp, Sklp, Skl, dx, dy, n)
+  f_l_m = flux(Xkpl, Xkml, Xkplm, Xkmlm, Skl, Sklm, dx, dy, n)
 
   ! calculate l Diffusivity
   D_l_up_m = gamma * H_l_up_m**(n+2_i4b) * f_l_p  ! equation 30 Jarosh 2013
@@ -936,8 +936,8 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   H_k_dn_p = max(H_k_dn_p, 0._rkind)
 
   ! calculate k flux
-  f_k_p = flux(Xklp, Xklm, Yplp, Yplm, Skpl, Skl, dx, dy, n)
-  f_k_m = flux(Xklp, Xklm, Ymlp, Ymlm, Skl, Skml, dx, dy, n)
+  f_k_p = flux(Xklp, Xklm, Yplp, Yplm, Skpl, Skl, dy, dx, n)
+  f_k_m = flux(Xklp, Xklm, Ymlp, Ymlm, Skl, Skml, dy, dx, n)
 
   ! calculate k Diffusivity
   D_k_up_m = gamma * H_k_up_m**(n+2_i4b) * f_k_p  ! equation 30 Jarosh 2013
