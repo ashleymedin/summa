@@ -67,7 +67,7 @@ real(rkind),parameter :: wallSearchDist=500._rkind   ! distance from a glacier m
 real(rkind),parameter :: wallMinSlope=40._rkind      ! slope above which ground is bare rock that sheds onto the ice, above scree's angle of repose (degrees)
 
 ! privacy
-private::run_flowModel,run_debrisModel,diffusion_MUSCL,advection_upwind,static_emergElev_latRockfall
+private::run_flowModel,run_debrisModel,diffusion_MUSCL,advection_upwind,static_emergElev_latRockfall,debris_unload
 private::fit_massBalanceCurve,cell_slopeAspect,argsort_desc,debrisLayering,debrisResplit
 private::superbee,flux,SIA,midpt,pluss,minus,refl
 public::glacAreaChange
@@ -766,10 +766,10 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
       S_k_dn = midpt(Skl, Skml)
       slope_k= (S_k_up - S_k_dn) / dx ! (m m-1)
 
-      ! remove debris where the slope is too steep to hold it, > yield stress following Mayer and Licciulli (2021)
+      ! remove debris where the slope is too steep to hold it, > yield stress, and downstream, following Mayer and Licciulli (2021)
       slope_g = merge(sqrt(slope_k**2_i4b + slope_l**2_i4b), 0._rkind, S>B) ! Slope in m/m, set to zero where no glacier
       drivingStress = (iden_soil*(1._rkind - theta_sat)) * gravity * debris * (abs(slope_g)/sqrt(slope_g**2_i4b + 1_i4b)) ! driving stress in Pa
-      where(drivingStress > debrisCritStress) debris = 0._rkind
+      call debris_unload(S, S>B, drivingStress > debrisCritStress, nx, ny, dx, dy, debris)
     else
       debris = 0._rkind
     endif
@@ -1318,6 +1318,50 @@ subroutine static_emergElev_latRockfall(S, B, debris, ELA, latMoraineWidth, debr
   endif
 
 end subroutine static_emergElev_latRockfall
+
+
+! ************************************************************************************************
+! private subroutine debris_unload: clear debris on failing cells and on the D8 steepest-descent
+!   path over the ice from each one to the margin or a pit, following Mayer and Licciulli (2021)
+! ************************************************************************************************
+subroutine debris_unload(Z, onIce, failing, nx, ny, dx, dy, debris)
+  implicit none
+  ! Arguments
+  real(rkind), intent(in) :: Z(nx,ny), dx, dy        ! surface the path descends (m)
+  logical(lgt), intent(in) :: onIce(nx,ny), failing(nx,ny)
+  integer(i4b), intent(in) :: nx, ny
+  real(rkind), intent(inout) :: debris(nx,ny)        ! debris thickness (m)
+  ! Local variables
+  logical(lgt) :: cleared(nx,ny)                     ! .true. once a path has passed through the cell
+  real(rkind) :: dist, drop                          ! step length (m), steepest drop per metre (m m-1)
+  integer(i4b) :: i, j, ii, jj, ip, jp, in_, jn
+
+  cleared = .false.
+  do j = 1, ny
+    do i = 1, nx
+      if(.not.(failing(i,j) .and. onIce(i,j)) .or. cleared(i,j)) cycle
+      ip = i; jp = j
+      do
+        cleared(ip,jp) = .true.
+        drop = 0._rkind; in_ = 0; jn = 0
+        do jj = max(1, jp-1), min(ny, jp+1)
+          do ii = max(1, ip-1), min(nx, ip+1)
+            if(.not.onIce(ii,jj) .or. (ii==ip .and. jj==jp)) cycle
+            dist = sqrt((real(ii-ip, rkind)*dx)**2_i4b + (real(jj-jp, rkind)*dy)**2_i4b)
+            if((Z(ip,jp)-Z(ii,jj))/dist > drop)then
+              drop = (Z(ip,jp)-Z(ii,jj))/dist; in_ = ii; jn = jj
+            endif
+          enddo
+        enddo
+        if(in_==0) exit ! margin or pit reached
+        if(cleared(in_,jn)) exit ! joins a path already cleared
+        ip = in_; jp = jn
+      enddo
+    enddo
+  enddo
+  where(cleared) debris = 0._rkind
+
+end subroutine debris_unload
 
 
 ! ************************************************************************************************
