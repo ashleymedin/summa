@@ -107,6 +107,9 @@ subroutine glacAreaChange(&
                     wallErosionRate,         & ! intent(in):    glacier wall erosion rate input for debris advection (mm yr-1)
                     debrisCritStress,        & ! intent(in):    critical driving stress where debris slides on terminal wedge (Pa)
                     latMoraineWidth,         & ! intent(in):    lateral moraine width (rockfall length) (m)
+                    glenAFactor,             & ! intent(in):    multiplier on Glen's rate factor A (-)
+                    mbGradAbove,             & ! intent(in):    mass balance gradient above the highest domain, 0 to extend the fit (mm w.e. m-1 yr-1)
+                    mbGradBelow,             & ! intent(in):    mass balance gradient below the lowest domain, 0 to extend the fit (mm w.e. m-1 yr-1)
                     ! area
                     glacierAblArea,          & ! intent(inout): per glacier ablation area (m2)
                     glacierAccArea,          & ! intent(inout): per glacier accumulation area (m2)
@@ -142,6 +145,9 @@ subroutine glacAreaChange(&
   real(rkind), intent(in)            :: wallErosionRate                 ! glacier wall erosion rate input for debris advection (mm yr-1)
   real(rkind), intent(in)            :: debrisCritStress                ! critical driving stress where debris slides on terminal wedge (Pa)
   real(rkind), intent(in)            :: latMoraineWidth                 ! lateral moraine width (rockfall length) (m)
+  real(rkind), intent(in)            :: glenAFactor                     ! multiplier on Glen's rate factor A (-)
+  real(rkind), intent(in)            :: mbGradAbove                     ! mass balance gradient above the highest domain (mm w.e. m-1 yr-1)
+  real(rkind), intent(in)            :: mbGradBelow                     ! mass balance gradient below the lowest domain (mm w.e. m-1 yr-1)
   ! area
   real(rkind), intent(inout)         :: glacierAblArea(nGlac)           ! per glacier ablation area (m2)
   real(rkind), intent(inout)         :: glacierAccArea(nGlac)           ! per glacier accumulation area (m2)
@@ -227,7 +233,8 @@ subroutine glacAreaChange(&
     if(validCount(dbr)==0) cycle
     validElev(1:validCount(dbr),dbr)       = pack(dom_elev,       isValid(:,dbr))
     validMassChange(1:validCount(dbr),dbr) = pack(dom_massChange, isValid(:,dbr))
-    call fit_massBalanceCurve(validCount(dbr), validElev(:,dbr), validMassChange(:,dbr), slope(:,dbr), intercept(:,dbr), ELA_elev(dbr))
+    call fit_massBalanceCurve(validCount(dbr), validElev(:,dbr), validMassChange(:,dbr), slope(:,dbr), intercept(:,dbr), ELA_elev(dbr), &
+                              mbGradAbove*t_total/(365.25_rkind*secprday), mbGradBelow*t_total/(365.25_rkind*secprday))
     if(printFlag)then
       do i = 1, validCount(dbr)
         write(*,'(a,i1,a,2(1x,f7.1),a,2(1x,e9.2))') "Debris presence ", dbr-1, "   Valid sorted elevation, mass change =", &
@@ -304,7 +311,7 @@ subroutine glacAreaChange(&
 
     ! run the flow model, which updates surface and debris
     call run_flowModel(t_total, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, maxCount, debrisConc, &
-                       wallErosionRate, debrisCritStress, latMoraineWidth, iden_soil, theta_sat, ELA_use_glac, nx, ny, dx, dy, volume, printFlag, &
+                       wallErosionRate, debrisCritStress, latMoraineWidth, glenAFactor, iden_soil, theta_sat, ELA_use_glac, nx, ny, dx, dy, volume, printFlag, &
                        err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     totVolume = totVolume + volume ! includes debris, not currently used
@@ -430,7 +437,7 @@ end subroutine glacAreaChange
 ! private subroutine fit_massBalanceCurve: piecewise linear mass change as a function of elevation
 !   through the domain points, and the ELA where it crosses zero
 ! ************************************************************************************************
-subroutine fit_massBalanceCurve(nPts, elev, massChange, slope, intercept, ELA)
+subroutine fit_massBalanceCurve(nPts, elev, massChange, slope, intercept, ELA, gradAbove, gradBelow)
   implicit none
   integer(i4b), intent(inout) :: nPts           ! number of points; reduced on return if points shared an elevation
   real(rkind), intent(inout)  :: elev(:)        ! elevation of each point (m); sorted in descending order on return
@@ -438,6 +445,8 @@ subroutine fit_massBalanceCurve(nPts, elev, massChange, slope, intercept, ELA)
   real(rkind), intent(out)    :: slope(:)       ! slope of segment i, which joins points i-1 and i; segments 1 and nPts+1 extrapolate above and below (kg m-2 m-1)
   real(rkind), intent(out)    :: intercept(:)   ! intercept of segment i (kg m-2)
   real(rkind), intent(out)    :: ELA            ! elevation where mass change crosses zero (m)
+  real(rkind), intent(in)     :: gradAbove      ! gradient above the highest point over the period, 0 to extend the end segment (kg m-2 m-1)
+  real(rkind), intent(in)     :: gradBelow      ! gradient below the lowest point over the period, 0 to extend the end segment (kg m-2 m-1)
   ! locals
   integer(i4b)                :: idx(nPts)      ! order of the points
   integer(i4b)                :: i, j, m        ! indices
@@ -470,6 +479,14 @@ subroutine fit_massBalanceCurve(nPts, elev, massChange, slope, intercept, ELA)
   intercept = 0._rkind
   if(nPts == 1)then
     intercept(1:2) = massChange(1)
+    if(gradAbove > 0._rkind)then
+      slope(1) = gradAbove
+      intercept(1) = massChange(1) - gradAbove*elev(1)
+    endif
+    if(gradBelow > 0._rkind)then
+      slope(2) = gradBelow
+      intercept(2) = massChange(1) - gradBelow*elev(1)
+    endif
     if(massChange(1) > 0._rkind)then
       ELA = allAcc
     else
@@ -500,6 +517,14 @@ subroutine fit_massBalanceCurve(nPts, elev, massChange, slope, intercept, ELA)
   if(slope(nPts+1) < 0._rkind)then
     slope(nPts+1) = 0._rkind
     intercept(nPts+1) = massChange(nPts)
+  endif
+  if(gradAbove > 0._rkind)then
+    slope(1) = gradAbove
+    intercept(1) = massChange(1) - gradAbove*elev(1)
+  endif
+  if(gradBelow > 0._rkind)then
+    slope(nPts+1) = gradBelow
+    intercept(nPts+1) = massChange(nPts) - gradBelow*elev(nPts)
   endif
 
   ! ELA is where the sign-change segment crosses zero
@@ -586,7 +611,7 @@ end subroutine argsort_desc
 !   Follows the implementation of Jarosch et al., 2013
 ! ************************************************************************************************
 subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, validElev, validCount, maxCount, debrisConc, &
-                         wallErosionRate, debrisCritStress, latMoraineWidth, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume, printFlag, &
+                         wallErosionRate, debrisCritStress, latMoraineWidth, glenAFactor, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume, printFlag, &
                          err, message)
   implicit none
   ! Arguments
@@ -594,6 +619,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   real(rkind), intent(inout) :: debris(nx,ny), S(nx,ny)
   real(rkind), intent(in) :: slope(maxCount+1,2), intercept(maxCount+1,2), validElev(maxCount,2), debrisConc
   real(rkind), intent(in) :: wallErosionRate, debrisCritStress, latMoraineWidth, iden_soil, theta_sat, ELA
+  real(rkind), intent(in) :: glenAFactor ! multiplier on Glen's rate factor A (-)
   integer(i4b), intent(in) :: validCount(2), maxCount
   integer(i4b), intent(in) :: ny, nx, glacierMask(nx,ny)
   logical(lgt), intent(in) :: printFlag
@@ -616,7 +642,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   integer(i4b) :: l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny), k(nx), kp(nx), km(nx), kpp(nx), kmm(nx)
 
   err=0; message='run_flowModel/'
-  gamma = 2._rkind * A * (iden_ice * gravity)**n / (n + 2_i4b)
+  gamma = 2._rkind * glenAFactor * A * (iden_ice * gravity)**n / (n + 2_i4b)
   max_dt = 31._rkind * secprday ! max timestep in seconds, a month
   min_dt = 3600._rkind ! min timestep in seconds, 1 hour
   t = 0._rkind
