@@ -625,7 +625,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   logical(lgt), intent(in) :: printFlag
   real(rkind), intent(out) :: volume
   integer(i4b), intent(out) :: err                ! error code
-  character(*), intent(out) :: message             ! error message
+  character(*), intent(out) :: message            ! error message
   ! Local variables
   real(rkind) :: dt, t, max_dt, min_dt, deltat, debris_half_dt, div_q(nx,ny), dt_cfl, meanS
   real(rkind) :: gamma, m_dot(nx,ny), H(nx,ny), lat_rockfall(nx,ny)
@@ -1058,11 +1058,10 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
   ! Local variables
   real(rkind),parameter :: cfl= 0.5 ! Courant-Friedrichs-Lewy condition
   real(rkind) :: H(nx,ny), Sklp(nx,ny), Skpl(nx,ny), Skl(nx,ny)
-  real(rkind) :: Xkpl(nx,ny), Xkml(nx,ny), Xkplp(nx,ny), Xkmlp(nx,ny), Xklp(nx,ny), Xklm(nx,ny), Yplp(nx,ny), Yplm(nx,ny)
-  real(rkind) :: u_l_up(nx,ny), u_l_dn(nx,ny) ! surface velocity on the l+1/2 and l-1/2 faces (m s-1)
-  real(rkind) :: u_k_up(nx,ny), u_k_dn(nx,ny) ! surface velocity on the k+1/2 and k-1/2 faces (m s-1)
-  real(rkind) :: outRate(nx,ny)               ! rate debris can leave a cell through its faces (s-1)
-  real(rkind) :: influx(nx,ny), englacial_emerg(nx, ny)
+  real(rkind) :: Xkpl(nx,ny), Xkml(nx,ny), Xkplp(nx,ny), Xkmlp(nx,ny), Xklp(nx,ny), Xklm(nx,ny)
+  real(rkind) :: Yplp(nx,ny), Yplm(nx,ny)
+  real(rkind) :: u_l_up(nx,ny), u_l_dn(nx,ny), u_k_up(nx,ny), u_k_dn(nx,ny)
+  real(rkind) :: outRate(nx,ny), influx(nx,ny), englacial_emerg(nx, ny)
   real(rkind) :: min_dt, div_uD(nx,ny), t, max_dt, dt, dt_cfl, deltat
   integer(i4b) :: mask(nx,ny)
 
