@@ -727,6 +727,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
 
     ! update S (with time discretization S_t+1 - S_t /dt = div(q_t)+ m_dot_t, so S_t+1 = S_t + (m_dot + div(q))*dt)
     S = S + (m_dot + div_q) * deltat
+    S = max(S, B) ! melt beyond the ice there is not taken from the bed
 
     ! check that the glacier is in boundaries, fix small violations, how small is arbitrary
     if(any((S - B) > verySmall .and. glacierMask==0_i4b))then
