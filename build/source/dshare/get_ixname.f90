@@ -252,6 +252,7 @@ contains
   case('tempCritRain'             ); get_ixParam = iLookPARAM%tempCritRain           ! critical temperature where precipitation is rain (K)
   case('tempRangeTimestep'        ); get_ixParam = iLookPARAM%tempRangeTimestep      ! temperature range over the time step (K)
   case('frozenPrecipMultip'       ); get_ixParam = iLookPARAM%frozenPrecipMultip     ! frozen precipitation multiplier (-)
+  case('precipElevGrad'           ); get_ixParam = iLookPARAM%precipElevGrad         ! fractional change in precipitation per metre above the HRU elevation (m-1)
   ! freezing curve for snow
   case('snowfrz_scale'            ); get_ixParam = iLookPARAM%snowfrz_scale          ! scaling parameter for the freezing curve for snow (K-1)
   case('fixedThermalCond_snow'    ); get_ixParam = iLookPARAM%fixedThermalCond_snow  ! temporally constant thermal conductivity for snow (W m-1 K-1)
@@ -311,6 +312,7 @@ contains
   case('windReductionParam'       ); get_ixParam = iLookPARAM%windReductionParam     ! canopy wind reduction parameter (-)
   case('glacierWindFactor'        ); get_ixParam = iLookPARAM%glacierWindFactor      ! wind speed increase to account for glacier katabatic wind profile (-)
   case('glacierTempReduction'     ); get_ixParam = iLookPARAM%glacierTempReduction   ! air temperature decrease to account for down-glacier katabatic wind (-)
+  case('windExposure'             ); get_ixParam = iLookPARAM%windExposure           ! glacier surface wind as a fraction of the wind station's (-)
   ! stomatal conductance
   case('Kc25'                     ); get_ixParam = iLookPARAM%Kc25                   ! Michaelis-Menten constant for CO2 at 25 degrees C (umol mol-1)
   case('Ko25'                     ); get_ixParam = iLookPARAM%Ko25                   ! Michaelis-Menten constant for O2 at 25 degrees C (mol mol-1)
@@ -457,6 +459,8 @@ contains
   case('streamMinDepth'           ); get_ixParam = iLookPARAM%streamMinDepth         ! minimum liquid depth of the stream water column (m)
   case('lakeMixingThermalC'       ); get_ixParam = iLookPARAM%lakeMixingThermalC     ! effective thermal conductivity between liquid lake layers (W m-1 K-1)
   case('lakeIceMinThick'          ); get_ixParam = iLookPARAM%lakeIceMinThick        ! ice cover thinner than this breaks up and returns to the water (m)
+  case('wetlandStorageK'          ); get_ixParam = iLookPARAM%wetlandStorageK        ! storage time constant of the wetland outflow (s)
+  case('wetlandMinDepth'          ); get_ixParam = iLookPARAM%wetlandMinDepth        ! liquid depth below which a wetland does not drain (m)
   ! lower boundary condition for thermodynamics
   case('lowerBoundNrgFlux'        ); get_ixParam = iLookPARAM%lowerBoundNrgFlux      ! energy flux at the lower boundary, the geothermal heat flux (W m-2)
   ! temperature of the groundwater reaching the channel
@@ -467,10 +471,6 @@ contains
   ! hyporheic exchange in a stream domain
   case('hypFrac'                  ); get_ixParam = iLookPARAM%hypFrac                ! fraction of the reach flow returned as hyporheic flow (-)
   case('hypLag'                   ); get_ixParam = iLookPARAM%hypLag                 ! residence time of the hyporheic flow paths (h)
-  case('windExposure'             ); get_ixParam = iLookPARAM%windExposure           ! glacier surface wind as a fraction of the wind station's (-)
-  case('precipElevGrad'           ); get_ixParam = iLookPARAM%precipElevGrad         ! fractional change in precipitation per metre above the HRU elevation (m-1)
-  case('wetlandStorageK'          ); get_ixParam = iLookPARAM%wetlandStorageK        ! storage time constant of the wetland outflow (s)
-  case('wetlandMinDepth'          ); get_ixParam = iLookPARAM%wetlandMinDepth        ! liquid depth below which a wetland does not drain (m)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
