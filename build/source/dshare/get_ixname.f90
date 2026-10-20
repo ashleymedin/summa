@@ -1098,6 +1098,9 @@ contains
   case('C_ATGW'                   ); get_ixBpar = iLookBPAR%C_ATGW                    ! air temperature to groundwater temperature coefficient (-)
   ! geometry of the reach a stream domain stands for
   case('streamWidthMultip'        ); get_ixBpar = iLookBPAR%streamWidthMultip         ! multiplier on the reach width and the stream domain area (-)
+  case('glenAFactor'              ); get_ixBpar = iLookBPAR%glenAFactor               ! multiplier on Glen's rate factor A (-)
+  case('mbGradAbove'              ); get_ixBpar = iLookBPAR%mbGradAbove               ! mass balance gradient above the highest glacier domain (mm w.e. m-1 yr-1)
+  case('mbGradBelow'              ); get_ixBpar = iLookBPAR%mbGradBelow               ! mass balance gradient below the lowest glacier domain (mm w.e. m-1 yr-1)
   ! get to here if cannot find the variable
   case default
    get_ixBpar = integerMissing

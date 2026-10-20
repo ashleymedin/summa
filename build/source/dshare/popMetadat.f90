@@ -372,6 +372,9 @@ subroutine popMetadat(err,message)
   bpar_meta(iLookBPAR%C_ATGW)                          = var_info('C_ATGW'                         , 'air temperature to groundwater temperature coefficient'           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! geometry of the reach a stream domain stands for
   bpar_meta(iLookBPAR%streamWidthMultip)               = var_info('streamWidthMultip'              , 'multiplier on the reach width and the stream domain area'         , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%glenAFactor)                     = var_info('glenAFactor'                    , 'multiplier on Glen rate factor A'                                 , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%mbGradAbove)                     = var_info('mbGradAbove'                    , 'mass balance gradient above the highest glacier domain'           , 'mm m-1 yr-1'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bpar_meta(iLookBPAR%mbGradBelow)                     = var_info('mbGradBelow'                    , 'mass balance gradient below the lowest glacier domain'            , 'mm m-1 yr-1'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model prognostic (state) variables...
   ! ---------------------------------------------

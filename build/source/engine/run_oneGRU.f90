@@ -778,6 +778,9 @@ subroutine run_oneGRU(&
                   bparData%var(iLookBPAR%wallErosionRate),    & ! intent(in):    glacier wall erosion rate input for debris advection (mm yr-1)
                   bparData%var(iLookBPAR%debrisCritStress),   & ! intent(in):    critical driving stress where debris slides on terminal wedge (Pa)
                   bparData%var(iLookBPAR%latMoraineWidth),    & ! intent(in):    lateral moraine width or rockfall length (m)
+                  bparData%var(iLookBPAR%glenAFactor),        & ! intent(in):    multiplier on Glen's rate factor A (-)
+                  bparData%var(iLookBPAR%mbGradAbove),        & ! intent(in):    mass balance gradient above the highest domain (mm w.e. m-1 yr-1)
+                  bparData%var(iLookBPAR%mbGradBelow),        & ! intent(in):    mass balance gradient below the lowest domain (mm w.e. m-1 yr-1)
                   ! area
                   bvarData%var(iLookBVAR%glacierAblArea)%dat, & ! intent(inout): per glacier ablation area (m2)
                   bvarData%var(iLookBVAR%glacierAccArea)%dat, & ! intent(inout): per glacier accumulation area (m2)
