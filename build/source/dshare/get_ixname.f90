@@ -468,6 +468,7 @@ contains
   case('hypFrac'                  ); get_ixParam = iLookPARAM%hypFrac                ! fraction of the reach flow returned as hyporheic flow (-)
   case('hypLag'                   ); get_ixParam = iLookPARAM%hypLag                 ! residence time of the hyporheic flow paths (h)
   case('windExposure'             ); get_ixParam = iLookPARAM%windExposure           ! glacier surface wind as a fraction of the wind station's (-)
+  case('precipElevGrad'           ); get_ixParam = iLookPARAM%precipElevGrad         ! fractional change in precipitation per metre above the HRU elevation (m-1)
   case('wetlandStorageK'          ); get_ixParam = iLookPARAM%wetlandStorageK        ! storage time constant of the wetland outflow (s)
   case('wetlandMinDepth'          ); get_ixParam = iLookPARAM%wetlandMinDepth        ! liquid depth below which a wetland does not drain (m)
   ! get to here if cannot find the variable

@@ -293,6 +293,11 @@ contains
     parFallback(iLookPARAM%windExposure)%lower_limit = 0.3_rkind
     parFallback(iLookPARAM%windExposure)%upper_limit = 1._rkind
   end if
+  if (parFallback(iLookPARAM%precipElevGrad)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%precipElevGrad)%default_val = 0._rkind
+    parFallback(iLookPARAM%precipElevGrad)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%precipElevGrad)%upper_limit = 0.005_rkind
+  end if
   if (parFallback(iLookPARAM%glacierTempReduction)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%glacierTempReduction)%default_val = 0._rkind
     parFallback(iLookPARAM%glacierTempReduction)%lower_limit = 0._rkind
