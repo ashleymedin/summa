@@ -827,6 +827,8 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   real(rkind) :: D_k_dn_m(nx,ny), D_k_dn_p(nx,ny), D_k_dn_min(nx,ny), D_k_dn_max(nx,ny)
   real(rkind) :: D_k_up(nx,ny), D_k_dn(nx,ny)
   real(rkind) :: divisor, div_k(nx,ny), div_l(nx,ny)
+  real(rkind) :: Xkpl(nx,ny), Xkml(nx,ny), Xkplp(nx,ny), Xkmlp(nx,ny), Xkplm(nx,ny), Xkmlm(nx,ny)
+  real(rkind) :: Xklp(nx,ny), Xklm(nx,ny), Yplp(nx,ny), Yplm(nx,ny), Ymlp(nx,ny), Ymlm(nx,ny)
   integer(i4b) :: i, j
 
   ! Keep diffusion thickness nonnegative and zero outside glacier mask.
@@ -853,6 +855,14 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   Hklm  = H(k  ,lm )
   Hklmm = H(k  ,lmm)
 
+  ! cross-slope neighbours: an ice-free neighbour is replaced by the reflection of the other side
+  call refl(S(kp,l ), S(k,l ), S(km,l ), H(kp,l )>0._rkind, H(km,l )>0._rkind, Xkpl , Xkml )
+  call refl(S(kp,lp), S(k,lp), S(km,lp), H(kp,lp)>0._rkind, H(km,lp)>0._rkind, Xkplp, Xkmlp)
+  call refl(S(kp,lm), S(k,lm), S(km,lm), H(kp,lm)>0._rkind, H(km,lm)>0._rkind, Xkplm, Xkmlm)
+  call refl(S(k ,lp), S(k,l ), S(k ,lm), H(k,lp )>0._rkind, H(k,lm )>0._rkind, Xklp , Xklm )
+  call refl(S(kp,lp), S(kp,l), S(kp,lm), H(kp,lp)>0._rkind, H(kp,lm)>0._rkind, Yplp , Yplm )
+  call refl(S(km,lp), S(km,l), S(km,lm), H(km,lp)>0._rkind, H(km,lm)>0._rkind, Ymlp , Ymlm )
+
   ! calculate l+1/2 index
   H_l_up_m = minus(Hklm, Hkl, Hklp)
   H_l_up_p = pluss(Hkl, Hklp, Hklpp)
@@ -866,8 +876,8 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   H_l_dn_p = max(H_l_dn_p, 0._rkind)
 
   ! calculate l flux
-  f_l_p = flux(Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dy, dx, n)
-  f_l_m  = flux(Skpl, Skml, Skplm, Skmlm, Skl, Sklm, dy, dx, n)
+  f_l_p = flux(Xkpl, Xkml, Xkplp, Xkmlp, Sklp, Skl, dy, dx, n)
+  f_l_m = flux(Xkpl, Xkml, Xkplm, Xkmlm, Skl, Sklm, dy, dx, n)
 
   ! calculate l Diffusivity
   D_l_up_m = gamma * H_l_up_m**(n+2_i4b) * f_l_p  ! equation 30 Jarosh 2013
@@ -909,9 +919,9 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
       endif
     enddo
   enddo
-  ! enforce zero diffusion outside the mask
-  D_l_up = merge(0._rkind, D_l_up, mask==0)
-  D_l_dn = merge(0._rkind, D_l_dn, mask==0)
+  ! no flow across a face with either cell outside the mask
+  D_l_up = merge(0._rkind, D_l_up, mask==0 .or. mask(k,lp)==0)
+  D_l_dn = merge(0._rkind, D_l_dn, mask==0 .or. mask(k,lm)==0)
 
   ! calculate k+1/2 index
   H_k_up_m = minus(Hkml, Hkl, Hkpl)
@@ -926,8 +936,8 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   H_k_dn_p = max(H_k_dn_p, 0._rkind)
 
   ! calculate k flux
-  f_k_p = flux(Sklp, Sklm, Skplp, Skplm, Skpl, Skl, dx, dy, n)
-  f_k_m = flux(Sklp, Sklm, Skmlp, Skmlm, Skl, Skml, dx, dy, n)
+  f_k_p = flux(Xklp, Xklm, Yplp, Yplm, Skpl, Skl, dx, dy, n)
+  f_k_m = flux(Xklp, Xklm, Ymlp, Ymlm, Skl, Skml, dx, dy, n)
 
   ! calculate k Diffusivity
   D_k_up_m = gamma * H_k_up_m**(n+2_i4b) * f_k_p  ! equation 30 Jarosh 2013
@@ -969,9 +979,9 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
       endif
     enddo
   enddo
-  ! enforce zero diffusion outside the mask
-  D_k_up = merge(0._rkind, D_k_up, mask==0)
-  D_k_dn = merge(0._rkind, D_k_dn, mask==0)
+  ! no flow across a face with either cell outside the mask
+  D_k_up = merge(0._rkind, D_k_up, mask==0 .or. mask(kp,l)==0)
+  D_k_dn = merge(0._rkind, D_k_dn, mask==0 .or. mask(km,l)==0)
 
   ! calculate delta t and t
   divisor = max(maxval(abs(D_k_up)), maxval(abs(D_k_dn)), maxval(abs(D_l_up)), maxval(abs(D_l_dn)))
@@ -986,6 +996,15 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   div_k = SIA(D_k_up, Skpl, Skl, D_k_dn, Skml, dx) ! equation 36 Jarosh 2013
   div_q = div_k + div_l
 
+contains
+  ! neighbours p and m of centre c for a centred difference; one without ice is the reflection of the other, both: c
+  subroutine refl(p, c, m, hasP, hasM, xp, xm)
+    real(rkind), intent(in) :: p(:,:), c(:,:), m(:,:)
+    logical, intent(in) :: hasP(:,:), hasM(:,:)
+    real(rkind), intent(out) :: xp(:,:), xm(:,:)
+    xp = merge(p, merge(2._rkind*c - m, c, hasM), hasP)
+    xm = merge(m, merge(2._rkind*c - p, c, hasP), hasM)
+  end subroutine refl
 end subroutine diffusion_MUSCL
 
 
