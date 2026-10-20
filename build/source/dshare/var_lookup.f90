@@ -156,6 +156,7 @@ MODULE var_lookup
   integer(i4b)    :: tempCritRain          = integerMissing    ! critical temperature where precipitation is rain (K)
   integer(i4b)    :: tempRangeTimestep     = integerMissing    ! temperature range over the time step (K)
   integer(i4b)    :: frozenPrecipMultip    = integerMissing    ! frozen precipitation multiplier (-)
+  integer(i4b)    :: precipElevGrad        = integerMissing    ! fractional change in precipitation per metre above the HRU elevation (m-1)
   ! snow properties
   integer(i4b)    :: snowfrz_scale         = integerMissing    ! scaling parameter for the freezing curve for snow (K-1)
   integer(i4b)    :: fixedThermalCond_snow = integerMissing    ! fixed thermal conductivity for snow (W m-1 K-1)
@@ -215,6 +216,7 @@ MODULE var_lookup
   integer(i4b)    :: windReductionParam    = integerMissing    ! canopy wind reduction parameter (-)
   integer(i4b)    :: glacierWindFactor     = integerMissing    ! wind speed increase to account for glacier katabatic wind profile (-)
   integer(i4b)    :: glacierTempReduction  = integerMissing    ! air temperature decrease to account for down-glacier katabatic wind (-)
+  integer(i4b)    :: windExposure          = integerMissing    ! glacier surface wind as a fraction of the wind station's (-)
   ! stomatal conductance
   integer(i4b)    :: Kc25                  = integerMissing    ! Michaelis-Menten constant for CO2 at 25 degrees C (umol mol-1)
   integer(i4b)    :: Ko25                  = integerMissing    ! Michaelis-Menten constant for O2 at 25 degrees C (mol mol-1)
@@ -361,6 +363,8 @@ MODULE var_lookup
   integer(i4b)    :: streamMinDepth        = integerMissing    ! minimum liquid depth of the stream water column prescribed from mizuRoute (m)
   integer(i4b)    :: lakeMixingThermalC    = integerMissing    ! effective thermal conductivity between liquid lake layers, emulating turbulent mixing (W m-1 K-1)
   integer(i4b)    :: lakeIceMinThick       = integerMissing    ! ice cover thinner than this breaks up and returns to the water (m)
+  integer(i4b)    :: wetlandStorageK       = integerMissing    ! storage time constant of the wetland outflow (s)
+  integer(i4b)    :: wetlandMinDepth       = integerMissing    ! liquid depth below which a wetland does not drain (m)
   ! lower boundary condition for thermodynamics
   integer(i4b)    :: lowerBoundNrgFlux     = integerMissing    ! energy flux into the base of the soil column, the geothermal heat flux (W m-2)
   ! temperature of the groundwater reaching the channel
@@ -371,13 +375,6 @@ MODULE var_lookup
   ! hyporheic exchange in a stream domain
   integer(i4b)    :: hypFrac               = integerMissing    ! fraction of the reach flow returned as hyporheic flow (-)
   integer(i4b)    :: hypLag                = integerMissing    ! residence time of the hyporheic flow paths (h)
-  ! glacier surface wind relative to the forcing's wind station
-  integer(i4b)    :: windExposure          = integerMissing    ! glacier surface wind as a fraction of the wind station's (-)
-  ! wetland water column, drained as a linear reservoir
-  integer(i4b)    :: wetlandStorageK       = integerMissing    ! storage time constant of the wetland outflow (s)
-  integer(i4b)    :: wetlandMinDepth       = integerMissing    ! liquid depth below which a wetland does not drain (m)
-  ! precipitation change with elevation within an HRU
-  integer(i4b)    :: precipElevGrad        = integerMissing    ! fractional change in precipitation per metre above the HRU elevation (m-1)
  endtype iLook_param
 
  ! ***********************************************************************************************************

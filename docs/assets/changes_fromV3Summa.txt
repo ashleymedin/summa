@@ -213,7 +213,7 @@ AFTER tag of v4.0.0-exp-Sundials
       ! 2 glacier accumulation      (glacCln1) ! glacier ice column
       ! 3 glacier clean ablation    (glacCln2) ! glacier ice column
       ! 4 glacier debris ablation   (glacDbr)  ! glacier ice column, debris-covered
-      ! 5 wetland                   (wetland)  ! recognized by the data structures but wetland fluxes are not yet implemented
+      ! 5 wetland                   (wetland)  ! wetland, added later see 84
       ! 6 stream                    (stream)   ! stream column, added later see 67
      A "dom" dimension was added throughout the data structures (gru -> hru -> dom -> var), and to the restart and attributes files.
      The layer system now tracks snow / lake / soil / glacier ice layers together (new INDEX variables nLakeOnly*, nGlceOnly*, nSnLaSoGl*,
@@ -226,8 +226,8 @@ AFTER tag of v4.0.0-exp-Sundials
      New attributes file entries: nGlac, nWtld, nGrid (all optional, assumed 0), plus the glacier grid dimensions and variables when nGlac>0.
      New GRU (basin) variables: basin__GlacierArea, basin__GlacierStorage, and glacier reservoir routing (glacIceRunoffFuture,
       glacSnowRunoffFuture, glacFirnRunoffFuture, updateJulDay).
-     New parameters: glacierTempReduction (HRU, katabatic air-temperature reduction), glacStor_kIce / glacStor_kSnow / glacStor_kFirn
-      and latMoraineWidth (GRU). All have defaults, so are only needed for glacier runs.
+     New parameters: glacierTempReduction, glacierWindFactor (HRU, katabatic air-temperature reduction, windspeed increase), windExposure (HRU, glacier sheltering surface-to-wind-station ratio (default 1)), precipElevGrad (HRU, fractional precipitation change per metre above the HRU elevation (default 0))
+      glacStor_kIce / glacStor_kSnow / glacStor_kFirn and latMoraineWidth (GRU). All have defaults, so are only needed for glacier runs.
      maxSnowLayers is multiplied by 2.5 when any glacier is present, to allow firn development in the accumulation zone.
      The OpenWQ coupling was updated to be per (HRU, domain) rather than per HRU (see build/source/openwq), commit f16c3488 Sep 10, 2026.
      Next Gen coupling was also updated.
@@ -262,6 +262,7 @@ AFTER tag of v4.0.0-exp-Sundials
      Add variable scalarAquiferSeepage for groundwater discharge.
       ! qTopmodl   ! topmodel parameterization
       ! bigBuckt   ! a big bucket (lumped aquifer model)
+      ! bbLatflow  ! a big bucket (lumped aquifer model) but allow lateral flow in soil column
       ! noXplict   ! no explicit groundwater parameterization
       ! modflow    ! couple with MODFLOW6 (no aquifer modelled in SUMMA)
       ! modLatflow ! couple with MODFLOW6 but allow lateral flow in soil column (no aquifer modelled in SUMMA)
@@ -285,8 +286,8 @@ AFTER tag of v4.0.0-exp-Sundials
       8) The scatter weighs each HRU's share of a cell by its area, so an area-intersection map_file conserves recharge volume, commit 5923c4de Oct 6, 2026
       9) Stop the hourly bounce: base flux continuous over 10 cm below the base, and an optional implicit base exchange
       (base_ghb/drn_package_name) returned with the rejected recharge, commits 4510ad32, 53499790 Oct 6, 2026
-      10) The MPI coupler writes output past its first step: the BMI no longer overwrites nHRUrun with the file's HRU count, commit 2717f03c Oct 17, 2026
- 64) Domain-parallel MPI: GRUs distributed across ranks, PR #631 -DUSE_MPI=ON 
+     Also added bbLatflow groundwatr option: big bucket plus lateral flow from upland soil at each layer's temperature, commits bf8f45f8 Oct 17 and 36804ccd Oct 20, 2026
+  64) Domain-parallel MPI: GRUs distributed across ranks, PR #631 -DUSE_MPI=ON 
      Builds a second executable (summa[_sundials]_mpi.exe); each rank reads/writes only its own GRUs.
      Also, later, added summa_modflow6_mpi coupler executable (-DUSE_MODFLOW6=ON -DUSE_MPI=ON), Sep 16, 2026
      Splits SUMMA's GRUs across MPI ranks the same way the plain summa_mpi build does. MODFLOW 6 itself stays a serial singleton on rank 0 for now.
@@ -350,30 +351,24 @@ AFTER tag of v4.0.0-exp-Sundials
 -72) Exfiltrate the surplus a nearly full soil column cannot store, whatever face it arrived through, commit a7126fbc Sep 24, 2026
      exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow, was lateral only.
      Closes the debris-column water balance; a qTopmodl upland is unchanged in practice, its exfiltration identically zero either way, since the relief opens only below 2 mm available storage.
--73) var_derive.f90 root density normalisation only trims an excess, no longer fills a deficit, commit 0dd366a3 Sep 25, 2026
+-73) Root density normalisation only trims an excess, no longer fills a deficit, commit 0dd366a3 Sep 25, 2026
      scalarAquiferRootFrac was forced to zero, so bigAquifer's aquifer transpiration was unreachable for bigBuckt too.
  74) aquiferIni=emptyStart empties the aquifer on a cold start only, stamping aqEmptyStarted=1 on every restart file, commit c350f6f2 Sep 25, 2026
- 75) run_oneGRU.f90 cascade order built once per GRU, not every step, commit ea5739d5 Sep 25, 2026
+ 75) Cascade order built once per GRU, not every step, commit ea5739d5 Sep 25, 2026
 -76) Fix scalarFrozenArea-- the commented out Gamma frozen fraction of the root zone, not zero, and fixed derivatives commit 6bda206f Sep 26, 2026
--77) computFlux.f90 calls groundwatr for modLatflow, not qTopmodl alone, commit 0e8947fd Sep 26, 2026
-     Lateral flow was gated out of the flux call, so mLayerColumnOutflow was identically zero in every coupled run.
--78) imposeConstraints lets a snow/lake/glacier water iterate fall back to its start-of-step value before the liquid drain limit, commit b7f1d2ae Oct 1, 2026
--79) Jacobian fixes
+-77) Changes for converge on flat search direction, improves BE speed but solutions are almost identical (or just do not fail)
+      1) imposeConstraints lets a snow/lake/glacier water iterate fall back to its start-of-step value before the liquid drain limit, commit b7f1d2ae Oct 1, 2026
+      2) imposeConstraints takes the BE snow (layer and canopy) temperature step along the enthalpy curve, commit 3cdbe7ea and 9b7696f2 Oct 5, 2026
+      3) Scalar solve waives the matric head increment test where the residual and water content change meet the liquid tolerance, commit e828262b Oct 19, 2026
+-78) Jacobian fixes
      -1) frozen-soil conductivity derivative should include the ice impedance, commit 90450fcb Oct 5, 2026
      -2) when transpiration latent flux is toward the leaves (condensation) derivative should add to canopy evaporation derivative, commit 788eacb8 Oct 5, 2026
      -3) soil water super-diagonal no longer overwrites the baseflow derivatives of the layer above, commit eab8f603 Oct 15, 2026
      -4) scalar soil water solve zeroes the derivative of the flux from above, which it holds fixed, commit 60b167b1 Oct 15, 2026
--80) imposeConstraints takes the BE snow (layer and canopy) temperature step along the enthalpy curve, commit 3cdbe7ea and 9b7696f2 Oct 5, 2026
--81) change scalarRootZoneTemp to be the depth-weighed (last root layer truncated at rootingDepth) arithmatic mean, instead of non depth-weighed arithmatic mean. The variable is diagnostic only, not used in model calculations, commit 7e9eb963 and da4bf144 Oct 15, 2026
- 82) glacier domains scale the forcing wind by windExposure, the surface-to-wind-station ratio (default 1), commit e5380f28 and d0be07e4 Oct 15, 2026
--83) a saturated liquid matric potential state passes its pressure to the total matric head in a mass split, commit 8b38167a Oct 15, 2026
- 84) glacier debris re-split at each area update, conserving its water and enthalpy: top layer at most 5 cm, the rest growing
-     geometrically, debris at least 2 cm thick, commits 39b712fb and addc9912 Oct 16, 2026
--85) scalar solve waives the matric head increment test where the residual and water content change meet the liquid tolerance, commit e828262b Oct 19, 2026
- 86) bbLatflow groundwatr option: big bucket plus lateral flow from upland soil at each layer's temperature, commits bf8f45f8 Oct 17 and 36804ccd Oct 20, 2026
- 87) parameter overrides and calibration parameters can target one domain type, name@upland etc., commit bb98db98 Oct 17, 2026
--88) lateral soil inflow carries the temperature of the layer it left, and enters a column with no saturated layer instead of being dropped, commit 5ab0019c Oct 17, 2026
--89) advective heat: soil layers gain the heat carried by water entering from the layer above or below, commit 3415be91 Oct 17, 2026
- 90) Added wetland domain: a linear-reservoir water column over soil that takes the GRU glacier runoff, commit fb35bd65 Oct 19, 2026
- 91) precipElevGrad scales precipitation linearly with a domain's height above its HRU (default 0), commit a41db815 Oct 20, 2026
--92) glacAreaChange.f90 flow closed at the mask edge, cross-slopes one-sided beside ice-free cells, commit 15061e11 Oct 20, 2026
+-79) Change scalarRootZoneTemp to be the depth-weighed (last root layer truncated at rootingDepth) arithmatic mean, instead of non depth-weighed arithmatic mean. The variable is diagnostic only, not used in model calculations, commit 7e9eb963 and da4bf144 Oct 15, 2026
+-80) A saturated liquid matric potential state passes its pressure to the total matric head in a mass split, commit 8b38167a Oct 15, 2026
+ 81) Parameter overrides and calibration parameters can target one domain type, name@upland etc., commit bb98db98 Oct 17, 2026
+-82) Lateral soil inflow carries the temperature of the layer it left, and enters a column with no saturated layer instead of being dropped, commit 5ab0019c Oct 17, 2026
+-83) Advective heat: soil layers gain the heat carried by water entering from the layer above or below, commit 3415be91 Oct 17, 2026
+ 84) Added wetland domain: a linear-reservoir water column over soil that takes the GRU glacier runoff, commit fb35bd65 Oct 19, 2026
+     New parameters wetlandStorageK (outflow time constant, s) and wetlandMinDepth (no drainage below this liquid depth, m),
