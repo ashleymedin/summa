@@ -372,4 +372,3 @@ AFTER tag of v4.0.0-exp-Sundials
 -83) Advective heat: soil layers gain the heat carried by water entering from the layer above or below, commit 3415be91 Oct 17, 2026
  84) Added wetland domain: a linear-reservoir water column over soil that takes the GRU glacier runoff, commit fb35bd65 Oct 19, 2026
      New parameters wetlandStorageK (outflow time constant, s) and wetlandMinDepth (no drainage below this liquid depth, m),
--85) glacAreaChange.f90 glacier area and slope use ice thickness without debris; debris on cells whose ice is gone is dropped, commit 8e1a1b9f Oct 22, 2026
