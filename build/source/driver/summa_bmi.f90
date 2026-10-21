@@ -521,6 +521,13 @@ module summabmi
      if(.not.ngen_output_active)then
        call summa_writeOutputFiles(this%model%timeStep, this%model%summa1_struc(n), err, message)
        call handle_err(err, message)
+#ifndef NGEN_FORCING_ACTIVE
+     else
+       ! forcingStep is the time-record index in the native forcing file.
+       ! summa_writeOutputFiles normally advances it after each model step.
+       ! With framework-managed output, that call is skipped, so we advance here instead.
+       forcingStep = forcingStep + 1
+#endif
      endif
 
      ! update global variables that change during the model simulation
