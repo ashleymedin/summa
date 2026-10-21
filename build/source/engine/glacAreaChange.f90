@@ -317,7 +317,7 @@ subroutine glacAreaChange(&
     totVolume = totVolume + volume ! includes debris, not currently used
 
     ! new glacier geometry
-    hgt = surface - bed
+    hgt = surface - debris - bed
     call cell_slopeAspect(surface, glacierMask==1_i4b .and. hgt>thick4area, nx, ny, dx, dy, cell_tan_slope, cell_aspect)
     glacierAccArea(iGlac) = count(hgt>thick4area .and. surface>=ELA_use_glac)*dx*dy
     glacierAblArea(iGlac) = count(hgt>thick4area .and. surface< ELA_use_glac)*dx*dy
@@ -773,6 +773,9 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
     else
       debris = 0._rkind
     endif
+
+    ! debris on a cell whose ice is gone is moraine, not glacier
+    debris = merge(debris, 0._rkind, S-B>thick4area)
 
     ! add debris back to surface
     S = S + debris
