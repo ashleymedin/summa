@@ -430,7 +430,7 @@ contains
  ! ************************************************************************************************
  ! domType is 0 with no suffix (every domain), and integerMissing for a suffix that names no domain type
  subroutine split_domain_target(target, name, domType)
- USE globalData,only:upland,glacCln1,glacCln2,glacDbr,wetland,stream ! horizontal domain types
+ USE globalData,only:upland,glacCln1,glacCln2,glacDbr,wetland ! horizontal domain types
  implicit none
  character(*), intent(in)  :: target   ! parameter name, optionally followed by @ and a domain type
  character(*), intent(out) :: name     ! parameter name
@@ -447,7 +447,6 @@ contains
    case('glacCln2'); domType = glacCln2
    case('glacDbr');  domType = glacDbr
    case('wetland');  domType = wetland
-   case('stream');   domType = stream
    case default;     domType = integerMissing
  end select
  end subroutine split_domain_target
@@ -485,7 +484,7 @@ contains
    ! a name@domainType value goes only to the domains of that type
    call split_domain_target(param_name(iParam),name,domType)
    if(domType==integerMissing)then
-     message=trim(message)//'unknown domain type in "'//trim(param_name(iParam))//'" (use upland, glacCln1, glacCln2, glacDbr, wetland or stream)'
+     message=trim(message)//'unknown domain type in "'//trim(param_name(iParam))//'" (use upland, glacCln1, glacCln2, glacDbr, or wetland)'
      err=20; return
    endif
 
