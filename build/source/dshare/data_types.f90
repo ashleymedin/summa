@@ -167,6 +167,7 @@ MODULE data_types
   character(len=:),  allocatable :: start_date         ! start of the calibration time period
   character(len=:),  allocatable :: end_date           ! end of the calibration time period
   type(calib_param_info),   allocatable :: param_list(:)   ! Parameters included in optimization
+  type(calib_param_info),   allocatable :: other_transform(:) ! transformations of searched parameters outside param_list (MODFLOW multipliers)
   type(param_bounds_info),  allocatable :: param_bounds(:) ! bounds that replace the parameter files'
   type(ordered_constraint), allocatable :: ordered(:)      ! ordered parameter constraints
   type(target_info),        allocatable :: targets(:)      ! calibration targets, one per objective

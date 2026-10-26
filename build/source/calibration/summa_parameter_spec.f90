@@ -245,9 +245,10 @@ contains
         if(config%calib%param_list(i)%has_lower) lower = config%calib%param_list(i)%lower_bound
         if(config%calib%param_list(i)%has_upper) upper = config%calib%param_list(i)%upper_bound
 
-        if(lower >= upper)then
+        ! equal bounds pin the parameter, as [calibration.parameter_bounds] allows
+        if(lower > upper)then
           write(message,'(A,ES12.4,1X,ES12.4)') trim(message)// &
-            'lower bound must be less than upper bound for calibration parameter '// &
+            'lower bound must not exceed upper bound for calibration parameter '// &
             trim(config%calib%param_list(i)%name)//': ',lower,upper
           err=20
           return
@@ -277,6 +278,26 @@ contains
 
       enddo
 
+    endif
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Transformations named outside param_list, which may only be MODFLOW multipliers
+    ! -----------------------------------------------------------------------------------------------
+    if(allocated(config%calib%other_transform))then
+      do i=1,size(config%calib%other_transform)
+        ix = find_parameter(trim(config%calib%other_transform(i)%name), param_names(1:nParam))
+        if(ix == 0)then
+          message=trim(message)//'transformation given for a parameter that is not being calibrated: '// &
+                  trim(config%calib%other_transform(i)%name)
+          err=20; return
+        endif
+        if(.not.isMf6(ix))then
+          message=trim(message)//'transformation given for a parameter that is not sampled: '// &
+                  trim(config%calib%other_transform(i)%name)
+          err=20; return
+        endif
+        spec%params(ix)%transformation = trim(config%calib%other_transform(i)%transformation)
+      enddo
     endif
 
     ! -----------------------------------------------------------------------------------------------

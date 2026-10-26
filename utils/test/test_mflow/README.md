@@ -242,8 +242,8 @@ The model decisions must be the coupler's, exactly as for `summa_modflow6.exe`:
 start-up otherwise.
 
 Each MPI rank is an independent model instance, so each gets its own MODFLOW run directory,
-`modflow_rank####` under the case's output path, populated once by copying `run_dir` and
-reused by every sample that rank evaluates. They are copies rather than symlinks because
+`modflow_rank####` under the case's output path (`modflow_run####_rank####` when `n_runs` runs of
+the case share it), populated once by copying `run_dir` and reused by every sample that rank evaluates. They are copies rather than symlinks because
 MODFLOW writes its listing, head and budget files into its working directory, and ranks
 sharing one directory would overwrite each other's output. Budget for the disk this needs:
 one copy of the MODFLOW model per rank.

@@ -6,6 +6,7 @@ use build_options, only: modflow_active
 USE nr_type
 USE summa_type, only: config_info       ! summa configuation info
 USE data_types, only: target_info        ! one calibration target
+USE data_types, only: calib_param_info   ! one calibration parameter
 USE globalData, only: iulog             ! I/O unit for logging messages
 USE globalData, only: startGRU             ! index of the first GRU of the run domain
 USE globalData, only: integerMissing       ! missing integer
@@ -1336,12 +1337,15 @@ contains
     integer(i4b) :: nListed
     integer(i4b) :: istat
     logical(lgt) :: duplicate
+    type(calib_param_info), allocatable :: other(:) ! transformations of parameters outside the list
+    integer(i4b) :: nOther
   
     ierr = 0
     message = 'parse_calibration_parameters/'
   
     ! multi-case runs reuse the configuration structure
     if(allocated(config%calib%param_list)) deallocate(config%calib%param_list)
+    if(allocated(config%calib%other_transform)) deallocate(config%calib%other_transform)
   
     ! ---- legacy list of parameter names ----
     nullify(name_array)
@@ -1483,18 +1487,9 @@ contains
       call transform_table%get_keys(tkeys)
   
       if(allocated(tkeys))then
+        allocate(other(size(tkeys)))
+        nOther = 0
         do i=1,size(tkeys)
-  
-          ! find the parameter this transformation belongs to
-          n = 0
-          do j=1,size(config%calib%param_list)
-            if(trim(config%calib%param_list(j)%name) == trim(tkeys(i)%key)) n = j
-          enddo
-          if(n == 0)then
-            message=trim(message)//'transformation given for a parameter that is not being calibrated: '// &
-                    trim(tkeys(i)%key)
-            ierr=20; return
-          endif
   
           if(allocated(transformation)) deallocate(transformation)
           call get_value(transform_table,trim(tkeys(i)%key),transformation,stat=istat)
@@ -1502,15 +1497,30 @@ contains
             message=trim(message)//'unable to read transformation for parameter: '//trim(tkeys(i)%key)
             ierr=20; return
           endif
-          if(len_trim(transformation) > len(config%calib%param_list(n)%transformation))then
+          if(len_trim(transformation) > len(other(1)%transformation))then
             message=trim(message)// &
                     'transformation name exceeds maximum character length for parameter: '// &
                     trim(tkeys(i)%key)
             ierr=20; return
           endif
+
+          ! find the parameter this transformation belongs to
+          n = 0
+          do j=1,size(config%calib%param_list)
+            if(trim(config%calib%param_list(j)%name) == trim(tkeys(i)%key)) n = j
+          enddo
+
+          ! a name outside the list may be a MODFLOW multiplier, checked once the search is built
+          if(n == 0)then
+            nOther = nOther + 1
+            other(nOther)%name           = trim(tkeys(i)%key)
+            other(nOther)%transformation = trim(transformation)
+            cycle
+          endif
           config%calib%param_list(n)%transformation = trim(transformation)
   
         enddo
+        config%calib%other_transform = other(1:nOther)
       endif
   
     endif
