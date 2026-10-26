@@ -908,8 +908,8 @@ subroutine fluxJacAdd(&
       ! recharge leaves the lowest soil layer that carries water, which is above any bedrock
       nSoilHyd = nSoil - merge(noThetaChange, 0, nGlce==0)
       if(nSoilHyd>0)then
-        if(ixSoilOnlyNrg(nSoilHyd)/=integerMissing) aJac(ixInd(full,ixAqWat,ixSoilOnlyNrg(nSoilHyd)),ixSoilOnlyNrg(nSoilHyd)) = -dq_dNrgStateAbove(nSoilHyd)*dt ! dAquiferRecharge_dTk  = d_iLayerLiqFluxSoil(nSoilHyd)_dTk
-        if(ixSoilOnlyHyd(nSoilHyd)/=integerMissing) aJac(ixInd(full,ixAqWat,ixSoilOnlyHyd(nSoilHyd)),ixSoilOnlyHyd(nSoilHyd)) = -dq_dHydStateAbove(nSoilHyd)*dt ! dAquiferRecharge_dWat = d_iLayerLiqFluxSoil(nSoilHyd)_dWat
+        if(ixSoilOnlyNrg(nSoilHyd)/=integerMissing .and. (ixAqWat-ixSoilOnlyNrg(nSoilHyd)<=kl .or. full)) aJac(ixInd(full,ixAqWat,ixSoilOnlyNrg(nSoilHyd)),ixSoilOnlyNrg(nSoilHyd)) = -dq_dNrgStateAbove(nSoilHyd)*dt ! dAquiferRecharge_dTk  = d_iLayerLiqFluxSoil(nSoilHyd)_dTk
+        if(ixSoilOnlyHyd(nSoilHyd)/=integerMissing .and. (ixAqWat-ixSoilOnlyHyd(nSoilHyd)<=kl .or. full)) aJac(ixInd(full,ixAqWat,ixSoilOnlyHyd(nSoilHyd)),ixSoilOnlyHyd(nSoilHyd)) = -dq_dHydStateAbove(nSoilHyd)*dt ! dAquiferRecharge_dWat = d_iLayerLiqFluxSoil(nSoilHyd)_dWat
       endif
       ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
       if(computeVegFlux)then
