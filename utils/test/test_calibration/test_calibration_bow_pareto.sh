@@ -251,7 +251,7 @@ import netCDF4 as nc
 work, pop, ngen, grace_weight = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), float(sys.argv[4])
 
 def load(algorithm):
-    d = nc.Dataset(os.path.join(work, algorithm, "output", "CAN_05BB001_calibration.nc"))
+    d = nc.Dataset(os.path.join(work, algorithm, "output", "CAN_05BB001_run0001_calibration.nc"))
     sense = [s.strip() for s in d["objective"].sense.split(",")]
     obj = np.ma.filled(d["objective"][:].astype(float), np.nan).T   # (target, sample)
     failed = np.asarray(d["trial_failed"][:]) == 1                  # the model refused or failed on these

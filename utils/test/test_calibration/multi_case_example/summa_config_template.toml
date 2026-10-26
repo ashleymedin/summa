@@ -140,7 +140,9 @@ param_list = [
     "windReductionParam",
     "vGn_n",
     "routingGammaScale",
-    "routingGammaShape"
+    "routingGammaShape",
+    "critSoilTranspire",
+    "fieldCapacity"
 ]
 
 write_aligned  = false

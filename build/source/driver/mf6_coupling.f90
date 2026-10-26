@@ -1485,13 +1485,14 @@ contains
   ! Aquifer control on SUMMA's infiltrating area per HRU: SUMMA's compression closure evaluated at
   ! each mapped cell on the hydrostatic pressure its water table puts over the closure zone, and
   ! returned as the map-weighted mean.  With pressure a at the surface (m, head less land surface)
-  ! the zone's mean positive head is a + z/2, (a + z)^2/(2z) once the water table is inside it, or 0.
+  ! the zone's mean squared positive head is ((a + z)^3 - a^3)/(3z), (a + z)^3/(3z) once the water
+  ! table is inside it, or 0.
   ! ==================================================================================
   subroutine mf6_gather_infil_limit(this, lim_hru)
     class(mf6_coupler_type), intent(inout) :: this
     real,                    intent(inout) :: lim_hru(:)
     integer :: i, k, c, node
-    real(c_double) :: fsum, wsum, zone, a, hmean, fac, dfac
+    real(c_double) :: fsum, wsum, zone, a, hmeanSq, fac, dfac
 
     if (.not. allocated(this%root_zone)) return
 
@@ -1506,13 +1507,13 @@ contains
         if (node > size(this%mf6_top)) cycle
         a = this%mf6_head(node) - (this%mf6_top(node) + real(this%soil_thk(i), c_double))
         if (a >= 0.0_c_double) then
-          hmean = a + 0.5_c_double*zone
+          hmeanSq = ((a + zone)**3 - a**3)/(3.0_c_double*zone)
         else if (a > -zone) then
-          hmean = (a + zone)**2/(2.0_c_double*zone)
+          hmeanSq = (a + zone)**3/(3.0_c_double*zone)
         else
-          hmean = 0.0_c_double
+          hmeanSq = 0.0_c_double
         end if
-        call compressionLimiter(hmean, zone, fac, dfac)
+        call compressionLimiter(hmeanSq, fac, dfac)
         fsum = fsum + real(this%map_wgt(k), c_double) * fac
         wsum = wsum + real(this%map_wgt(k), c_double)
       end do

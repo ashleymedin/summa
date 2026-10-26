@@ -218,7 +218,7 @@ work, pop, ngen = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 names = ['gulkana_discharge', 'wolverine_discharge', 'gulkana_grace', 'wolverine_grace']
 senses = ['maximize', 'maximize', 'minimize', 'minimize']
 
-d = nc.Dataset(os.path.join(work, "output", "gulkana_wolverine_calibration.nc"))
+d = nc.Dataset(os.path.join(work, "output", "gulkana_wolverine_run0001_calibration.nc"))
 sense = [s.strip() for s in d["objective"].sense.split(",")]
 obj = np.ma.filled(d["objective"][:].astype(float), np.nan).T   # (target, sample)
 failed = np.asarray(d["trial_failed"][:]) == 1
