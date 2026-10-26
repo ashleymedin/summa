@@ -92,6 +92,7 @@ contains
     logical(lgt) :: has_bounds
     integer(i8b), allocatable :: timeInt(:)
     integer(i8b), allocatable :: boundsInt(:,:)
+    integer(i4b) :: boundDims(2)
     character(len=:), allocatable :: units
     logical :: file_open
     character(len=256) :: cmessage
@@ -142,11 +143,22 @@ contains
 
       ! read time bounds, or take each period as ending at its time stamp
       if(has_bounds)then
-        allocate(boundsInt(2,nTime), stat=err)
-        if(err/=0)then; message=trim(message)//'problem allocating'; return; endif
-        err = nf90_get_var(ncid, varid_bounds, boundsInt)
+        ! stored as time_bnds(time,nbnds) or time_bnds(nbnds,time)
+        err = nf90_inquire_variable(ncid, varid_bounds, dimids=boundDims)
         if(err/=nf90_noerr) exit netcdf_block
-        timeBounds = real(boundsInt, rkind)
+        if(boundDims(1) == dimid)then ! time varies fastest: time_bnds(nbnds,time) in the file
+          allocate(boundsInt(nTime,2), stat=err)
+          if(err/=0)then; message=trim(message)//'problem allocating'; return; endif
+          err = nf90_get_var(ncid, varid_bounds, boundsInt)
+          if(err/=nf90_noerr) exit netcdf_block
+          timeBounds = real(transpose(boundsInt), rkind)
+        else
+          allocate(boundsInt(2,nTime), stat=err)
+          if(err/=0)then; message=trim(message)//'problem allocating'; return; endif
+          err = nf90_get_var(ncid, varid_bounds, boundsInt)
+          if(err/=nf90_noerr) exit netcdf_block
+          timeBounds = real(boundsInt, rkind)
+        endif
       else
         timeBounds(2,:) = timeObs
         if(nTime > 1)then
