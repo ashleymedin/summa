@@ -286,7 +286,7 @@ AFTER tag of v4.0.0-exp-Sundials
       9) Stop the hourly bounce: base flux continuous over 10 cm below the base, and an optional implicit base exchange
       (base_ghb/drn_package_name) returned with the rejected recharge, commits 4510ad32, 53499790 Oct 6, 2026
      Also added bbLatflow groundwatr option: big bucket plus lateral flow from upland soil at each layer's temperature, commits bf8f45f8 Oct 17 and 36804ccd Oct 20, 2026
-  64) Domain-parallel MPI: GRUs distributed across ranks, PR #631 -DUSE_MPI=ON 
+ 64) Domain-parallel MPI: GRUs distributed across ranks, PR #631 -DUSE_MPI=ON 
      Builds a second executable (summa[_sundials]_mpi.exe); each rank reads/writes only its own GRUs.
      Also, later, added summa_modflow6_mpi coupler executable (-DUSE_MODFLOW6=ON -DUSE_MPI=ON), Sep 16, 2026
      Splits SUMMA's GRUs across MPI ranks the same way the plain summa_mpi build does. MODFLOW 6 itself stays a serial singleton on rank 0 for now.
