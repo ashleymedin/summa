@@ -227,6 +227,8 @@ The tables below list the time-varying variables that can be requested in the [o
 | `scalarFrostTableDepth` | depth to the top of the shallowest frozen soil layer | m |
 | `scalarActiveLayerDepth` | thickness of the soil above the perennially frozen ground below it | m |
 | `scalarHypTemp` | temperature of the hyporheic return flow | K |
+| `scalarInfilLimAqfr` | aquifer control on the infiltrating area | - |
+| `scalarAquiferReject` | recharge rejected below the soil column, returned to its base | m s-1 |
 
 <a id="outvar_flux"></a>
 ### Flux variables
@@ -310,6 +312,7 @@ The tables below list the time-varying variables that can be requested in the [o
 | `scalarSurfaceRunoff_IE` | infiltration excess surface runoff | m s-1 |
 | `scalarSurfaceRunoff_SE` | saturation excess surface runoff | m s-1 |
 | `scalarAquiferSeepage` | groundwater seepage at land surface from the coupled aquifer | m s-1 |
+| `scalarLowerBoundNrgFlux` | conductive energy flux across the lower boundary, positive down | W m-2 |
 | `mLayerSatHydCondMP` | saturated hydraulic conductivity of macropores in each layer | m s-1 |
 | `mLayerSatHydCond` | saturated hydraulic conductivity in each layer | m s-1 |
 | `iLayerSatHydCond` | saturated hydraulic conductivity in each layer interface | m s-1 |
@@ -336,6 +339,9 @@ The tables below list the time-varying variables that can be requested in the [o
 | `scalarStreamSfcInflow` | rain plus melt drainage entering the top of the open water column | m s-1 |
 | `mLayerLakeAdvNrgFlux` | energy source in each lake layer from the reach flow, advected and dissipated | J m-3 s-1 |
 | `scalarStreamFrictionHeat` | heat the reach flow dissipates falling through the reach, per unit reach area | W m-2 |
+| `mLayerColumnInflowNrg` | heat the lateral inflow carries into each soil layer, above freezing | W |
+| `mLayerLatInflowNrgFlux` | energy source in each soil layer from the lateral inflow, at its own temperature | J m-3 s-1 |
+| `mLayerSoilAdvNrgFlux` | energy source in each soil layer from the water entering it from above and below | J m-3 s-1 |
 | `scalarStreamRunoff` | net water the stream domain adds to the reach (rain + snowmelt - evaporation - sublimation) | m s-1 |
 
 <a id="outvar_bvar"></a>

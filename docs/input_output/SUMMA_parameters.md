@@ -13,6 +13,7 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `tempCritRain` | critical temperature where precipitation is rain | K |
 | `tempRangeTimestep` | temperature range over the time step | K |
 | `frozenPrecipMultip` | frozen precipitation multiplier | - |
+| `precipElevGrad` | fractional change in precipitation per metre above the HRU | m-1 |
 | `snowfrz_scale` | scaling parameter for the freezing curve for snow | K-1 |
 | `fixedThermalCond_snow` | temporally constant thermal conductivity for snow | W m-1 K-1 |
 | `albedoMax` | maximum snow albedo (single spectral band) | - |
@@ -65,6 +66,7 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `windReductionParam` | canopy wind reduction parameter | - |
 | `glacierWindFactor` | wind speed increase to account for glacier katabatic wind profile | - |
 | `glacierTempReduction` | air temperature decrease to account for down-glacier katabatic wind | - |
+| `windExposure` | glacier surface wind as a fraction of the wind station's | - |
 | `Kc25` | Michaelis-Menten constant for CO2 at 25 degrees C | umol mol-1 |
 | `Ko25` | Michaelis-Menten constant for O2 at 25 degrees C | mol mol-1 |
 | `Kc_qFac` | factor in the q10 function defining temperature controls on Kc | - |
@@ -205,6 +207,8 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `streamMinDepth` | minimum liquid depth of the stream water column prescribed from mizuRoute | m |
 | `lakeMixingThermalC` | effective thermal conductivity between liquid lake layers (turbulent mixing) | W m-1 K-1 |
 | `lakeIceMinThick` | ice cover thinner than this breaks up and returns to the water | m |
+| `wetlandStorageK` | storage time constant of the wetland outflow | s |
+| `wetlandMinDepth` | liquid depth below which a wetland does not drain | m |
 | `lowerBoundNrgFlux` | energy flux at the lower boundary, the geothermal heat flux | W m-2 |
 | `gwTempWindow` | averaging window of the air temperature the groundwater follows | days |
 | `thCond_bedrock` | thermal conductivity of the bedrock below the soil column | W m-1 K-1 |
@@ -232,4 +236,7 @@ These are the spatially constant, GRU-level parameters set in the [basin paramet
 | `latMoraineWidth` | lateral moraine width or rockfall length | m |
 | `C_ATGW` | air temperature to groundwater temperature coefficient | - |
 | `streamWidthMultip` | multiplier on the reach width and the stream domain area | - |
+| `glenAFactor` | multiplier on Glen rate factor A | - |
+| `mbGradAbove` | mass balance gradient above the highest glacier domain | mm m-1 yr-1 |
+| `mbGradBelow` | mass balance gradient below the lowest glacier domain | mm m-1 yr-1 |
 
