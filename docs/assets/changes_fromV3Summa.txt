@@ -378,3 +378,4 @@ AFTER tag of v4.0.0-exp-Sundials
  87) HPC multi-case calibration, PR #649
      Cases dispatched dynamically to case groups by an MPI counter; search state shared by random and DDS sampling.
      Solver failures recoverable in calibration; --home and --persistent-output options; Fir build and SLURM scripts in utils/hpc/fir, commit 88cc8242 Oct 23, 2026
+ 88) updatDiagnWithPrime.f90 IDA no longer indexes the state map with a missing partner state in snow, lake and soil layers, commit 75804c88 Oct 26, 2026
