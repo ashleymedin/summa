@@ -58,7 +58,7 @@ git submodule update --init external/mizuRoute external/toml-f
 
 ### Build options
 
-Each is `OFF` by default and enabled with `-DOPTION=ON`.
+Options default to `OFF`, except `USE_NGEN_FORCING` and `USE_NGEN_OUTPUT`, which default to `ON` and only take effect when using `USE_NEXTGEN=ON`. Set each option with `-DOPTION=ON` or `-DOPTION=OFF`.
 
 | Option | Effect |
 | --- | --- |

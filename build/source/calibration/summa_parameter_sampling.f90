@@ -29,6 +29,8 @@ module summa_parameter_sampling
 
   ! data types
   USE nr_type,    only: i4b,rkind,lgt
+  USE data_types, only: var_d
+  USE data_types, only: var_dlength
   USE summa_type, only: config_info
   USE summa_type, only: parallel_context_type
 
@@ -48,6 +50,7 @@ module summa_parameter_sampling
   ! parameter-search information
   USE parameter_search, only: parameter_spec
   USE parameter_search, only: parameter_search_info
+  USE parameter_search, only: search_state_type
 
   implicit none
   private
@@ -69,6 +72,7 @@ module summa_parameter_sampling
     logical(lgt), allocatable :: failed(:)        ! the model refused or failed on the trial (nSamples)
     integer(i4b), allocatable :: start_time(:,:)  ! dispatch time (8,nSamples)
     integer(i4b), allocatable :: end_time(:,:)    ! completion time (8,nSamples)
+    integer(i4b)              :: nComplete = 0    ! trials returned so far
   end type trial_ledger
 
   ! public parameter-sampling interface
@@ -76,13 +80,9 @@ module summa_parameter_sampling
   public :: initialize_parameter_evaluation
   public :: dispatch_parameter_samples
 
-  ! public SUMMA parameter samplers
-  public :: generate_parameter_sample
-  public :: generate_dds_sample
-
 contains
 
-   ! **************************************************************************************************
+  ! **************************************************************************************************
   ! Initialize parameter evaluation.
   !
   ! Constructs the SUMMA parameter specification and parameter-search information used for all
@@ -90,23 +90,22 @@ contains
   ! and non-sampled parameters required by calibration constraints. On the dispatcher rank, also
   ! initializes the random-number generator used for parameter sampling.
   !
-  ! Initializes parameter information shared across evaluations and establishes
-  ! dispatcher-owned state used to track the current best solution.
+  ! Initializes parameter information shared across evaluations and establishes the dispatcher-owned
+  ! state used by the parameter-search algorithm.
   ! **************************************************************************************************
-  subroutine initialize_parameter_evaluation(config,instance_parallel, &
-                                             param_spec,search,param_name, &
-                                             x_best,F_best,sample_best, &
-                                             err,message)
+  subroutine initialize_parameter_evaluation(config,instance_parallel,param_spec,search,param_name, &
+                                             search_state,sample_best,err,message,mpar_init,bpar_init)
     USE parameter_search, only: initialize_parameter_search
     USE summa_parameter_spec, only: get_summa_parameter_spec
     implicit none
     type(config_info),           intent(in)  :: config             ! SUMMA configuration information
     type(parallel_context_type), intent(in)  :: instance_parallel  ! MPI context for model-instance parallelism
+    type(var_dlength), optional, intent(in)  :: mpar_init          ! initialized HRU parameters, single-domain runs only
+    type(var_d),       optional, intent(in)  :: bpar_init          ! initialized basin parameters, single-domain runs only
     type(parameter_spec),        intent(out) :: param_spec         ! complete SUMMA parameter specification
     type(parameter_search_info), intent(out) :: search             ! sampled parameter search information
     character(len=64), allocatable, intent(out) :: param_name(:)   ! complete SUMMA parameter names
-    real(rkind), allocatable, intent(out) :: x_best(:)             ! best decision-variable vector
-    real(rkind),              intent(out) :: F_best                ! best objective value
+    type(search_state_type),     intent(out) :: search_state       ! information from previously evaluated parameter sets
     integer(i4b),             intent(out) :: sample_best           ! sample index associated with best objective
     integer(i4b), intent(out) :: err                               ! error code
     character(*), intent(out) :: message                           ! error message
@@ -114,24 +113,24 @@ contains
     integer(i4b)              :: nseed                             ! random-number seed vector size
     integer(i4b), allocatable :: seed(:)                           ! random-number seed vector
     character(len=256) :: cmessage                                 ! message returned by called routines
-  
+
     err=0
     message='initialize_parameter_evaluation/'
-  
+
     ! build the SUMMA parameter specification from the calibration configuration
-    call get_summa_parameter_spec(config,param_spec,err,cmessage)
+    call get_summa_parameter_spec(config, param_spec, err, cmessage, mpar_init, bpar_init)
     if(err/=0)then
       message=trim(message)//trim(cmessage)
       return
     endif
-  
+
     ! construct and validate the model-agnostic parameter-search information
     call initialize_parameter_search(param_spec,search,err,cmessage)
     if(err/=0)then
       message=trim(message)//trim(cmessage)
       return
     endif
- 
+
     ! construct the complete invariant SUMMA parameter-name vector
     allocate(param_name(size(param_spec%params)),stat=err)
     if(err/=0)then
@@ -150,18 +149,13 @@ contains
         message=trim(message)//'unable to allocate random-number seed'
         return
       endif
-      seed=42
+      seed=42 + config%run_index - 1
       call random_seed(put=seed)
 
-      ! initialize best parameter vector on the dispatcher
-      allocate(x_best(size(search%param_names)),stat=err)
-      if(err/=0)then
-        message=trim(message)//'unable to allocate best parameter vector'
-        return
-      endif
-      x_best=0._rkind
-      F_best=-huge(1._rkind)
+      ! initialize parameter-search state on the dispatcher
+      search_state%elite_fitness=-huge(1._rkind)
       sample_best=0
+
     endif
 
   end subroutine initialize_parameter_evaluation
@@ -178,7 +172,7 @@ contains
                                         instance_parallel,         &
                                         param_spec,search,         &
                                         param_name,ncid_calib,     &
-                                        x_best,F_best,sample_best, &
+                                        search_state,sample_best,  &
                                         nSamples,err,message)
     USE summa_simulation, only: n_calibration_targets
     implicit none
@@ -189,9 +183,8 @@ contains
     type(parameter_search_info),    intent(in)    :: search             ! parameter-search configuration and metadata
     character(len=64),              intent(in)    :: param_name(:)      ! complete SUMMA parameter-name vector
     integer(i4b),                   intent(in)    :: ncid_calib         ! calibration output NetCDF file ID
-    real(rkind), allocatable,       intent(inout) :: x_best(:)          ! current best decision-variable vector
-    real(rkind),                    intent(inout) :: F_best             ! objective value associated with x_best
-    integer(i4b),                   intent(inout) :: sample_best        ! sample index associated with F_best
+    type(search_state_type),        intent(inout) :: search_state       ! information from previously evaluated parameter sets
+    integer(i4b),                   intent(inout) :: sample_best        ! sample index associated with elite fitness
     integer(i4b),                   intent(in)    :: nSamples           ! total number of parameter trials
     integer(i4b),                   intent(out)   :: err                ! error code
     character(*),                   intent(out)   :: message            ! error message
@@ -227,10 +220,10 @@ contains
     select case(trim(config%calib%algorithm))
       case('dds')
         call dispatch_trials(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
-                             1,nSamples,nSamples,ledger,x_best,F_best,sample_best,err,cmessage)
+                             1,nSamples,nSamples,ledger,search_state,sample_best,err,cmessage)
       case('nsga2')
         call run_nsga2(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
-                       nSamples,ledger,x_best,F_best,sample_best,err,cmessage)
+                       nSamples,ledger,search_state,sample_best,err,cmessage)
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -246,7 +239,7 @@ contains
   ! NSGA-II has already written the whole generation into the ledger.
   ! **************************************************************************************************
   subroutine dispatch_trials(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
-                             first,last,nSamples,ledger,x_best,F_best,sample_best,err,message)
+                             first,last,nSamples,ledger,search_state,sample_best,err,message)
     USE calibration_output_module, only: write_calibration_output
     implicit none
     type(config_info),           intent(in)    :: config
@@ -258,8 +251,7 @@ contains
     integer(i4b),                intent(in)    :: first,last        ! trials to evaluate
     integer(i4b),                intent(in)    :: nSamples          ! total sample budget
     type(trial_ledger),          intent(inout) :: ledger
-    real(rkind), allocatable,    intent(inout) :: x_best(:)
-    real(rkind),                 intent(inout) :: F_best
+    type(search_state_type),     intent(inout) :: search_state
     integer(i4b),                intent(inout) :: sample_best
     integer(i4b),                intent(out)   :: err
     character(*),                intent(out)   :: message
@@ -291,6 +283,7 @@ contains
       call receive_objective(objective,failed,worker,instance_parallel%comm,mpi_err)
       call check_mpi(instance_parallel%rank,mpi_err,'unable to receive objective value')
       nActive=nActive-1
+      ledger%nComplete=ledger%nComplete+1
       sample_id=worker_sample(worker)
       call date_and_time(values=ledger%end_time(:,sample_id))
       ledger%objective(:,sample_id)=objective
@@ -298,7 +291,8 @@ contains
       if(failed) write(output_unit,'(A,I0,A,I0,A)') 'trial ',sample_id,' failed on worker ',worker, &
                                                     '; it ranks last on every target'
 
-      call record_trial(config,sample_id,ledger,x_best,F_best,sample_best)
+      call record_trial(config,sample_id,ledger,search_state,sample_best,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       call write_calibration_output(ncid_calib,                    &
                                     sample_id,worker,              &
                                     param_name,                    &
@@ -325,7 +319,7 @@ contains
     ! propose trial i if the search has not already, and send it to a worker
     subroutine start_trial(worker,i)
       integer(i4b), intent(in) :: worker,i
-      call propose_trial(config,param_spec,search,i,instance_parallel%size-1,nSamples,x_best,sample_best,ledger,err,cmessage)
+      call propose_trial(config,param_spec,search,i,nSamples,search_state,ledger,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       call date_and_time(values=ledger%start_time(:,i))
       call send_sample(worker,i,ledger%override(:,i),instance_parallel%comm,mpi_err)
@@ -337,20 +331,18 @@ contains
   end subroutine dispatch_trials
 
   ! **************************************************************************************************
-  ! Propose trial i into the ledger. DDS samples at random while it has no best to perturb: the first
-  ! round of trials, one per worker, and after that until a trial succeeds. NSGA-II proposes a
-  ! generation before dispatching it.
+  ! Propose trial i into the ledger. DDS samples at random while it has no elite to perturb: the first
+  ! round of trials, one per worker, and after that until a trial succeeds; its progress counts the
+  ! trials returned so far. NSGA-II proposes a generation before dispatching it.
   ! **************************************************************************************************
-  subroutine propose_trial(config,param_spec,search,i,nWorkers,nSamples,x_best,sample_best,ledger,err,message)
+  subroutine propose_trial(config,param_spec,search,i,nSamples,search_state,ledger,err,message)
     implicit none
     type(config_info),           intent(in)    :: config
     type(parameter_spec),        intent(in)    :: param_spec
     type(parameter_search_info), intent(in)    :: search
     integer(i4b),                intent(in)    :: i                 ! trial to propose
-    integer(i4b),                intent(in)    :: nWorkers
     integer(i4b),                intent(in)    :: nSamples
-    real(rkind),                 intent(in)    :: x_best(:)
-    integer(i4b),                intent(in)    :: sample_best       ! 0 until a trial succeeds
+    type(search_state_type),     intent(in)    :: search_state
     type(trial_ledger),          intent(inout) :: ledger
     integer(i4b),                intent(out)   :: err
     character(*),                intent(out)   :: message
@@ -360,11 +352,9 @@ contains
     message='propose_trial/'
     if(trim(config%calib%algorithm) /= 'dds') return
 
-    if(i <= nWorkers .or. sample_best == 0 .or. trim(sampling_method) == 'random')then
-      call generate_parameter_sample(param_spec,search,ledger%value(:,i),ledger%override(:,i),err,cmessage)
-    else
-      call generate_dds_sample(param_spec,search,x_best,i,nSamples,ledger%value(:,i),ledger%override(:,i),err,cmessage)
-    endif
+    ! NOTE: before any trial returns, nComplete=1 so that p = 1 - log(1) / log(nSamples) = 1
+    call generate_parameter_sample(sampling_method,param_spec,search,search_state,max(ledger%nComplete,1),nSamples, &
+                                   ledger%value(:,i),ledger%override(:,i),err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end subroutine propose_trial
@@ -373,24 +363,34 @@ contains
   ! Take in the objectives of trial i. DDS searches on one number, so it keeps the trial with the best
   ! weighted, consistently oriented sum of its targets; with one target of weight one, the metric.
   ! **************************************************************************************************
-  subroutine record_trial(config,i,ledger,x_best,F_best,sample_best)
+  subroutine record_trial(config,i,ledger,search_state,sample_best,err,message)
     USE summa_simulation, only: scalarize_objectives
     implicit none
-    type(config_info),  intent(in)    :: config
-    integer(i4b),       intent(in)    :: i
-    type(trial_ledger), intent(in)    :: ledger
-    real(rkind),        intent(inout) :: x_best(:)
-    real(rkind),        intent(inout) :: F_best
-    integer(i4b),       intent(inout) :: sample_best
+    type(config_info),       intent(in)    :: config
+    integer(i4b),            intent(in)    :: i
+    type(trial_ledger),      intent(in)    :: ledger
+    type(search_state_type), intent(inout) :: search_state
+    integer(i4b),            intent(inout) :: sample_best
+    integer(i4b),            intent(out)   :: err
+    character(*),            intent(out)   :: message
     real(rkind) :: F_sample
 
+    err=0
+    message='record_trial/'
     if(trim(config%calib%algorithm) /= 'dds' .or. ledger%failed(i)) return
     F_sample=scalarize_objectives(config,ledger%objective(:,i))
-    if(F_sample > F_best)then
-      F_best=F_sample
-      x_best=ledger%value(:,i)
+    if(F_sample > search_state%elite_fitness)then
+      search_state%elite_fitness=F_sample
+      if(.not.allocated(search_state%elite_individual))then
+        allocate(search_state%elite_individual(size(ledger%value,1)),stat=err)
+        if(err/=0)then
+          message=trim(message)//'unable to allocate elite individual'
+          return
+        endif
+      endif
+      search_state%elite_individual=ledger%value(:,i)
       sample_best=i
-      write(output_unit,'(A,I0,A,F14.6)') 'new DDS best: sample=',sample_best,', objective=',F_best
+      write(output_unit,'(A,I0,A,F14.6)') 'new elite: sample=',sample_best,', objective=',search_state%elite_fitness
     endif
 
   end subroutine record_trial
@@ -478,7 +478,7 @@ contains
   ! at the end, which of all the trials are non-dominated.
   ! **************************************************************************************************
   subroutine run_nsga2(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
-                       nSamples,ledger,x_best,F_best,sample_best,err,message)
+                       nSamples,ledger,search_state,sample_best,err,message)
     USE nsga2,                     only: nondominated_sort,nondominated_set
     USE nsga2,                     only: crowding_distance,select_survivors,make_offspring
     USE summa_simulation,          only: oriented_objectives
@@ -493,8 +493,7 @@ contains
     integer(i4b),                intent(in)    :: ncid_calib
     integer(i4b),                intent(in)    :: nSamples
     type(trial_ledger),          intent(inout) :: ledger
-    real(rkind), allocatable,    intent(inout) :: x_best(:)
-    real(rkind),                 intent(inout) :: F_best
+    type(search_state_type),     intent(inout) :: search_state
     integer(i4b),                intent(inout) :: sample_best
     integer(i4b),                intent(out)   :: err
     character(*),                intent(out)   :: message
@@ -529,7 +528,8 @@ contains
       ! propose the generation: a random population, then offspring of the one before
       if(iGen == 1)then
         do i=first,last
-          call generate_parameter_sample(param_spec,search,ledger%value(:,i),ledger%override(:,i),err,cmessage)
+          call generate_parameter_sample('random',param_spec,search,search_state,1,nSamples, &
+                                         ledger%value(:,i),ledger%override(:,i),err,cmessage)
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
         enddo
       else
@@ -545,7 +545,7 @@ contains
       endif
 
       call dispatch_trials(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
-                           first,last,nSamples,ledger,x_best,F_best,sample_best,err,cmessage)
+                           first,last,nSamples,ledger,search_state,sample_best,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       do i=first,last
         if(ledger%failed(i))then
@@ -692,6 +692,7 @@ contains
 
   end subroutine check_search_settings
 
+
   ! **************************************************************************************************
   ! Generate a SUMMA parameter sample.
   !
@@ -700,103 +701,52 @@ contains
   ! parameter vector contains only parameters included in the search, whereas the override vector
   ! also includes non-sampled parameters required by calibration constraints.
   ! **************************************************************************************************
-  subroutine generate_parameter_sample(param_spec,search, param_value,param_override, err,message)
-    ! parameter sampling
-    USE parameter_search, only: sample_parameters
-    ! SUMMA parameter overrides
+  subroutine generate_parameter_sample(method,param_spec,search,search_state,nComplete,nSamples, &
+                                       param_value,param_override,err,message)
+    USE parameter_search, only: parameter_spec
+    USE parameter_search, only: parameter_search_info
+    USE parameter_search, only: search_state_type
+    USE parameter_search, only: generate_search_sample
     USE summa_parameter_spec, only: build_summa_parameter_overrides
+
     implicit none
-    ! dummy variables
-    type(parameter_spec),        intent(in)  :: param_spec        ! SUMMA parameter specification
-    type(parameter_search_info), intent(in)  :: search            ! parameter-search information
-    real(rkind),                 intent(out) :: param_value(:)    ! sampled parameter values
-    real(rkind),                 intent(out) :: param_override(:) ! complete SUMMA parameter overrides
-    integer(i4b),                intent(out) :: err               ! error code
-    character(*),                intent(out) :: message           ! error message
-    ! local variables
+
+    character(*),                intent(in)  :: method
+    type(parameter_spec),        intent(in)  :: param_spec
+    type(parameter_search_info), intent(in)  :: search
+    type(search_state_type),     intent(in)  :: search_state
+    integer(i4b),                intent(in)  :: nComplete
+    integer(i4b),                intent(in)  :: nSamples
+    real(rkind),                 intent(out) :: param_value(:)
+    real(rkind),                 intent(out) :: param_override(:)
+    integer(i4b),                intent(out) :: err
+    character(*),                intent(out) :: message
+
     character(len=256) :: cmessage
-  
+
     err=0
     message='generate_parameter_sample/'
-  
-    ! generate a feasible parameter vector in the parameter-search space
-    call sample_parameters(search,param_value,err,cmessage)
+
+    ! generate the next sampled parameter vector
+    call generate_search_sample(method,search,search_state,nComplete, &
+                                nSamples,param_value,err,cmessage)
     if(err/=0)then
       message=trim(message)//trim(cmessage)
       return
     endif
-  
+
     ! construct the complete SUMMA parameter override vector
-    call build_summa_parameter_overrides(param_spec,         &
-                                         search%param_names, &
-                                         param_value,        &
-                                         param_override,     &
-                                         err,cmessage)
+    call build_summa_parameter_overrides(param_spec,search%param_names,param_value, &
+                                         param_override,err,cmessage)
     if(err/=0)then
       message=trim(message)//trim(cmessage)
       return
     endif
-  
+
   end subroutine generate_parameter_sample
 
-  ! **************************************************************************************************
-  ! Generate a parameter sample using Dynamically Dimensioned Search (DDS).
-  !
-  ! Generates a new candidate decision-variable vector by perturbing the current best solution using
-  ! DDS, then constructs the complete SUMMA parameter override vector. The DDS perturbation operates
-  ! only on sampled parameters, while the complete override vector also includes any constraint-only
-  ! parameters required to maintain valid SUMMA parameter relationships.
-  ! **************************************************************************************************
-  subroutine generate_dds_sample(param_spec,search,x_best,i,m, param_value,param_override,err,message)
-    ! DDS parameter sampling
-    USE parameter_search, only: perturb_parameters_dds
-    ! SUMMA parameter overrides
-    USE summa_parameter_spec, only: build_summa_parameter_overrides
-    implicit none
-    type(parameter_spec),        intent(in)  :: param_spec       ! complete SUMMA parameter specification
-    type(parameter_search_info), intent(in)  :: search           ! parameter-search information
-    real(rkind),                 intent(in)  :: x_best(:)        ! current best DDS decision-variable vector
-    integer(i4b),                intent(in)  :: i                ! current function-evaluation number
-    integer(i4b),                intent(in)  :: m                ! maximum number of function evaluations
-    real(rkind),                 intent(out) :: param_value(:)   ! new sampled decision-variable vector
-    real(rkind),                 intent(out) :: param_override(:)! complete SUMMA parameter override vector
-    integer(i4b),                intent(out) :: err              ! error code
-    character(*),                intent(out) :: message          ! error message
-    real(rkind), parameter      :: r = 0.2_rkind                 ! DDS neighborhood perturbation size 
-    character(len=256)          :: cmessage                      ! message returned by called routines
-  
-    err=0
-    message='generate_dds_sample/'
-    call perturb_parameters_dds(search,        & ! generate DDS candidate
-                                x_best,        & ! current best solution
-                                i,             & ! current evaluation
-                                m,             & ! evaluation budget
-                                r,             & ! perturbation size
-                                param_value,   & ! new candidate
-                                err,cmessage)    ! error information
-    if(err/=0)then
-      message=trim(message)//trim(cmessage)
-      return
-    endif
-    call build_summa_parameter_overrides(param_spec,         & ! construct full SUMMA parameter vector
-                                         search%param_names, & ! sampled parameter names
-                                         param_value,        & ! sampled parameter values
-                                         param_override,     & ! complete SUMMA overrides
-                                         err,cmessage)         ! error information
-    if(err/=0)then
-      message=trim(message)//trim(cmessage)
-      return
-    endif
-  
-  end subroutine generate_dds_sample
-
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------
   ! --- PRIVATE HELPER ROUTINES ----------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-
   ! **************************************************************************************************
   ! Send one parameter sample to a worker.
   ! **************************************************************************************************
@@ -848,18 +798,14 @@ contains
     call MPI_Recv(sample_id,1,MPI_INTEGER,0,MPI_ANY_TAG,comm,status,mpi_err)
     if(mpi_err/=MPI_SUCCESS) return
     select case(status(MPI_TAG))
-
       case (tag_stop)
         stop_worker=.true.
         return
-    
       case (tag_work)
         call MPI_Recv(param_value,size(param_value),MPI_DOUBLE_PRECISION, 0,tag_work,comm,status,mpi_err)
-    
       case default
         ! all message tags are defined internally, so an unknown tag is fatal
         call abort_mpi(rank,'unknown MPI tag')
-    
     end select
 
   end subroutine receive_sample

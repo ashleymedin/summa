@@ -19,7 +19,9 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 module summa_simulation
 
-USE nr_type, only: i4b, i8b, rkind, lgt
+USE nr_type,    only: i4b, i8b, rkind, lgt
+USE data_types, only: gru_double
+USE data_types, only: gru_hru_dom_doublevec
 USE summa_type, only: config_info
 USE summa_type, only: summa1_type_dec
 USE summa_type, only: parallel_context_type
@@ -112,24 +114,27 @@ contains
                             timeSim,flowSim,        & ! simulated time and streamflow
                             timeUnits,flowUnits,    & ! time and streamflow units
                             param_name,param_value, & ! parameter names and values
+                            mpar_out,bpar_out,      & ! model parameter structures
                             err, message)             ! error code and message
     ! dummy arguments
-    type(config_info),           intent(inout) :: config
-    type(parallel_context_type), intent(in)    :: domain_parallel
-    type(parallel_context_type), intent(in)    :: instance_parallel
-    real(rkind), allocatable, intent(out) :: timeSim(:)
-    real(rkind), allocatable, intent(out) :: flowSim(:)
-    character(len=:), allocatable, intent(out) :: timeUnits
-    character(len=:), allocatable, intent(out) :: flowUnits
-    character(*), intent(in) :: param_name(:)
-    real(rkind),  intent(in) :: param_value(:)
-    integer(i4b), intent(out) :: err
-    character(*), intent(out) :: message
+    type(config_info)                    , intent(inout) :: config
+    type(parallel_context_type)          , intent(in)    :: domain_parallel
+    type(parallel_context_type)          , intent(in)    :: instance_parallel
+    real(rkind)             , allocatable, intent(out)   :: timeSim(:)
+    real(rkind)             , allocatable, intent(out)   :: flowSim(:)
+    character(len=:)        , allocatable, intent(out)   :: timeUnits
+    character(len=:)        , allocatable, intent(out)   :: flowUnits
+    character(*)                         , intent(in)    :: param_name(:)
+    real(rkind)                          , intent(in)    :: param_value(:)
+    type(gru_hru_dom_doublevec), optional, intent(out)   :: mpar_out
+    type(gru_double)           , optional, intent(out)   :: bpar_out
+    integer(i4b)                         , intent(out)   :: err
+    character(*)                         , intent(out)   :: message
     ! locals
     type(summa1_type_dec), allocatable :: summa1_struc(:)
     integer(i4b), parameter            :: n=1
-    character(len=512)                 :: cmessage
-  
+    character(len=1024)                :: cmessage
+
     err=0
     message='run_simulation/'
     allocate(summa1_struc(n),stat=err)
@@ -137,19 +142,23 @@ contains
       message=trim(message)//'problem allocating top-level summa structure'
       return
     endif
-  
+
     ! populate domain and model-instance parallel contexts
     summa1_struc(n)%domain_parallel=domain_parallel
     summa1_struc(n)%instance_parallel=instance_parallel
-    call initialize_summa(config, summa1_struc(n), param_name,param_value, err,cmessage)
+
+    call initialize_summa(config, summa1_struc(n), param_name, param_value, &
+                          mpar_out=mpar_out, bpar_out=bpar_out, err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
     call run_summa(summa1_struc(n), timeSim,flowSim, timeUnits,flowUnits, err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
     call finalize_summa(summa1_struc(n),err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
+
   end subroutine run_simulation
-  
+
   ! **************************************************************************************************
   ! Report the number of calibration targets, which is the number of objectives per parameter trial.
   !
@@ -226,7 +235,7 @@ contains
   subroutine evaluate_objective(config,                            & ! SUMMA configuration structure
                                 domain_parallel,                   & ! MPI context for domain parallelism
                                 instance_parallel,                 & ! MPI context for model-instance parallelism
-                                sample_id, param_name,param_value, & ! sample ID + parameter names and values
+                                sample_id,param_name,param_value,  & ! sample ID + parameter names and values
                                 metric,                            & ! objective function value
                                 err, message)                        ! error code and message
     ! dummy arguments
@@ -354,12 +363,14 @@ contains
     integer(i4b)                       :: i                  ! looping
     integer(i4b)                       :: iTarget            ! calibration target index
     integer(i4b)                       :: nTarget            ! number of calibration targets
+    character(len=4)                   :: runString          ! include run in the output filename
     character(len=4)                   :: rankString         ! include rank in the output filename
     character(len=6)                   :: sampleString       ! include sample index in the output filename
     character(len=:), allocatable      :: outputFileSuffix_orig  ! orig suffix (to restore output suffix)
     real(rkind), allocatable           :: timeSim(:)         ! simulated time
     real(rkind), allocatable           :: flowSim(:)         ! simulated streamflow
     real(rkind), allocatable           :: timeObs(:)         ! observed time
+    real(rkind), allocatable           :: timeBounds(:,:)    ! observed time bounds
     real(rkind), allocatable           :: flowObs(:)         ! observed streamflow
     character(len=:), allocatable      :: timeSimUnits       ! simulated time units
     character(len=:), allocatable      :: flowSimUnits       ! simulated flow units
@@ -419,12 +430,17 @@ contains
       write(sampleString,'(I6.6)') sample_id
       output_fileSuffix=trim(output_fileSuffix)//'_sample'//sampleString
     endif
+    if(summa1_struc(n)%config%n_runs > 1)then
+      write(runString,'(I4.4)') summa1_struc(n)%config%run_index
+      output_fileSuffix=trim(output_fileSuffix)//'_run'//runString
+    endif
 
     ! the model is released after this block however it is left, so a worker can take the next trial
     trial: block
 
     ! initialize SUMMA; a parameter set the model refuses is a failed trial
-    call initialize_summa(config, summa1_struc(n), param_name,param_value, err,cmessage)
+    call initialize_summa(config, summa1_struc(n), param_name, param_value, &
+                          err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); failed=.true.; exit trial; endif
 
     ! an objective function needs observations to compare against; without them this is an
@@ -532,8 +548,9 @@ contains
         ! read this target's observations
         if(allocated(timeObs)) deallocate(timeObs)
         if(allocated(flowObs)) deallocate(flowObs)
+        if(allocated(timeBounds)) deallocate(timeBounds)
         call read_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(vnameMember), &
-                               timeObs,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
+                               timeObs,timeBounds,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
         if(err/=0)then
           message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
           exit trial
@@ -601,6 +618,7 @@ contains
                               timeObs,flowObs,timeObsUnits,flowObsUnits, &
                               summa1_struc(n)%config%calib%start_date,   &
                               summa1_struc(n)%config%calib%end_date,     &
+                              timeBounds,                                &
                               timeAligned,flowSimAligned,flowObsAligned, &
                               err,cmessage)
         if(err/=0)then
@@ -681,14 +699,17 @@ contains
   ! **************************************************************************************************
   ! initialize SUMMA
   ! **************************************************************************************************
-  subroutine initialize_summa(config, summa_struct, param_name, param_value, err, message)
-    type(config_info),       intent(inout)    :: config
-    type(summa1_type_dec)  , intent(inout)    :: summa_struct
-    character(*)           , intent(in)       :: param_name(:)
-    real(rkind)            , intent(in)       :: param_value(:)
-    integer(i4b)           , intent(out)      :: err
-    character(*)           , intent(out)      :: message
-    character(len=256) :: cmessage
+  subroutine initialize_summa(config, summa_struct, param_name, param_value, &
+                              mpar_out, bpar_out, err, message)
+    type(config_info)                    , intent(inout)    :: config
+    type(summa1_type_dec)                , intent(inout)    :: summa_struct
+    character(*)                         , intent(in)       :: param_name(:)
+    real(rkind)                          , intent(in)       :: param_value(:)
+    type(gru_hru_dom_doublevec), optional, intent(out)      :: mpar_out
+    type(gru_double)           , optional, intent(out)      :: bpar_out
+    integer(i4b)                         , intent(out)      :: err
+    character(*)                         , intent(out)      :: message
+    character(len=1024) :: cmessage
     character(len=64), allocatable :: summaName(:)
     real(rkind),       allocatable :: summaValue(:)
 
@@ -720,6 +741,10 @@ contains
       call openwq_init(summa_struct, err)
       if(err/=0)then; message=trim(message)//'problem initializing OpenWQ'; return; endif
     endif
+
+    ! Retain initialized parameter structures
+    if(present(mpar_out)) mpar_out = summa_struct%mparStruct
+    if(present(bpar_out)) bpar_out = summa_struct%bparStruct
 
   end subroutine initialize_summa
 
@@ -979,16 +1004,16 @@ contains
       ! transfer SUMMA fluxes to OpenWQ
       if(openwq_active) call openwq_run_space_step(summa_struct)
 
-      ! the simulation time axis, which every calibration target shares.  It comes from the forcing,
-      ! not from the routing, so a target that does not need routed flow still has a time coordinate.
-      timeSim(modelTimeStep) = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
+      ! save streamflow time series at the outlet: routed by mizuRoute, or else SUMMA's routed runoff
+      call get_streamflow(modelTimeStep, summa_struct, &
+                          timeSim(modelTimeStep),flowSim(modelTimeStep), &
+                          err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); exit; endif
 
-      ! save streamflow time series at the outlet, and flow or temperature at any reach a target named
-      ! (unavailable when mizuRoute is not active)
+      ! flow or temperature at any reach a target named (unavailable when mizuRoute is not active)
 #ifdef MIZUROUTE_ACTIVE
       if(mizuroute_active)then ! build-time capability
        if(summa_struct%config%use_mizuroute)then
-        call get_mizuroute_streamflow(modelTimeStep, summa_struct, flowSim(modelTimeStep))
         if(present(series))then
           do iSeries=1,size(series)
             if(series(iSeries)%ix_unit /= ix_unit_reach) cycle
@@ -1184,7 +1209,7 @@ contains
     integer(i4b),          intent(out)   :: err
     character(*),          intent(out)   :: message
     integer(i4b)                         :: iFreq
-    character(len=256)                   :: cmessage
+    character(len=1024)                  :: cmessage
 
     err = 0
     message = 'finalize_summa/'
@@ -1225,10 +1250,64 @@ contains
     endif
 
     ! more cleanup operations can be added here as required
- 
+
     ! Allow output libraries to complete file closure
     call sleep(2)
 
   end subroutine finalize_summa
+
+  ! ---------------------------------------------------------------------------------------------------
+  ! ---------------------------------------------------------------------------------------------------
+  ! ---- HELPER SUBROUTINES ---------------------------------------------------------------------------
+  ! ---------------------------------------------------------------------------------------------------
+  ! ---------------------------------------------------------------------------------------------------
+
+  subroutine get_streamflow(modelTimeStep,summa_struct,timeSim,flowSim,err,message)
+
+  USE var_lookup, only: iLookFORCE
+  USE var_lookup, only: iLookBVAR
+
+  implicit none
+
+  integer(i4b),          intent(in)    :: modelTimeStep
+  type(summa1_type_dec), intent(inout) :: summa_struct
+  real(rkind),           intent(out)   :: timeSim
+  real(rkind),           intent(out)   :: flowSim
+  integer(i4b),          intent(out)   :: err
+  character(*),          intent(out)   :: message
+
+  logical(lgt) :: get_routed
+  integer(i4b) :: iGRU
+
+  err=0
+  message='get_streamflow/'
+
+  ! if streamflow is routed using mizuroute
+  get_routed = mizuroute_active .and. summa_struct%config%use_mizuroute
+
+  ! simulation time
+  timeSim = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
+
+  ! get streamflow from mizuroute
+  if(get_routed)then
+#ifdef MIZUROUTE_ACTIVE
+    call get_mizuroute_streamflow(modelTimeStep,summa_struct,flowSim)
+#endif
+
+  ! get streamflow from SUMMA routed runoff
+  else
+
+    flowSim = 0._rkind
+
+    do iGRU=1,size(summa_struct%bvarStruct%gru)
+      flowSim = flowSim + &
+        summa_struct%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1) * &
+        summa_struct%bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
+    enddo
+
+  endif
+
+end subroutine get_streamflow
+
 
 end module summa_simulation

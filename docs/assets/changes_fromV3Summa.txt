@@ -192,19 +192,18 @@ AFTER tag of v4.0.0-exp-Sundials
       scalarKappa
       scalarVolLatHt_fus
       scalarCanopyMeltFreeze
- 48) Routing histogram variables will not print anymore, since once fixed these to print correctly they slowed the write considerably, commit 7601c6ab Mar 10, 2026
+ 49) Routing histogram variables will not print anymore, since once fixed these to print correctly they slowed the write considerably, commit 7601c6ab Mar 10, 2026
      These can be turned back on with turning allowRoutingOutput flag to .true.
--49) Smoothing of hydCond_psi function when psi is very small, helps convergence with saturated soil layers, commit 946b6112 Mar 10, 2026
- 50) The number of soil layers does not have to be the same in every HRU now, commit eeb800af Mar 24, 2026
- 51) Add GRU variable basin__StorageChange in kg/m2/s that summarizes the storage changes across the HRUs so that it can be compared to GRACE data, commit eeb800af	Mar 24, 2026
--52) If scalar solution fails on a snow layer, exit and merge snow layers if failure was from too much energy going into top layer (previous behavior was code failure), commit 7c46a507 May 5, 2026
+-50) Smoothing of hydCond_psi function when psi is very small, helps convergence with saturated soil layers, commit 946b6112 Mar 10, 2026
+ 51) The number of soil layers does not have to be the same in every HRU now, commit eeb800af Mar 24, 2026
+ 52) Add GRU variable basin__StorageChange in kg/m2/s that summarizes the storage changes across the HRUs so that it can be compared to GRACE data, commit eeb800af	Mar 24, 2026
+-53) If scalar solution fails on a snow layer, exit and merge snow layers if failure was from too much energy going into top layer (previous behavior was code failure), commit 7c46a507 May 5, 2026
      Also changed the number of times it checks the brackets for scalar solution from 100 to 10 since usually by 2 it's found the bracket or not.
--53) Fix power profile hydraulic conductivity if total soil depth less than compactedDepth, and rewrite to make smooth profile if k_soil differs across layers and take into account differing layer thicknesses (use harmonic mean), commit 8119be7c May 29, 2026
+-54) Fix power profile hydraulic conductivity if total soil depth less than compactedDepth, and rewrite to make smooth profile if k_soil differs across layers and take into account differing layer thicknesses (use harmonic mean), commit 8119be7c May 29, 2026
      Bugfix Sep 11, 2026: this had also floored the conductivity at k_soil below compactedDepth, so the power law no longer decayed to zero at the base of
       the soil, which is the Beven-Kirkby premise the qTopmodl transmissivity integrates. Floor removed, and the v3 guard for a column ending exactly at
       compactedDepth restored (the normalization 0**(zScale_TOPMODEL-1) is otherwise a divide by zero). Belongs on master as well.
--54) Fix baseflow derivatives (decision groundwatr == qTopmodl) commit 84009cb6, Jun 20, 2026
--55) Turn off (smoothly) condensation into saturated soil and infiltration into over-pressured soil with no water exit (no flux BC and no lateral flow), last bit of sat soil, commits around 87967f22 Jul 22, 2026
+-55) Fix baseflow derivatives (decision groundwatr == qTopmodl) commit 84009cb6, Jun 20, 2026
  56) Remove deprecated moisture-based Richards' equation, f_Richards decision still can be included but does not do anything but mixed form, commits around b99de74f	Jul 22, 2026
  57) Spatial domain expansion, merge of the glacier branch, commit a3c73138 Aug 27, 2026 (and follow-on fixes)
      Each HRU can now hold more than one spatial "domain", each with its own layered column and its own fraction of the HRU area.
@@ -372,3 +371,7 @@ AFTER tag of v4.0.0-exp-Sundials
 -83) Advective heat: soil layers gain the heat carried by water entering from the layer above or below, commit 3415be91 Oct 17, 2026
  84) Added wetland domain: a linear-reservoir water column over soil that takes the GRU glacier runoff, commit fb35bd65 Oct 19, 2026
      New parameters wetlandStorageK (outflow time constant, s) and wetlandMinDepth (no drainage below this liquid depth, m),
+-85) Smoothly turn off infiltration into over-pressured soil and condensation into saturated soil, commits 87967f22 Jul 22, a52791c6 Sep 24, 6702053d and bba9cca9 Oct 22, 6805ba8b and c9154ece Oct 26, 2026
+     Infiltration area scales by a Gaussian of the depth-weighted mean squared positive head (root zone for homegrown_SE, else all soil layers), condensation by a Gaussian of top-layer positive head.
+     A coupled MODFLOW 6 aquifer evaluates the same Gaussian per cell on its hydrostatic head, commit MERGEHASH Oct 26, 2026
+-86) Smooth min(rain+melt, max infiltration rate) with a quadratic band of half-width 0.2*xMaxInfilRate, exact outside the band, commit 49b9835c Oct 26, 2026

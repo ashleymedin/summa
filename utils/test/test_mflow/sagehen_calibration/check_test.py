@@ -38,7 +38,7 @@ def read_column(path, block, column):
 
 
 # the true parameters reproduce their own targets
-t = nc.Dataset(os.path.join(work, "truth", "output", "sagehen_calibration.nc"))
+t = nc.Dataset(os.path.join(work, "truth", "output", "sagehen_run0001_calibration.nc"))
 names = [b"".join(row).decode().strip() for row in np.asarray(t["target_name"][:])]
 sense = [s.strip() for s in t["objective"].sense.split(",")]
 f0 = np.asarray(t["objective"][:], float).ravel()
@@ -65,7 +65,7 @@ check(abs(got - sent) <= 1e-6 * abs(sent), f"GWE's ESL receives the heat SUMMA s
 check(abs(flow("mapping residual")) <= 1e-6 * flow("SUMMA drainage sent"), "the HRU-to-cell map conserves drainage")
 
 # the search ran every trial and scored every target
-d = nc.Dataset(os.path.join(work, "search", "output", "sagehen_calibration.nc"))
+d = nc.Dataset(os.path.join(work, "search", "output", "sagehen_run0001_calibration.nc"))
 obj = np.ma.filled(d["objective"][:].astype(float), np.nan).T   # (target, sample)
 failed = np.asarray(d["trial_failed"][:]) == 1
 check(obj.shape == (len(names), pop * ngen), f"objective is {len(names)} targets x {pop * ngen} trials")

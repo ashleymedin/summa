@@ -349,6 +349,26 @@ calibrate nothing.
 Each needs `bin/summa_sundials_mizuroute_opt.exe` and checks the trials file and the front the way
 `test_calibration_bow_pareto.sh` does.
 
+## Choosing the parameters to calibrate
+
+List them in `[calibration.parameters]`, one entry per parameter. Everything in an entry is optional:
+
+```toml
+[calibration.parameters]
+k_soil             = { lower = 1.0e-7, upper = 1.0e-4, transformation = "log" }
+theta_sat          = {}                       # native bounds from the parameter files, no transformation
+aquiferScaleFactor = { lower = 0.15 }         # own lower bound, native upper bound
+```
+
+A bound that is left out is taken from the SUMMA parameter files (`localParamInfo.txt`,
+`basinParamInfo.txt`), or from the code defaults if they do not list it. The transformation
+defaults to `none`. A bound set outside the native range is allowed but logs a warning.
+
+The older form still works, alone or together with the table: `param_list = ["k_soil", ...]` in
+`[calibration]`, with transformations given in `[calibration.parameter_transformations]`
+(`k_soil = "log"`). `[calibration.parameter_bounds]` (`k_soil = [1.0e-7, 1.0e-4]`) also still
+replaces the native bounds, and is applied before the bounds in `[calibration.parameters]`.
+
 ## `multi_case_example/` -- multi-case calibration
 
 `--manifest <file>` calibrates many basins in one job, from a manifest listing the cases and a

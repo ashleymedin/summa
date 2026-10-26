@@ -43,6 +43,8 @@ MODULE data_types
   logical                        :: show_help    = .false.
   logical                        :: show_version = .false.
   character(len=:), allocatable  :: tag
+  character(len=:), allocatable  :: home_path
+  character(len=:), allocatable  :: persistent_output
   character(len=:), allocatable  :: manifest_file
   character(len=:), allocatable  :: control_file
   character(len=:), allocatable  :: config_file
@@ -75,10 +77,14 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! calibration configuration
  ! ***********************************************************************************************************
- type :: param_transform_info
-  character(len=64)              :: name               ! parameter name
-  character(len=16)              :: transformation     ! parameter transformation
- end type param_transform_info
+ type,public  :: calib_param_info
+  character(len=64) :: name
+  logical(lgt)      :: has_lower = .false.  ! lower bound given in the configuration (else native bound is used)
+  logical(lgt)      :: has_upper = .false.  ! upper bound given in the configuration (else native bound is used)
+  real(rkind)       :: lower_bound = 0._rkind
+  real(rkind)       :: upper_bound = 0._rkind
+  character(len=16) :: transformation = 'none'
+ end type calib_param_info
 
  ! -----------------------------------------------------------------------------------------------------------
  type :: param_bounds_info
@@ -160,16 +166,16 @@ MODULE data_types
   character(len=:),  allocatable :: obs_transform      ! none, log, power, box-cox
   character(len=:),  allocatable :: start_date         ! start of the calibration time period
   character(len=:),  allocatable :: end_date           ! end of the calibration time period
-  character(len=64), allocatable :: param_list(:)      ! Parameters included in optimization
-  type(param_transform_info), allocatable :: param_transform(:)  ! parameter transformations
-  type(param_bounds_info),    allocatable :: param_bounds(:)     ! bounds that replace the parameter files'
-  type(ordered_constraint),   allocatable :: ordered(:)          ! ordered parameter constraints
-  type(target_info),          allocatable :: targets(:)          ! calibration targets, one per objective
-  type(mf6_param_info),       allocatable :: mf6_params(:)       ! MODFLOW 6 parameters searched with SUMMA's
-  integer(i4b)                   :: n_samples = 5000    ! number of parameter samples to evaluate
-  character(len=16)              :: algorithm = 'dds'   ! dds (on the scalarized targets) or nsga2 (on each)
-  type(nsga2_info)               :: nsga2               ! NSGA-II settings
-  logical(lgt)                   :: write_aligned = .false. ! flag to write the aligned sim/obs time series
+  type(calib_param_info),   allocatable :: param_list(:)   ! Parameters included in optimization
+  type(param_bounds_info),  allocatable :: param_bounds(:) ! bounds that replace the parameter files'
+  type(ordered_constraint), allocatable :: ordered(:)      ! ordered parameter constraints
+  type(target_info),        allocatable :: targets(:)      ! calibration targets, one per objective
+  type(mf6_param_info),     allocatable :: mf6_params(:)   ! MODFLOW 6 parameters searched with SUMMA's
+  integer(i4b)                   :: n_samples      = 1000        ! number of parameter samples to evaluate
+  real(rkind)                    :: default_metric = 9999._rkind ! default objective function
+  character(len=16)              :: algorithm      = 'dds'       ! dds (on the scalarized targets) or nsga2 (on each)
+  type(nsga2_info)               :: nsga2                        ! NSGA-II settings
+  logical(lgt)                   :: write_aligned  = .false.     ! flag to write the aligned sim/obs time series
  end type calib_info
 
  ! ***********************************************************************************************************
