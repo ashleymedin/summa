@@ -561,6 +561,11 @@ contains
     else
       line=trim(config%calib%algorithm)//'_s'//trim(val)
     endif
+    ! independent runs of a case share its output path
+    if(config%n_runs > 1)then
+      write(val,'(i4.4)') config%run_index
+      line='run'//trim(val)//'_'//trim(line)
+    endif
     dir=trim(OUTPUT_PATH)//'failed_trials/'//trim(line)//'/'
     call execute_command_line('mkdir -p "'//dir//'"')
 

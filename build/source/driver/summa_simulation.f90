@@ -813,7 +813,6 @@ contains
     character(*),             intent(out) :: message
     character(len=:), allocatable :: csv_file
     real(rkind),      allocatable :: times(:), rows(:)
-    character(len=4)              :: rankString
     real(rkind)                   :: span
     integer(i4b)                  :: nRow
     character(len=1024)           :: cmessage
@@ -823,8 +822,7 @@ contains
 
     call find_mf6_obs(trim(summa_struct%config%modflow_run_dir), obs_name, csv_file, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    write(rankString,'(I4.4)') summa_struct%instance_parallel%rank
-    call read_mf6_obs(trim(OUTPUT_PATH)//'modflow_rank'//rankString//'/'//csv_file, obs_name, times, rows, err, cmessage)
+    call read_mf6_obs(trim(OUTPUT_PATH)//'modflow'//run_rank_tag(summa_struct)//'/'//csv_file, obs_name, times, rows, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     nRow=size(rows)
@@ -1112,7 +1110,6 @@ contains
     double precision, allocatable :: root_reach(:), root_zone(:)
     character(len=256)            :: run_dir
     character(len=512)            :: head_file   ! per-rank spun-up MODFLOW head field (coupled restart)
-    character(len=4)              :: rankString
     character(len=256)            :: cmessage
 
     err=0
@@ -1147,9 +1144,8 @@ contains
     call mf6x_root_reach(summa_struct, root_reach)
     call mf6x_root_zone_depth(summa_struct, root_zone)
 
-    ! this instance's own MODFLOW directory (one per rank; sequential samples on a rank share it)
-    write(rankString,'(I4.4)') summa_struct%instance_parallel%rank
-    run_dir = trim(OUTPUT_PATH)//'modflow_rank'//rankString
+    ! this instance's own MODFLOW directory (one per rank and run; sequential samples on a rank share it)
+    run_dir = trim(OUTPUT_PATH)//'modflow'//run_rank_tag(summa_struct)
     call mf6_prepare_run_dir(trim(summa_struct%config%modflow_run_dir), trim(run_dir), err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -1161,7 +1157,7 @@ contains
     endif
 
     ! per-rank coupled restart: the shared spin-up writes the aquifer head field, samples read it
-    head_file = trim(OUTPUT_PATH)//'modflow_spinup_heads_rank'//rankString//'.bin'
+    head_file = trim(OUTPUT_PATH)//'modflow_spinup_heads'//run_rank_tag(summa_struct)//'.bin'
 
     if(mf6_spinup_phase)then
       call coupler%init(trim(summa_struct%config%modflow_config), trim(run_dir), &
@@ -1261,6 +1257,21 @@ contains
   ! ---- HELPER SUBROUTINES ---------------------------------------------------------------------------
   ! ---------------------------------------------------------------------------------------------------
   ! ---------------------------------------------------------------------------------------------------
+
+  ! _rank#### for this instance, _run####_rank#### when independent runs of a case share its output path
+  function run_rank_tag(summa_struct) result(tag)
+  type(summa1_type_dec), intent(in) :: summa_struct
+  character(len=:), allocatable     :: tag
+  character(len=4)                  :: runString,rankString
+
+  write(rankString,'(I4.4)') summa_struct%instance_parallel%rank
+  tag='_rank'//rankString
+  if(summa_struct%config%n_runs > 1)then
+    write(runString,'(I4.4)') summa_struct%config%run_index
+    tag='_run'//runString//tag
+  endif
+
+  end function run_rank_tag
 
   subroutine get_streamflow(modelTimeStep,summa_struct,timeSim,flowSim,err,message)
 
