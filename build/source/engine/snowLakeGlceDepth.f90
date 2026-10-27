@@ -84,6 +84,7 @@ subroutine snowIceDepth(&
   ! initialize error control
   err=0; message="snowIceDepth/"
   tooMuchLakeMelt = .false.
+  glceReduceLiq = 0._rkind
   nLayers = nSnow + nLake + nSoil + nGlce ! total number of layers
 
   ! *** compute change in ice content of the top snow or glacier ice layer due to sublimation
@@ -187,8 +188,6 @@ subroutine snowIceDepth(&
                     tooMuchSublim,                                               & ! intent(inout): flag to denote that there was too much melt in a given time step
                     err,cmessage)                                                  ! intent(out):   error controls
     if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
-  else
-    glceReduceLiq = 0._rkind
   endif ! if glacier ice layers exist
 
 end subroutine snowIceDepth
