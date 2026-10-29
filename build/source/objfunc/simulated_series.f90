@@ -137,12 +137,14 @@ contains
     integer(i4b) :: iGRU
 
     ! Get routed streamflow from mizuRoute when available and enabled
+#ifdef MIZUROUTE_ACTIVE
     if(mizuroute_active)then
       if(summa_struct%config%use_mizuroute)then
         call get_mizuroute_streamflow(modelTimeStep,summa_struct,flowSim)
         return
       endif
     endif
+#endif
 
     ! Otherwise calculate streamflow from SUMMA routed runoff
     flowSim = 0._rkind
@@ -432,6 +434,7 @@ contains
 
       ! Collect streamflow and water temperature at a requested river reach
       if(series(iSeries)%ix_unit == ix_unit_reach)then
+#ifdef MIZUROUTE_ACTIVE
         if(mizuroute_active)then
           if(summa_struct%config%use_mizuroute)then
             if(series(iSeries)%ix_struct == ix_series_stream_temp)then
@@ -444,6 +447,7 @@ contains
             endif
           endif
         endif
+#endif
         cycle
       endif
 
