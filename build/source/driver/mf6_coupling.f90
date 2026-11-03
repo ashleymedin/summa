@@ -56,8 +56,8 @@ module mf6_coupling
   ! space: SUMMA owns the saturated zone within the column and MODFLOW everything below.
   ! Where a cell's water table is below its UZF top, positive drainage enters UZF, as GSFLOW's
   ! gravity drainage enters UZF1, uzf_hold_days' worth at a time at a constant rate over the next, so
-  ! hourly pulses do not each start a wave; elsewhere it enters RCH.  Neither that store nor UZF's
-  ! water content is in the head restart, so a restarted UZF starts from THTI with an empty store.
+  ! hourly pulses do not each start a wave; elsewhere it enters RCH.  The head restart carries that
+  ! store and UZF's waves; a restart file without them starts UZF from THTI with an empty store.
   ! UZF's ET, groundwater ET and seepage must be off: EVT takes groundwater ET and SUMMA's presHead
   ! flux is the discharge into the column.  Rejected infiltration returns to the column base, and
   ! is added back onto the next step's drainage, which SUMMA reports net of it.
@@ -257,6 +257,7 @@ module mf6_coupling
     double precision :: bud_etdem = 0.d0    ! cumulative aquifer-transpiration demand sent (m3)
     double precision :: bud_heat_sent = 0.d0  ! cumulative heat SUMMA conducted out the soil base (J)
     double precision :: bud_heat_taken = 0.d0 ! cumulative heat GWE's ESL package received (J)
+    double precision :: bud_held0 = 0.d0    ! UZF hold restored from the restart, not sent this run (m3)
 
     ! ---- MODFLOW 6 side ----
     real(c_double), pointer :: mf6_head(:) => null()      ! GWF dependent variable  <MODEL>/X       (REDUCED nodes)
@@ -281,6 +282,20 @@ module mf6_coupling
     real(c_double), allocatable :: uzf_rate(:)            ! infiltration UZF takes over the current day (m s-1, per UZF cell)
     integer                 :: uzf_nbatch = 1             ! SUMMA steps in a UZF hold
     integer                 :: uzf_kstep  = 0             ! steps into the current UZF hold
+    integer(c_int), pointer :: uzf_node(:) => null()      ! UZF cells' nodes          <MODEL>/<UZF>/NODELIST (REDUCED nodes)
+    real(c_double), pointer :: uzf_celbot(:) => null()    ! UZF bottom                <MODEL>/<UZF>/CELBOT (m, per UZF cell)
+    real(c_double), pointer :: uzf_watab(:) => null()     ! UZF water table           <MODEL>/<UZF>/WATAB (m, per UZF cell)
+    real(c_double), pointer :: uzf_watabold(:) => null()  ! UZF last water table      <MODEL>/<UZF>/WATABOLD (m, per UZF cell)
+    real(c_double), pointer :: uzf_wcnew(:) => null()     ! UZF mean water content    <MODEL>/<UZF>/WCNEW (-, per UZF cell)
+    integer(c_int), pointer :: uzf_nwavst(:) => null()    ! UZF waves in use          <MODEL>/<UZF>/NWAVST (per UZF cell)
+    real(c_double), pointer :: uzf_dpst(:) => null()      ! UZF wave depth            <MODEL>/<UZF>/UZDPST (m, nwav per UZF cell)
+    real(c_double), pointer :: uzf_thst(:) => null()      ! UZF wave water content    <MODEL>/<UZF>/UZTHST (-, likewise)
+    real(c_double), pointer :: uzf_flst(:) => null()      ! UZF wave flux             <MODEL>/<UZF>/UZFLST (m s-1, likewise)
+    real(c_double), pointer :: uzf_spst(:) => null()      ! UZF wave speed            <MODEL>/<UZF>/UZSPST (m s-1, likewise)
+    real(c_double), allocatable :: uzf_rst(:)             ! restart UZF waves, water table, water content and hold
+    integer, allocatable    :: uzf_rst_nwavst(:)          ! restart UZF waves in use
+    integer                 :: uzf_rst_kstep = 0          ! restart steps into the UZF hold
+    integer                 :: uzf_rst_nw = 0             ! restart waves per UZF cell, the most any cell uses
     logical                 :: grid_reduced = .false.
 
     ! ---- implicit base exchange: one GHB and one DRN row per top cell ----
@@ -328,6 +343,7 @@ module mf6_coupling
     procedure, private :: is_steady_state       => mf6_is_steady_state
     procedure, private :: head_restart_in       => mf6_head_restart_read
     procedure, private :: head_restart_out      => mf6_head_restart_write
+    procedure, private :: uzf_restart_apply     => mf6_uzf_restart_apply
     procedure, private :: resolve_path          => mf6_resolve_path
     procedure, private :: budget_accumulate     => mf6_budget_accumulate
     procedure, private :: budget_report         => mf6_budget_report
@@ -586,7 +602,7 @@ contains
     this%budget = allocated(this%hru_area)
     this%bud_sent = 0.d0; this%bud_taken = 0.d0; this%bud_back = 0.d0; this%bud_etdem = 0.d0
     this%bud_uzf = 0.d0; this%bud_rej = 0.d0; this%bud_base = 0.d0
-    this%bud_heat_sent = 0.d0; this%bud_heat_taken = 0.d0
+    this%bud_heat_sent = 0.d0; this%bud_heat_taken = 0.d0; this%bud_held0 = 0.d0
 
     call this%leave_run_dir()
   end subroutine mf6_init
@@ -667,6 +683,7 @@ contains
     if (present(rej_hru)) gross_hru = drain_hru + rej_hru
     if (istep == 1) this%uzf_nbatch = max(1, nint(this%uzf_hold_days*86400.d0/summa_data_step))
     this%bud_dt = summa_data_step
+    if (istep == 1) call this%uzf_restart_apply
     call this%scatter_drainage_to_rch(gross_hru, summa_data_step)
 
     ! 4b. SUMMA aquifer transpiration demand -> MODFLOW 6 EVT rate array.  MODFLOW applies its
@@ -784,9 +801,21 @@ contains
     this%uzf_area     => null()
     this%uzf_rejinf   => null()
     this%uze_temp     => null()
+    this%uzf_node     => null()
+    this%uzf_celbot   => null()
+    this%uzf_watab    => null()
+    this%uzf_watabold => null()
+    this%uzf_wcnew    => null()
+    this%uzf_nwavst   => null()
+    this%uzf_dpst     => null()
+    this%uzf_thst     => null()
+    this%uzf_flst     => null()
+    this%uzf_spst     => null()
     if (allocated(this%uzf_of_cell)) deallocate(this%uzf_of_cell)
     if (allocated(this%uzf_held)) deallocate(this%uzf_held)
     if (allocated(this%uzf_rate)) deallocate(this%uzf_rate)
+    if (allocated(this%uzf_rst)) deallocate(this%uzf_rst)
+    if (allocated(this%uzf_rst_nwavst)) deallocate(this%uzf_rst_nwavst)
     if (associated(this%bnrg_cell)) deallocate(this%bnrg_cell)
     this%mf6_mshape   => null()
     this%mf6_nodered  => null()
@@ -1122,6 +1151,17 @@ contains
     allocate(this%uzf_of_cell(this%nrow*this%ncol)); this%uzf_of_cell = 0
     allocate(this%uzf_held(size(nodelist)), this%uzf_rate(size(nodelist)))
     this%uzf_held = 0.0_c_double; this%uzf_rate = 0.0_c_double; this%uzf_kstep = 0
+    this%uzf_node => nodelist
+    ! the waves and water table a restart carries; without them a restarted UZF starts from THTI
+    if (.not. (mf6_try_ptr_double(trim(pkg)//'/CELBOT', this%uzf_celbot) .and. &
+               mf6_try_ptr_double(trim(pkg)//'/WATAB', this%uzf_watab) .and. &
+               mf6_try_ptr_double(trim(pkg)//'/WATABOLD', this%uzf_watabold) .and. &
+               mf6_try_ptr_double(trim(pkg)//'/WCNEW', this%uzf_wcnew) .and. &
+               mf6_try_ptr_int(trim(pkg)//'/NWAVST', this%uzf_nwavst) .and. &
+               mf6_try_ptr_double(trim(pkg)//'/UZDPST', this%uzf_dpst) .and. &
+               mf6_try_ptr_double(trim(pkg)//'/UZTHST', this%uzf_thst) .and. &
+               mf6_try_ptr_double(trim(pkg)//'/UZFLST', this%uzf_flst) .and. &
+               mf6_try_ptr_double(trim(pkg)//'/UZSPST', this%uzf_spst))) this%uzf_dpst => null()
     do iuz = 1, min(size(nodelist), size(landflag))
       if (landflag(iuz) /= 1) cycle
       node = nodelist(iuz)
@@ -1889,14 +1929,16 @@ contains
   ! Coupled restart of the MODFLOW head field: <MODEL>/X is written before finalize and read back
   ! over IC/STRT after initialize.  gwf_ad copies x into xold on every non-retry step, so writing X
   ! alone sets both the initial and the previous-step head.  The file carries a magic string, the
-  ! grid shape and the reduced node count.  Paths resolve against the process working directory.
+  ! grid shape and the reduced node count, then optional sections: GWE's temperatures, and UZF's
+  ! waves, water table, water content and the coupler's hold, which replace the waves UZF builds
+  ! from THTI at its first stress period.  Paths resolve against the process working directory.
   ! ==================================================================================
   subroutine mf6_head_restart_read(this, err, message)
     class(mf6_coupler_type), intent(inout) :: this
     integer,                 intent(out)   :: err
     character(len=*),        intent(out)   :: message
     character(len=8)  :: magic
-    integer           :: fu, rc, nlay, nrow, ncol, n
+    integer           :: fu, rc, nlay, nrow, ncol, n, nwav, iuz
     logical           :: there
     character(len=1024) :: path
 
@@ -1936,27 +1978,96 @@ contains
     this%restarted = .true.
     write(*,'(a,i0,a)') 'summa_modflow6: restarted MODFLOW from ', n, ' heads in '//trim(path)
 
-    ! GWE temperatures follow the heads when the file was written with GWE on
-    if (this%have_gwe) then
+    ! UZF's water table is set from STRT at initialize; the waves MODFLOW builds at step 1 need the restart's
+    if (associated(this%uzf_watab)) then
+      do iuz = 1, size(this%uzf_watab)
+        this%uzf_watab(iuz) = min(max(this%mf6_head(this%uzf_node(iuz)), this%uzf_celbot(iuz)), this%uzf_celtop(iuz))
+      end do
+      this%uzf_watabold = this%uzf_watab
+    end if
+
+    ! then GWE temperatures and UZF's state, each when the file was written with it
+    do
       read(fu, iostat=rc) magic, n
-      if (rc == 0 .and. magic == 'SUMMF6TE' .and. n == size(this%mf6_temp)) then
-        read(fu, iostat=rc) this%mf6_temp
+      if (rc /= 0) exit
+      if (magic == 'SUMMF6TE') then
+        if (allocated(this%temp_rst)) deallocate(this%temp_rst)
+        allocate(this%temp_rst(n))
+        read(fu, iostat=rc) this%temp_rst
         if (rc /= 0) then
           close(fu); message = 'error reading temperatures from '//trim(path); err = 20; return
         end if
-        this%temp_rst = this%mf6_temp
-        write(*,'(a,i0,a)') 'summa_modflow6: restarted GWE from ', n, ' temperatures in '//trim(path)
+        if (.not. this%have_gwe .or. n /= size(this%mf6_temp)) then
+          deallocate(this%temp_rst)
+        else
+          this%mf6_temp = this%temp_rst
+          write(*,'(a,i0,a)') 'summa_modflow6: restarted GWE from ', n, ' temperatures in '//trim(path)
+        end if
+      else if (magic == 'SUMMF6UZ') then
+        read(fu, iostat=rc) nwav
+        if (rc == 0) then
+          if (allocated(this%uzf_rst)) deallocate(this%uzf_rst, this%uzf_rst_nwavst)
+          allocate(this%uzf_rst((4*nwav + 5)*n), this%uzf_rst_nwavst(n))
+          read(fu, iostat=rc) this%uzf_rst, this%uzf_rst_nwavst, this%uzf_rst_kstep
+          this%uzf_rst_nw = nwav
+        end if
+        if (rc /= 0) then
+          close(fu); message = 'error reading the UZF state from '//trim(path); err = 20; return
+        end if
+        if (.not. associated(this%uzf_dpst)) then
+          deallocate(this%uzf_rst, this%uzf_rst_nwavst)
+        else if (n /= size(this%uzf_watab) .or. nwav*n > size(this%uzf_dpst)) then
+          close(fu); message = trim(path)//' holds the state of a different UZF package'; err = 20; return
+        else
+          write(*,'(a,i0,a)') 'summa_modflow6: restarted UZF from the state of ', n, ' cells in '//trim(path)
+        end if
       else
-        write(*,'(a)') 'summa_modflow6: WARNING - '//trim(path)//' holds no GWE temperatures; '// &
-          'GWE starts from its IC/STRT'
+        exit
       end if
-    end if
+    end do
     close(fu)
+    if (this%have_gwe .and. .not. allocated(this%temp_rst)) write(*,'(a)') 'summa_modflow6: WARNING - '// &
+      trim(path)//' holds no GWE temperatures; GWE starts from its IC/STRT'
+    if (associated(this%uzf_dpst) .and. .not. allocated(this%uzf_rst)) write(*,'(a)') 'summa_modflow6: WARNING - '// &
+      trim(path)//' holds no UZF state; UZF starts from THTI'
   end subroutine mf6_head_restart_read
+
+  ! The restart's UZF state over the waves MODFLOW has just built from THTI, and the coupler's hold.
+  subroutine mf6_uzf_restart_apply(this)
+    class(mf6_coupler_type), intent(inout) :: this
+    integer :: n, m, nw
+
+    if (.not. allocated(this%uzf_rst)) return
+    n = size(this%uzf_watab); nw = this%uzf_rst_nw; m = nw*n
+    call put_waves(this%uzf_dpst, this%uzf_rst(1:m))
+    call put_waves(this%uzf_thst, this%uzf_rst(m+1:2*m))
+    call put_waves(this%uzf_flst, this%uzf_rst(2*m+1:3*m))
+    call put_waves(this%uzf_spst, this%uzf_rst(3*m+1:4*m))
+    this%uzf_watab    = this%uzf_rst(4*m+1:4*m+n)
+    this%uzf_watabold = this%uzf_rst(4*m+n+1:4*m+2*n)
+    this%uzf_wcnew    = this%uzf_rst(4*m+2*n+1:4*m+3*n)
+    this%uzf_held     = this%uzf_rst(4*m+3*n+1:4*m+4*n)
+    this%uzf_rate     = this%uzf_rst(4*m+4*n+1:4*m+5*n)
+    this%uzf_nwavst   = this%uzf_rst_nwavst
+    this%uzf_kstep    = min(this%uzf_rst_kstep, this%uzf_nbatch - 1)
+    this%bud_held0    = sum(this%uzf_area * (this%uzf_held + &
+                            this%uzf_rate * this%bud_dt * (this%uzf_nbatch - this%uzf_kstep)))
+    deallocate(this%uzf_rst, this%uzf_rst_nwavst)
+  contains
+    ! the first nw of each cell's waves; those past them stay as UZF set them
+    subroutine put_waves(flat, val)
+      real(c_double), pointer, intent(in) :: flat(:)
+      real(c_double),          intent(in) :: val(:)
+      real(c_double), pointer :: w(:,:)
+      w(1:size(flat)/n, 1:n) => flat
+      w(1:nw, :) = reshape(val, [nw, n])
+    end subroutine put_waves
+  end subroutine mf6_uzf_restart_apply
 
   subroutine mf6_head_restart_write(this)
     class(mf6_coupler_type), intent(inout) :: this
-    integer :: fu, rc
+    integer :: fu, rc, n, nw
+    real(c_double), pointer :: dpst(:,:), thst(:,:), flst(:,:), spst(:,:)
     character(len=1024) :: path
 
     if (len_trim(this%head_restart_write) == 0) return
@@ -1975,10 +2086,22 @@ contains
       write(fu) 'SUMMF6TE', size(this%mf6_temp)
       write(fu) this%mf6_temp
     end if
+    if (associated(this%uzf_dpst)) then
+      n = size(this%uzf_watab); nw = max(1, maxval(this%uzf_nwavst))
+      dpst(1:size(this%uzf_dpst)/n, 1:n) => this%uzf_dpst
+      thst(1:size(this%uzf_thst)/n, 1:n) => this%uzf_thst
+      flst(1:size(this%uzf_flst)/n, 1:n) => this%uzf_flst
+      spst(1:size(this%uzf_spst)/n, 1:n) => this%uzf_spst
+      write(fu) 'SUMMF6UZ', n, nw
+      write(fu) dpst(1:nw,:), thst(1:nw,:), flst(1:nw,:), spst(1:nw,:), this%uzf_watab, this%uzf_watabold, &
+                this%uzf_wcnew, this%uzf_held, this%uzf_rate, this%uzf_nwavst, this%uzf_kstep
+    end if
     close(fu)
     write(*,'(a,i0,a)') 'summa_modflow6: wrote ', size(this%mf6_head), ' MODFLOW heads to '//trim(path)
     if (this%have_gwe) write(*,'(a,i0,a)') 'summa_modflow6: wrote ', size(this%mf6_temp), &
       ' GWE temperatures to '//trim(path)
+    if (associated(this%uzf_dpst)) write(*,'(a,i0,a)') 'summa_modflow6: wrote the UZF state of ', &
+      size(this%uzf_watab), ' cells to '//trim(path)
   end subroutine mf6_head_restart_write
 
   ! A relative path is taken relative to the process working directory, which while inside the
@@ -2099,7 +2222,7 @@ contains
     held = 0.d0
     if (allocated(this%uzf_held)) held = sum(this%uzf_area * (this%uzf_held + &
       this%uzf_rate * this%bud_dt * (this%uzf_nbatch - this%uzf_kstep)))
-    resid = this%bud_sent - this%bud_taken - held
+    resid = this%bud_sent + this%bud_held0 - this%bud_taken - held
     pct   = 0.d0
     if (abs(this%bud_sent) > 0.d0) pct = 100.d0 * resid / this%bud_sent
 
@@ -2108,6 +2231,7 @@ contains
     write(*,'(a,g0)')     '  MODFLOW recharge received: ', this%bud_taken
     if (associated(this%uzf_sinf)) then
       write(*,'(a,g0)')   '    of which into UZF      : ', this%bud_uzf
+      if (this%bud_held0 > 0.d0) write(*,'(a,g0)') '  held for UZF at restart   : ', this%bud_held0
       write(*,'(a,g0)')   '  held for UZF, undelivered: ', held
       write(*,'(a,g0)')   '  UZF rejected, returned   : ', this%bud_rej
     end if
