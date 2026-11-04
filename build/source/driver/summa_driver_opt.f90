@@ -456,6 +456,7 @@ contains
     integer(i4b)                        :: istat         ! file I/O status
     integer(i4b)                        :: nSamples      ! number of parameter samples
     integer(i4b)                        :: iTarget       ! calibration target index
+    logical(lgt)                        :: hasTempTarget ! a calibration target is a stream temperature
 
     ! Initialized SUMMA parameters
     type(gru_hru_dom_doublevec)          :: mpar_init     ! initialized HRU parameters
@@ -498,6 +499,7 @@ contains
     config%is_case_root = (instance_parallel%rank == 0)
 
     ! read the configuration files to establish file paths, simulation settings, and calibration options
+    config%stream_temp_set = .false.
     call init_config(config,err,message)
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
     config%read_config = .false.
@@ -512,8 +514,13 @@ contains
       write(output_unit,'(A,I0,A)') 'WARNING: DDS searches the weighted sum of the ',n_calibration_targets(config), &
                                     ' calibration targets; nsga2 keeps them separate'
 
-    ! without a stream-temperature target the stream columns, spin-up included, only add their water to the reaches
-    config%stream_temp = any([(is_routed_stream_temp(config%calib%targets(iTarget)%variable), iTarget=1,n_calibration_targets(config))])
+    ! unless the configuration says, the stream columns are solved only for a stream-temperature target, spin-up included
+    hasTempTarget = any([(is_routed_stream_temp(config%calib%targets(iTarget)%variable), iTarget=1,n_calibration_targets(config))])
+    if(.not.config%stream_temp_set) config%stream_temp = hasTempTarget
+    if(hasTempTarget .and. .not.config%stream_temp) &
+      call abort_mpi(instance_parallel%rank,'run_case/a stream-temperature target needs simulation.stream_temp = true')
+    if(instance_parallel%rank==0 .and. .not.config%stream_temp) &
+      write(output_unit,'(A)') 'simulation.stream_temp = false: the stream columns are not solved, only their water routed'
 
     ! get the run index as character string to avoid collision in filenames
     write(runString,'(I4.4)') config%run_index
