@@ -218,7 +218,6 @@ subroutine eval8summa(&
   real(rkind),dimension(nLayers)  :: mLayerEnthTempTrial         ! trial vector of temperature component of enthalpy for layers (J m-3)
   ! other local variables
   logical(lgt)                    :: checkLWBalance              ! flag to check longwave balance
-  integer(i4b)                    :: ixLayerDesired(1)           ! layer desired (scalar solution)
   integer(i4b)                    :: ixTop,ixBot                 ! top and bottom defining desired layers
   integer(i4b)                    :: nSoilHyd                    ! number of hydrologically active soil layers
   real(rkind),dimension(nState)   :: rVecScaled                  ! scaled residual vector
@@ -589,9 +588,8 @@ subroutine eval8summa(&
     nSoilHyd = nSoil - merge(indx_data%var(iLookINDEX%noThetaChange)%dat(1), 0, indx_data%var(iLookINDEX%nGlce)%dat(1)==0)
     if(nSoilHyd>0)then
       if(scalarSolution)then
-        ixLayerDesired = pack(ixControlVolume, ixMapFull2Subset/=integerMissing)
-        ixTop  = ixLayerDesired(1)
-        ixBot  = ixLayerDesired(1)
+        ixTop  = ixControlVolume(findloc(ixMapFull2Subset/=integerMissing, .true., 1)) ! layer of the first state in the subset
+        ixBot  = ixTop
       else
         ixTop  = 1
         ixBot  = nSoilHyd
