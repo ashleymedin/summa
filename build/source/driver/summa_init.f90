@@ -537,7 +537,7 @@ contains
   ! **************************************************************************************************
   subroutine summa_initStreamNetwork(summa1_struc, err, message)
     USE globalData,        only: gru_struc                 ! gru-hru mapping structures
-    USE var_lookup,        only: iLookPROG, iLookFLUX      ! named variables for prognostic variables and fluxes
+    USE var_lookup,        only: iLookPROG, iLookFLUX, iLookDIAG ! named variables for prognostic variables, fluxes and diagnostics
     USE var_lookup,        only: iLookBPAR                 ! named variables for basin-average parameters
     USE streamTemp_module, only: stream_domain_map         ! locate the stream HRU and domain of each GRU
     implicit none
@@ -577,6 +577,13 @@ contains
       do iGRU=1,summa1_struc%nGRU_local
         if(ixStreamHRU(iGRU) > 0) summa1_struc%fluxStruct%gru(iGRU)%hru(ixStreamHRU(iGRU))%dom(ixStreamDOM(iGRU)) &
                                     %var(iLookFLUX%scalarStreamRunoff)%dat(1) = 0._rkind
+      end do
+    endif
+    ! a stream domain is solved after the land pass, if at all, so until then it adds no change to basin__StorageChange
+    if(nStream > 0)then
+      do iGRU=1,summa1_struc%nGRU_local
+        if(ixStreamHRU(iGRU) > 0) summa1_struc%diagStruct%gru(iGRU)%hru(ixStreamHRU(iGRU))%dom(ixStreamDOM(iGRU)) &
+                                    %var(iLookDIAG%scalarTotalMassChange)%dat(1) = 0._rkind
       end do
     endif
 #ifdef MIZUROUTE_ACTIVE
