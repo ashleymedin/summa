@@ -327,7 +327,7 @@ AFTER tag of v4.0.0-exp-Sundials
       new parameters streamMinDepth, lakeMixingThermalC, lakeIceMinThick, streamWidthMultip; new restart variables routingNrgFuture, nLakeFrz.
      New basin parameter streamWidthMultip scales a stream domain's reach width and area together, 0.5-3, commits dfbf9300, 2dd50ad8 Oct 1, 2026
      Stream column gains the heat friction dissipates down the reach, new flux scalarStreamFrictionHeat, commit d1cbc263 Oct 1, 2026
-     simulation.stream_temp = false skips the stream columns, routing only their precipitation; calibration sets it off without a T_reach target, commit db2a24bb Nov 4, 2026
+     simulation.stream_temp = false skips the stream columns, routing only their precipitation; calibration sets it off without a T_reach target unless the config says, commits db2a24bb, 318216c2 Nov 4, 2026
  69) Allow baseflow to have a temperature, various commits Sept 24-26 2026
       1) Geothermal heat flux as a lower boundary condition for thermodynamics-- New bcLowrTdyn option presFlux prescribes lowerBoundNrgFlux (W m-2, default 0.06) into the base of a soil column.
       2) Frozen-ground diagnostics, and ice-impeded lateral flow, scalarFrostTableDepth and scalarActiveLayerDepth; each layer's transmissivity scaled by its ice impedance factor.
