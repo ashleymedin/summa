@@ -93,7 +93,6 @@ subroutine snowIceLiqFlux(&
   ! local variables
   integer(i4b)                      :: nLayers,nStart             ! number of snow/glce layers with water movement and starting layer
   integer(i4b)                      :: iLayer                     ! layer index
-  integer(i4b)                      :: ixLayerDesired(1)          ! layer desired (scalar solution)
   integer(i4b)                      :: ixTop                      ! top layer in subroutine call
   integer(i4b)                      :: ixBot                      ! bottom layer in subroutine call
   real(rkind)                       :: multResid                  ! multiplier for the residual water content (-)
@@ -122,7 +121,6 @@ subroutine snowIceLiqFlux(&
     whole_step              => in_snowLakeGlceLiqFlux % whole_step,              & ! intent(in): length of the whole step glacier excess water drains over (s)
     mLayerVolFracLiqTrial   => in_snowLakeGlceLiqFlux % mLayerVolFracLiqTrial,   & ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
     ! input: layer indices
-    ixLayerState     => indx_data%var(iLookINDEX%ixLayerState)%dat,              & ! intent(in):    list of indices for all model layers
     ixSnowOnlyHyd    => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat,             & ! intent(in):    index in the state subset for hydrology state variables in the snow domain
     ixGlceOnlyHyd    => indx_data%var(iLookINDEX%ixGlceOnlyHyd)%dat,             & ! intent(in):    index in the state subset for hydrology state variables in the glacier ice domain
     ! input: snow properties and parameters
@@ -171,13 +169,12 @@ subroutine snowIceLiqFlux(&
     ! get the indices for the layers
     ixTop = integerMissing
     if (scalarSolution) then
-      if (do_snow)then
-        ixLayerDesired = pack(ixLayerState, ixSnowOnlyHyd/=integerMissing)
+      if (do_snow)then ! first layer of the domain with a hydrology state in the subset
+        ixTop = findloc(ixSnowOnlyHyd/=integerMissing, .true., 1)
       else
-        ixLayerDesired = pack(ixLayerState, ixGlceOnlyHyd/=integerMissing)
+        ixTop = findloc(ixGlceOnlyHyd/=integerMissing, .true., 1)
       end if
-      ixTop = ixLayerDesired(1)
-      ixBot = ixLayerDesired(1)
+      ixBot = ixTop
     else
       ixTop = 1
       ixBot = nLayers
