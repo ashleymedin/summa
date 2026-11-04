@@ -56,6 +56,7 @@ USE var_lookup,only:iLookFLUX             ! look-up values for local column mode
 USE var_lookup,only:iLookDIAG             ! look-up values for local column model diagnostic variables
 USE var_lookup,only:iLookPROG             ! look-up values for local column model prognostic variables
 USE var_lookup,only:iLookBVAR             ! look-up values for basin-average variables
+USE var_lookup,only:iLookFORCE            ! look-up values for forcing data
 
 ! constants
 USE globalData,only:yes,no                ! .true. and .false.
@@ -65,6 +66,7 @@ implicit none
 private
 public :: stream_domain_map
 public :: run_streamNetwork
+public :: stream_water_only
 
 contains
 
@@ -232,5 +234,27 @@ subroutine run_streamNetwork(&
   end do ! (looping through reaches)
 
 end subroutine run_streamNetwork
+
+! ************************************************************************************************
+! public subroutine stream_water_only: the water a stream domain adds to its reach, without its column
+! ************************************************************************************************
+! Stands in for run_streamNetwork when the stream temperature is not wanted: precipitation on the
+! reach joins the flow at the next step, and the reach is routed without ice cover.
+subroutine stream_water_only(net,forcStruct,fluxStruct)
+  implicit none
+  type(stream_network),intent(inout)        :: net                  ! per-reach hydraulics and temperatures
+  type(gru_hru_double),intent(in)           :: forcStruct           ! model forcing data
+  type(gru_hru_dom_doubleVec),intent(inout) :: fluxStruct           ! model fluxes
+  integer(i4b)                              :: iSeg                 ! reach index
+  do iSeg=1,net%nSeg
+    if(net%ixDOM(iSeg) < 1) cycle
+    associate(iGRU => net%ixGRU(iSeg), iHRU => net%ixHRU(iSeg), iDOM => net%ixDOM(iSeg))
+      fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarStreamRunoff)%dat(1) = &
+        forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%pptrate)/iden_water
+    end associate
+    net%liqDepth(iSeg) = net%depth(iSeg)
+    net%iceThick(iSeg) = 0._rkind
+  end do
+end subroutine stream_water_only
 
 end module streamTemp_module
