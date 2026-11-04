@@ -46,7 +46,7 @@ program summa_modflow6_mpi
 
   use nr_type
   use mpi
-  use mpi_context,     only : set_mpi_context
+  use mpi_context,     only : set_mpi_context, init_mpi
   use mf6_coupling,    only : mf6_coupler_type
   use summabmi,        only : summa_bmi
   use globalData,      only : numtim               ! number of SUMMA data steps
@@ -135,7 +135,7 @@ program summa_modflow6_mpi
 
   integer :: nlay, nrow, ncol
 
-  call MPI_Init(mpi_ierr)
+  call init_mpi(mpi_ierr)
   call set_mpi_context(MPI_COMM_WORLD, myrank, nRanks, mpi_ierr, mpi_errmsg)
   if (mpi_ierr /= MPI_SUCCESS) then
     write(*,*) 'summa_modflow6_mpi: '//trim(mpi_errmsg)
