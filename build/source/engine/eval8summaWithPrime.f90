@@ -208,7 +208,6 @@ subroutine eval8summaWithPrime(&
   real(rkind)                     :: scalarCanopyNrgPrime        ! prime value for energy of the vegetation canopy
   real(rkind),dimension(nLayers)  :: mLayerNrgPrime              ! prime vector of energy of each layer
   ! other local variables
-  integer(i4b)                    :: ixLayerDesired(1)           ! layer desired (scalar solution)
   integer(i4b)                    :: ixTop,ixBot                 ! top and bottom defining desired layers
   integer(i4b)                    :: nSoilHyd                    ! number of hydrologically active soil layers
   character(LEN=256)              :: cmessage                    ! error message of downwind routine
@@ -631,9 +630,8 @@ subroutine eval8summaWithPrime(&
     nSoilHyd = nSoil - merge(indx_data%var(iLookINDEX%noThetaChange)%dat(1), 0, indx_data%var(iLookINDEX%nGlce)%dat(1)==0)
     if(nSoilHyd>0)then
       if(scalarSolution)then
-        ixLayerDesired = pack(ixControlVolume, ixMapFull2Subset/=integerMissing)
-        ixTop  = ixLayerDesired(1)
-        ixBot  = ixLayerDesired(1)
+        ixTop  = ixControlVolume(findloc(ixMapFull2Subset/=integerMissing, .true., 1)) ! layer of the first state in the subset
+        ixBot  = ixTop
       else
         ixTop  = 1
         ixBot  = nSoilHyd
@@ -749,6 +747,7 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
   real(rkind), pointer        :: stateVecPrime(:) ! derivative vector
   real(rkind), pointer        :: rVec(:)          ! residual vector
   logical(lgt)                :: feasible         ! feasibility of state vector
+  integer(i4b)                :: iState           ! index of state
   !======= Internals ============
 
   ! get equations data from user-defined data
@@ -818,7 +817,9 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
   if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif
 
   ! save residual and return success
-  eqns_data%resVec = rVec
+  do iState=1,eqns_data%nState
+    eqns_data%resVec(iState) = rVec(iState)
+  end do
   ierr = 0
   return
 
