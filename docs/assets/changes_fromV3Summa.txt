@@ -387,5 +387,3 @@ AFTER tag of v4.0.0-exp-Sundials
  89) HRU cascade order kept in gru_struc instead of a module cache, elapsedUpdateArea atomic, so GRUs can run under OpenMP, commit 0da48b7c Nov 2, 2026
 -90) Total water and critical temperature use a quadratic smooth min(psi,0) of width 1e-2 m, effectively only changes saturated soils that freeze (glacier debris), commit ece1f50d Nov 2, 2026
  91) USE_OPENMP (default off) runs each model instance's GRUs on OpenMP threads, bit-identical at any thread count; Fir scripts run k threads per rank, commit f265a5b8 Nov 4, 2026
- 92) Flux, residual, Jacobian and convergence hot paths make no array temporaries, commits 96f28b7c, 81df1918 Nov 4, 2026
- 93) Per-call work structures reused (computFlux argument objects; per-thread caches by layer count in opSplittin, coupled_em, solvers), commit 56ac8a58 Nov 4, 2026
