@@ -326,6 +326,7 @@ AFTER tag of v4.0.0-exp-Sundials
       new parameters streamMinDepth, lakeMixingThermalC, lakeIceMinThick, streamWidthMultip; new restart variables routingNrgFuture, nLakeFrz.
      New basin parameter streamWidthMultip scales a stream domain's reach width and area together, 0.5-3, commits dfbf9300, 2dd50ad8 Oct 1, 2026
      Stream column gains the heat friction dissipates down the reach, new flux scalarStreamFrictionHeat, commit d1cbc263 Oct 1, 2026
+     simulation.stream_temp = false skips the stream columns, routing only their precipitation; calibration sets it off without a T_reach target, commit db2a24bb Nov 4, 2026
  69) Allow baseflow to have a temperature, various commits Sept 24-26 2026
       1) Geothermal heat flux as a lower boundary condition for thermodynamics-- New bcLowrTdyn option presFlux prescribes lowerBoundNrgFlux (W m-2, default 0.06) into the base of a soil column.
       2) Frozen-ground diagnostics, and ice-impeded lateral flow, scalarFrostTableDepth and scalarActiveLayerDepth; each layer's transmissivity scaled by its ice impedance factor.
@@ -382,4 +383,3 @@ AFTER tag of v4.0.0-exp-Sundials
  88) Noah-MP parameters, snow/ice enthalpy tables and elapsedSec days kept per HRU, so HRUs can run concurrently, commit a08dd18d Nov 2, 2026
  89) HRU cascade order kept in gru_struc instead of a module cache, elapsedUpdateArea atomic, so GRUs can run under OpenMP, commit 0da48b7c Nov 2, 2026
 -90) Total water and critical temperature use a quadratic smooth min(psi,0) of width 1e-2 m, effectively only changes saturated soils that freeze (glacier debris), commit ece1f50d Nov 2, 2026
- 91) simulation.stream_temp = false skips the stream columns, routing only their precipitation; calibration sets it off without a T_reach target, commit db2a24bb Nov 4, 2026
