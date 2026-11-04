@@ -108,6 +108,7 @@ module mf6_coupling
   integer, parameter :: ROLE_GW_ET         = 3
   integer, parameter :: MAXBND             = 8     ! max boundary packages in the &coupler table
   double precision, parameter :: TFREEZE_K = 273.15d0  ! degrees Celsius to kelvin
+  double precision, parameter :: BASE_BLEND = 0.1d0    ! soilLiqFlux's baseBlend: below it the base flux ignores the head (m)
 
   character(len=20), parameter :: ROLE_NAME(3) = [ character(len=20) :: &
       'baseflow', 'surface_discharge', 'gw_et' ]
@@ -240,6 +241,7 @@ module mf6_coupling
     double precision, allocatable :: root_reach(:)                 ! per-HRU depth roots reach below the soil column (m)
     double precision, allocatable :: root_zone(:)                  ! per-HRU depth of SUMMA's infiltration-closure zone (m)
     real,             allocatable :: sy_hru(:)                     ! per-HRU MODFLOW specific yield (-), map-weighted
+    logical,          allocatable :: blend_warned(:)               ! per-HRU: warned its mean head reached the blend
 
     integer :: nss_steps = 0                ! leading steady-state MODFLOW steps run before the coupled period
     real(c_double), allocatable :: head_rst(:)  ! restart heads, reapplied over a leading steady-state solve
@@ -778,6 +780,7 @@ contains
     if (allocated(this%root_reach)) deallocate(this%root_reach)
     if (allocated(this%root_zone))  deallocate(this%root_zone)
     if (allocated(this%sy_hru))    deallocate(this%sy_hru)
+    if (allocated(this%blend_warned)) deallocate(this%blend_warned)
     if (allocated(this%map_ptr))   deallocate(this%map_ptr)
     if (allocated(this%map_cell))  deallocate(this%map_cell)
     if (allocated(this%map_wgt))   deallocate(this%map_wgt)
@@ -1419,6 +1422,7 @@ contains
     integer :: i, k, c, node
     real(c_double) :: hsum, wsum, zbase
 
+    if (.not. allocated(this%blend_warned)) allocate(this%blend_warned(this%nHRU), source=.false.)
     do i = 1, this%nHRU
       hsum = 0.0_c_double
       wsum = 0.0_c_double
@@ -1433,6 +1437,13 @@ contains
       if (wsum > 0.0_c_double) then
         zbase = real(this%hru_z(i), c_double) - real(this%soil_thk(i), c_double)
         head_hru(i) = real(hsum / wsum - zbase)
+        ! over several cells the flux answers only their mean head, so the explicit exchange can bounce in the blend
+        if (this%map_ptr(i+1) - this%map_ptr(i) > 1 .and. head_hru(i) > -BASE_BLEND) then
+          if (.not. this%blend_warned(i)) write(*,'(a,i0,a,i0,a,f0.2,a)') 'summa_modflow6: WARNING - HRU ', i, &
+            ' over ', this%map_ptr(i+1) - this%map_ptr(i), ' cells has its mean head ', head_hru(i), &
+            ' m from its soil base, at or above the blend: the explicit base exchange may bounce; give its cells an HRU each'
+          this%blend_warned(i) = .true.
+        end if
       end if
     end do
   end subroutine mf6_gather_head_to_hru
