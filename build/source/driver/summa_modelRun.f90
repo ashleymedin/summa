@@ -47,6 +47,7 @@ USE mizuroute_coupling, only: set_mizuroute_reach_roughness
 USE mizuroute_coupling, only: remap_lateral_energy
 #endif
 USE streamTemp_module,  only: run_streamNetwork
+USE streamTemp_module,  only: stream_water_only
 USE multiconst,         only: iden_water, Cp_water
 
 ! safety: set private unless specified otherwise
@@ -351,25 +352,30 @@ contains
    if(any(summa1_struc%stream_net%ixDOM > 0))then
      call get_mizuroute_reach_hydraulics(summa1_struc, err, cmessage)
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-     call remap_lateral_energy(summa1_struc, err, cmessage)
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-     call run_streamNetwork(&
-                     summa1_struc%stream_net,       & ! intent(inout): per-reach hydraulics (in) and temperatures (out)
-                     gru_struc,                     & ! intent(inout): HRU information for each GRU
-                     summa1_struc%dt_init,          & ! intent(inout): used to initialize the length of the sub-step for each HRU
-                     summa1_struc%computeVegFlux,   & ! intent(inout): flag to indicate if we are computing fluxes over vegetation
-                     summa1_struc%typeStruct,       & ! intent(in):    local classification of soil veg etc. for each HRU
-                     summa1_struc%attrStruct,       & ! intent(in):    local attributes for each HRU
-                     summa1_struc%lookupStruct,     & ! intent(in):    local lookup tables for each HRU
-                     summa1_struc%mparStruct,       & ! intent(in):    local model parameters
-                     summa1_struc%indxStruct,       & ! intent(inout): model indices
-                     summa1_struc%forcStruct,       & ! intent(inout): model forcing data
-                     summa1_struc%progStruct,       & ! intent(inout): prognostic variables
-                     summa1_struc%diagStruct,       & ! intent(inout): diagnostic variables
-                     summa1_struc%fluxStruct,       & ! intent(inout): model fluxes
-                     summa1_struc%bvarStruct,       & ! intent(inout): basin-average variables
-                     err,cmessage)                    ! intent(out):   error control
-     if(err/=0)then; message=trim(message)//stepStamp(1:len_trim(stepStamp)+1)//trim(cmessage); return; endif
+     if(summa1_struc%config%stream_temp)then
+       call remap_lateral_energy(summa1_struc, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+       call run_streamNetwork(&
+                       summa1_struc%stream_net,       & ! intent(inout): per-reach hydraulics (in) and temperatures (out)
+                       gru_struc,                     & ! intent(inout): HRU information for each GRU
+                       summa1_struc%dt_init,          & ! intent(inout): used to initialize the length of the sub-step for each HRU
+                       summa1_struc%computeVegFlux,   & ! intent(inout): flag to indicate if we are computing fluxes over vegetation
+                       summa1_struc%typeStruct,       & ! intent(in):    local classification of soil veg etc. for each HRU
+                       summa1_struc%attrStruct,       & ! intent(in):    local attributes for each HRU
+                       summa1_struc%lookupStruct,     & ! intent(in):    local lookup tables for each HRU
+                       summa1_struc%mparStruct,       & ! intent(in):    local model parameters
+                       summa1_struc%indxStruct,       & ! intent(inout): model indices
+                       summa1_struc%forcStruct,       & ! intent(inout): model forcing data
+                       summa1_struc%progStruct,       & ! intent(inout): prognostic variables
+                       summa1_struc%diagStruct,       & ! intent(inout): diagnostic variables
+                       summa1_struc%fluxStruct,       & ! intent(inout): model fluxes
+                       summa1_struc%bvarStruct,       & ! intent(inout): basin-average variables
+                       err,cmessage)                    ! intent(out):   error control
+       if(err/=0)then; message=trim(message)//stepStamp(1:len_trim(stepStamp)+1)//trim(cmessage); return; endif
+     else
+       ! no stream temperature wanted: only the water the stream domains add, and no ice on the reaches
+       call stream_water_only(summa1_struc%stream_net, summa1_struc%forcStruct, summa1_struc%fluxStruct)
+     endif  ! (if the stream columns are solved)
      ! keep this step's reach temperature and velocity for the output buffer
      iSeg = merge(1, modelTimeStep, summa1_struc%n_write == 1)
      summa1_struc%stream_net%tOutHist(:,iSeg) = summa1_struc%stream_net%tOut(:)
