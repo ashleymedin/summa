@@ -154,6 +154,7 @@ type, public :: config_info
   ! User configuration options
   logical(lgt)                   :: use_mizuroute = .false. ! Enable coupled mizuRoute for this simulation
   logical(lgt)                   :: use_modflow = .false.   ! Enable coupled MODFLOW 6 for this simulation
+  logical(lgt)                   :: stream_temp = .true.    ! Solve the stream columns; false routes their water only
   logical(lgt)                   :: write_timeseries = .true.  ! Write SUMMA time-series output file
   ! Coupled MODFLOW 6 (only read when use_modflow is set; see mf6_coupling.f90)
   character(len=:), allocatable  :: modflow_config          ! &coupler namelist file for the MODFLOW 6 coupling

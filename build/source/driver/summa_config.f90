@@ -803,6 +803,7 @@ contains
       case ("simulation.case_name"         ); call get_value(subtable, trim(key), config%case_name        , stat=istat)  
       case ("simulation.use_mizuroute"     ); call get_value(subtable, trim(key), config%use_mizuroute    , stat=istat)
       case ("simulation.use_modflow"       ); call get_value(subtable, trim(key), config%use_modflow      , stat=istat)
+      case ("simulation.stream_temp"       ); call get_value(subtable, trim(key), config%stream_temp      , stat=istat)
       case ("simulation.write_timeseries"  ); call get_value(subtable, trim(key), config%write_timeseries , stat=istat)
 
       ! ---- coupled MODFLOW 6 (see mf6_coupling.f90) ----

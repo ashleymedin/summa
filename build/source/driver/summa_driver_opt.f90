@@ -43,6 +43,7 @@ program summa_driver_opt
   USE summa_parameter_sampling, only: initialize_parameter_evaluation
   USE summa_parameter_sampling, only: dispatch_parameter_samples
   USE summa_simulation,         only: n_calibration_targets
+  USE simulated_series,         only: is_routed_stream_temp
 
   ! dispatch cases (basins)
   USE dynamic_case_dispatch, only: init_case_counter
@@ -454,6 +455,7 @@ contains
     integer(i4b)                        :: log_unit      ! unit number for rank-specific log file
     integer(i4b)                        :: istat         ! file I/O status
     integer(i4b)                        :: nSamples      ! number of parameter samples
+    integer(i4b)                        :: iTarget       ! calibration target index
 
     ! Initialized SUMMA parameters
     type(gru_hru_dom_doublevec)          :: mpar_init     ! initialized HRU parameters
@@ -509,6 +511,9 @@ contains
     if(instance_parallel%rank==0 .and. trim(config%calib%algorithm)=='dds' .and. n_calibration_targets(config)>1) &
       write(output_unit,'(A,I0,A)') 'WARNING: DDS searches the weighted sum of the ',n_calibration_targets(config), &
                                     ' calibration targets; nsga2 keeps them separate'
+
+    ! without a stream-temperature target the stream columns, spin-up included, only add their water to the reaches
+    config%stream_temp = any([(is_routed_stream_temp(config%calib%targets(iTarget)%variable), iTarget=1,n_calibration_targets(config))])
 
     ! get the run index as character string to avoid collision in filenames
     write(runString,'(I4.4)') config%run_index
