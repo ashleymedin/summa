@@ -129,9 +129,15 @@ subroutine snowLakeSoilGlceNrgFlux(&
   real(rkind)                         :: advScale                   ! rho*Cp/(area*liquid depth): converts m3 s-1 K to J m-3 s-1 of water (J m-6 K-1)
   real(rkind)                         :: srcPerLiq                  ! energy source per unit volumetric liquid water of a layer (J m-3 s-1)
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
-  ! allocate intent(out) data structure components
+  ! allocate intent(out) data structure components, reused unless the number of layers changed
   nLayers=indx_data%var(iLookINDEX%nLayers)%dat(1)
-  allocate(&
+  if(allocated(out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux))then
+    if(ubound(out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux,1)/=nLayers .or. size(out_snowLakeSoilGlceNrgFlux % mLayerLakeAdvNrgFlux)/=indx_data%var(iLookINDEX%nLake)%dat(1)) &
+      deallocate(out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux, out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempAbove, out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempBelow, &
+                 out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatAbove, out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatBelow, out_snowLakeSoilGlceNrgFlux % mLayerLakeAdvNrgFlux, &
+                 out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dTemp, out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dLiq, out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dDepth)
+  end if
+  if(.not.allocated(out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux)) allocate(&
     out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux(0:nLayers),                          & ! energy flux at the layer interfaces (W m-2)
     out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempAbove(0:nLayers),                    & ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
     out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempBelow(0:nLayers),                    & ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
