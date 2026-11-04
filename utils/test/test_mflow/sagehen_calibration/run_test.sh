@@ -105,6 +105,7 @@ time_zone  = "utcTime"
 
 use_mizuroute    = true
 use_modflow      = true
+stream_temp      = true   # the reference trial writes the temperature target it is not scored on
 write_timeseries = ${write_ts}
 
 work_path = "${dir}/output"
