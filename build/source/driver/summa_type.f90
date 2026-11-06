@@ -66,6 +66,7 @@ USE data_types,  only : &
                     hru2gru_map              ! x(iHRU)%y
 USE data_types,      only: q_coupling      ! x(:)%id, x(:)%qsim
 USE data_types,      only: stream_network  ! the river network as seen by the stream temperature model
+USE data_types,      only: lake_coupling   ! x(:)%id, x(:)%precip, x(:)%evap
 
 ! access missing values
 USE globalData,only:integerMissing      ! missing integer
@@ -229,6 +230,7 @@ type, public :: summa1_type_dec
     type(stream_network)             :: stream_net                 ! per-reach hydraulics and temperatures for the stream domains
     ! this run's MODFLOW 6 parameters, one multiplier per config%calib%mf6_params
     real(rkind), allocatable         :: mf6_multiplier(:)
+    type(lake_coupling), allocatable :: coupling_lake(:)          ! x(:)%id, x(:)%precip, x(:)%evap: one per water-class HRU
 #ifdef MIZUROUTE_ACTIVE
     type(mizuroute_domain)           :: mizu_domain                ! mizuroute domain data
 #endif
