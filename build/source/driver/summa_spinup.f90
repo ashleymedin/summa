@@ -20,7 +20,7 @@
 module summa_spinup
 
   ! data types
-  USE nr_type,    only: i4b,rkind,lgt
+  USE nr_type,    only: i4b,rkind
   USE data_types, only: gru_double
   USE data_types, only: gru_hru_dom_doublevec
   USE summa_type, only: config_info,parallel_context_type
@@ -43,7 +43,6 @@ contains
   subroutine spinup_from_cold(config,             & ! SUMMA configuration structure
                               domain_parallel,    & ! MPI context for domain parallelism
                               instance_parallel,  & ! MPI context for model-instance parallelism
-                              write_restart,      & ! write the common restart state
                               mpar_out, bpar_out, & ! initialized HRU/basin parameters
                               err,message)          ! error code and error message
     ! SUMMA global configuration
@@ -60,7 +59,6 @@ contains
     type(config_info),           intent(inout) :: config             ! SUMMA configuration structure
     type(parallel_context_type), intent(in)    :: domain_parallel    ! MPI context for domain parallelism
     type(parallel_context_type), intent(in)    :: instance_parallel  ! MPI context for model-instance parallelism
-    logical(lgt),                intent(in)    :: write_restart      ! write the common restart state
     type(gru_hru_dom_doublevec), intent(out)   :: mpar_out           ! initialized HRU parameters
     type(gru_double),            intent(out)   :: bpar_out           ! initialized basin parameters
     integer(i4b),                intent(out)   :: err                ! error code
@@ -108,8 +106,8 @@ contains
       output_fileSuffix=trim(outputFileSuffix_orig)//'_spinup_rank'//rankString
     endif
 
-    ! write the common restart state once per node, whose disks a case may not share
-    ixRestart=merge(ixRestart_end, ixRestart_never, write_restart)
+    ! write the common restart state on rank 0 only
+    ixRestart=merge(ixRestart_end, ixRestart_never, instance_parallel%rank == 0)
 
     ! tell start_modflow that this coupled run is the spin-up, so it WRITES the aquifer head field
     ! that every later parameter sample will read back (section 8.5)
