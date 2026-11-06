@@ -40,6 +40,7 @@ USE globalData,only:yearLength       ! number of days in the current year
 USE globalData,only:upland           ! horizontal domain type for upland areas
 ! check if mizuroute is active
 USE build_options, only: mizuroute_active
+USE summa_lakeCoupling, only: set_lake_coupling
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling, only: route_mizuroute_from_summa
 USE mizuroute_coupling, only: get_mizuroute_reach_hydraulics
@@ -344,7 +345,13 @@ contains
      call set_mizuroute_reach_roughness(summa1_struc, err, cmessage)
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
    endif
-   call route_mizuroute_from_summa(modelTimeStep, summa1_struc, err, cmessage)
+   ! mizuroute lakes
+   call set_lake_coupling(summa1_struc)
+   associate(time => summa1_struc%timeStruct%var)
+   call route_mizuroute_from_summa(modelTimeStep,                                                                    &
+                                   [time(iLookTIME%iyyy), time(iLookTIME%im), time(iLookTIME%id), time(iLookTIME%ih), time(iLookTIME%imin)], &
+                                   summa1_struc, err, cmessage)
+   end associate
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! ----- stream temperature: the network pass over the stream domains -----------

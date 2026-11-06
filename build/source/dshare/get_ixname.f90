@@ -471,6 +471,9 @@ contains
   ! hyporheic exchange in a stream domain
   case('hypFrac'                  ); get_ixParam = iLookPARAM%hypFrac                ! fraction of the reach flow returned as hyporheic flow (-)
   case('hypLag'                   ); get_ixParam = iLookPARAM%hypLag                 ! residence time of the hyporheic flow paths (h)
+  ! Oudin et al. (2005) potential evaporation parameters
+  case('oudinPETScaleK1'          ); get_ixParam = iLookPARAM%oudinPETScaleK1        ! Oudin PET formula scaling factor (deg C)
+  case('oudinPETTempThrK2'        ); get_ixParam = iLookPARAM%oudinPETTempThrK2      ! Oudin PET formula temperature threshold (deg C)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing

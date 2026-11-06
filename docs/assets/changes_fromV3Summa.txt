@@ -293,6 +293,8 @@ AFTER tag of v4.0.0-exp-Sundials
      Splits SUMMA's GRUs across MPI ranks the same way the plain summa_mpi build does. MODFLOW 6 itself stays a serial singleton on rank 0 for now.
  65) Optional coupling to mizuRoute for river-network routing, PR #632 -DUSE_MIZUROUTE=ON
      Configured via a new TOML file (-c). Adds Q_reach, q_basin, upArea outputs (off by default). Requires the full domain on one process -- incompatible with -g and MPI domain parallelism.
+     Coupled mizuRoute lakes with mizuRoute.is_lake_sim, taking precipitation and Oudin evaporation of water-class HRUs averaged per GRU and the SUMMA date; not with OpenWQ and not calibratable or restartable, commit eeed8bd9 Nov 3, 2026
+      Oudin potential evaporation function with parameters oudinPETScaleK1 and oudinPETTempThrK2, commit 99485bb0 Nov 3, 2026
  66) Objective-function evaluation and command-line parameter overrides, PR #637
      New build/source/objfunc/ computes streamflow metrics (kge, kgep, nse, mae, rmse) against observations. Parameters can be overridden via --param <name> <value>. 
      Simulation lifecycle refactored into summa_simulation (reusable in-process); executable names now record build options so variant builds can share bin/.
