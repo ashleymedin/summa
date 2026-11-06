@@ -61,7 +61,7 @@ program summa_driver_opt
   USE mpi, only: MPI_INTEGER
   USE mpi, only: MPI_COMM_WORLD,MPI_COMM_SELF
   USE mpi, only: MPI_SUCCESS
-  USE mpi_context, only: set_mpi_context, init_mpi
+  USE mpi_context, only: set_mpi_context
   USE error_utils, only: check_mpi,abort_mpi
 
   ! SUMMA subroutines/functions
@@ -100,8 +100,8 @@ program summa_driver_opt
   ! Initialize MPI
   ! ---------------------------------------------------------------------------------------
 
-  call init_mpi(mpi_err)
-  call check_mpi(-1,mpi_err,'MPI_Init_thread failed')
+  call MPI_Init(mpi_err)
+  call check_mpi(-1,mpi_err,'MPI_Init failed')
 
   ! establish the global MPI context
   world_parallel%comm=MPI_COMM_WORLD

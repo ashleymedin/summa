@@ -17,13 +17,10 @@ module load netcdf-fortran-mpi/4.6.1
 export SUNDIALS_DIR=$HOME/local/sundials
 
 # ----------------------------------------------------------------------
-# One GRU thread per core the rank was given; BLAS stays on the calling thread
+# Limit each MPI model instance to one compute thread
 # ----------------------------------------------------------------------
 
-export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
-export OMP_STACKSIZE=256M
-export OMP_PLACES=cores
-export OMP_PROC_BIND=close
+export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export BLIS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
