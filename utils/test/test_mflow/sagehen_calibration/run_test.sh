@@ -8,7 +8,8 @@
 # It spins up over water year 2017 and scores October-November 2017.
 #
 #  1. A reference trial with every searched parameter pinned to TRUTH writes the targets
-#     (make_targets.py): discharge and temperature at a reach, OBS6 heads pooled over ten cells,
+#     (make_targets.py): discharge and temperature at a reach, its low flows paired in time and along
+#     the flow-duration curve (GSFLOW-style, for an aquifer without wells), OBS6 heads pooled over ten cells,
 #     domain storage change accumulated, a GRU's aquifer baseflow, and an HRU's aquifer storage as a
 #     departure from its mean.
 #  2. The same pinned trial, scored against them, must reproduce them.
@@ -227,6 +228,13 @@ target() {  # target <name> <metric> <variable> <obs variable> [extra lines]
 }
 {
   target discharge          kge  streamflow             '"q_obs"'        "reach = ${REACH}"
+  target low_flow           kge  streamflow             '"q_obs"'        "reach = ${REACH}
+obs_transform = \"log\"
+low_flow      = 0.3"
+  target low_flow_duration  rmse streamflow             '"q_obs"'        "reach = ${REACH}
+obs_transform = \"log\"
+low_flow      = 0.3
+flow_duration = true"
   target stream_temperature rmse T_reach                '"t_obs"'        "reach = ${REACH}"
   target heads              rmse modflow_obs            "[${vnames}]"    "obs_name = [${names}]"
   target storage            rmse basin__StorageChange   '"storage_obs"'  "accumulate = true"
