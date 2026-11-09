@@ -98,7 +98,8 @@ column of state variables and its own fractional area of the HRU. The domain typ
 |---|---|
 | upland | the standard soil/snow column; every HRU has one |
 | glacier accumulation, glacier clean ablation, glacier debris ablation | glacier ice columns, with area that evolves over the run |
-| wetland | recognized by the data structures but the wetland fluxes are not yet implemented |
+| wetland | in development: a water column over soil that takes the GRU's glacier runoff |
+| stream | the water column of a mizuRoute reach, with coupled mizuRoute (see the [mizuRoute coupling](../mizuroute/coupling.md)) |
 
 Runs without glaciers or wetlands have exactly one (upland) domain per HRU and behave as in
 earlier SUMMA versions. Domain counts, types, areas and initial layer structure come from the

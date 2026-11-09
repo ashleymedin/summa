@@ -292,8 +292,9 @@ network pass is serial and, like the rest of the coupled mizuRoute, needs the
 whole domain on one process.
 ## Lakes
 
-SUMMA does not simulate open water: HRUs of the water land-cover class are
-skipped and their fluxes are zero. When `is_lake_sim = true` in the
+SUMMA does not simulate lakes: HRUs of the water land-cover class are skipped
+and their fluxes are zero. (Its own open-water columns are the stream domain
+above and the wetland domain, which is in development.) When `is_lake_sim = true` in the
 `[mizuRoute]` TOML section, lakes are instead represented by mizuRoute lake
 segments, routed with the mizuRoute lake model in place of the river routing
 method.
