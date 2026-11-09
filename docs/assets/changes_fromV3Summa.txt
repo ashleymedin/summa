@@ -388,3 +388,4 @@ AFTER tag of v4.0.0-exp-Sundials
  89) HRU cascade order kept in gru_struc instead of a module cache, elapsedUpdateArea atomic, so GRUs can run under OpenMP, commit 0da48b7c Nov 2, 2026
 -90) Total water and critical temperature use a quadratic smooth min(psi,0) of width 1e-2 m, effectively only changes saturated soils that freeze (glacier debris), commit ece1f50d Nov 2, 2026
  91) IDA structure copies kept per thread, masked do concurrent loops are plain loops, IDA mallocs 472M to 324M on gulkana_wolverine, commit d039198f Nov 9, 2026
+ 92) Solver and flux sources compiled with -fstack-arrays, IDA mallocs 324M to 69M and homegrown 94M to 42M on gulkana_wolverine, commit bc82e4d5 Nov 9, 2026
