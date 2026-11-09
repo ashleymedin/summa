@@ -967,7 +967,7 @@ contains
     use simulated_series, only: sim_series_type, find_simulated_series
     use read_flowobs_module, only: read_observations
     use timeseries_alignment, only: align_timeseries
-    use series_transform, only: accumulate_series, remove_baseline_mean, balance_between_extremes
+    use series_transform, only: accumulate_series, remove_baseline_mean, balance_between_extremes, low_flow_pairs
     use metrics, only: compute_metric
     use write_evaluation_module, only: write_evaluation
     use mf6_observations, only: is_mf6_obs
@@ -990,6 +990,7 @@ contains
     real(rkind), allocatable :: timeObs(:),timeBounds(:,:),flowObs(:)
     real(rkind), allocatable :: timeVal(:),valSim(:),valAccum(:),valAnom(:)
     real(rkind), allocatable :: timeAligned(:),flowSimAligned(:),flowObsAligned(:)
+    real(rkind), allocatable :: obsScored(:),simScored(:)
     character(len=:), allocatable :: timeObsUnits,flowObsUnits
     character(len=:), allocatable :: timeValUnits,valSimUnits
     character(len=1024) :: cmessage
@@ -1106,8 +1107,15 @@ contains
       call move_alloc(poolSim,flowSimAligned)
       call move_alloc(poolObs,flowObsAligned)
 
-      ! Compute the calibration metric
-      call compute_metric(flowObsAligned,flowSimAligned,calTarget%metric, &
+      ! Compute the calibration metric, over the low flows only when asked
+      if(calTarget%low_flow < 1._rkind .or. calTarget%flow_duration)then
+        call low_flow_pairs(flowObsAligned,flowSimAligned,calTarget%low_flow,calTarget%flow_duration, &
+                            obsScored,simScored)
+      else
+        obsScored=flowObsAligned
+        simScored=flowSimAligned
+      endif
+      call compute_metric(obsScored,simScored,calTarget%metric, &
                           calTarget%obs_transform, objective,err,cmessage)
       if(err/=0)then
         message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
