@@ -420,7 +420,8 @@ contains
 
  ! define the type of variable in the layers, layers with no hydrology state carry none
  ixHydType(:) = integerMissing
- do concurrent (iLayer=1:nLayers,ixHydLayer(iLayer)/=integerMissing)   ! loop through non-missing hydrology state variables in the layer domains
+ do iLayer=1,nLayers   ! loop through non-missing hydrology state variables in the layer domains
+   if(ixHydLayer(iLayer)==integerMissing) cycle
    ixHydType(iLayer) = ixStateType( ixHydLayer(iLayer) )
  enddo
 
