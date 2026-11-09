@@ -20,6 +20,10 @@ Tests and example domains for SUMMA, grouped by what they exercise:
   `test_calibration_wolverine.sh`, NSGA-II on two glacier basins, one GRU and reach each,
   scoring discharge, GRACE, water temperature, mass balance and a synthetic well; and `multi_case_example/`, which calibrates several
   cases from one manifest on a stub dataset built from the bundled Bow domain.
+- [`test_calibration_units/`](test_calibration_units/README.md) -- unit tests of the calibration
+  modules (metrics, parameter fields, ordered constraints, optimizers, the SUMMA parameter
+  adapter), compiled from the production sources with gfortran alone; no SUMMA build, MPI,
+  TOML or NetCDF. Run `test_calibration_units/run_tests.sh`.
 - [`test_mflow/`](test_mflow/README.md) -- SUMMA coupled to MODFLOW 6
   (needs `-DUSE_MPI=ON -DUSE_MIZUROUTE=ON -DUSE_MODFLOW6=ON`): `sagehen_coupling/`, ten
   coupled days through the serial and MPI couplers, and `sagehen_calibration/`,
@@ -33,6 +37,7 @@ Tests and example domains for SUMMA, grouped by what they exercise:
 
 Runnable right after cloning, given a build with the options named above
 (see [docs/index.md](../../docs/index.md)): `test_mizuroute/test_mizuroute_bundled.sh`,
+`test_calibration_units/run_tests.sh` (gfortran only),
 `test_calibration/test_calibration_bow.sh`, `test_calibration/test_calibration_bow_pareto.sh`,
 `test_calibration/multi_case_example/make_stub_century.bash`
 followed by the run it prints, and `test_mflow/sagehen_coupling/run_test.sh` and
