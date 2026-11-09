@@ -185,7 +185,6 @@ could in principle instead supply runoff from individual SUMMA HRUs and rely on
 mizuRoute for the subsequent spatial aggregation and unresolved-network
 routing, but this configuration is not currently implemented.
 
-<<<<<<< HEAD
 ## Stream temperature exchange
 
 When SUMMA carries **stream HRUs** (see the [input description](../input_output/SUMMA_input.md#infile_stream)),
@@ -291,11 +290,11 @@ evaporation exceeding all other runoff of a GRU is not debited from the
 channel (the network takes no negative lateral inflow). The
 network pass is serial and, like the rest of the coupled mizuRoute, needs the
 whole domain on one process.
-=======
 ## Lakes
 
-SUMMA does not simulate open water: HRUs of the water land-cover class are
-skipped and their fluxes are zero. When `is_lake_sim = true` in the
+SUMMA does not simulate lakes: HRUs of the water land-cover class are skipped
+and their fluxes are zero. (Its own open-water columns are the stream domain
+above and the wetland domain, which is in development.) When `is_lake_sim = true` in the
 `[mizuRoute]` TOML section, lakes are instead represented by mizuRoute lake
 segments, routed with the mizuRoute lake model in place of the river routing
 method.
@@ -345,7 +344,6 @@ Requirements and limitations:
   `V_reach`.
 - Coupled runs always start cold: lake storage starts at the model's default
   (e.g. `D03_MaxStorage` for Döll).
->>>>>>> 87e31e96 (Merge commit 'd2d5580d198e567b76379e07db998243920a6c78' into develop)
 
 ## Build-system separation
 

@@ -292,7 +292,7 @@ upper  = 10.0
 An array parameter scales every value of its files, or those of the cells in its zone. A list
 parameter scales one column of the data rows. Several parameters may scale one file, and where they
 overlap their multipliers multiply. A file is scaled as an array or as a list, not both. Its
-multiplier is searched like any parameter, so `[calibration.parameter_transformations]` can put it on
+multiplier is searched like any parameter, and `transformation = "log"` in its table puts it on
 a log scale. The trials file and a failed trial's `rerun.sh` carry it by name. A missing file, zone
 or column is refused at start-up.
 
