@@ -9,7 +9,7 @@
 #
 #  1. A reference trial with every searched parameter pinned to TRUTH writes the targets
 #     (make_targets.py): discharge and temperature at a reach, its low flows paired in time and along
-#     the flow-duration curve (GSFLOW-style, for an aquifer without wells), OBS6 heads pooled over ten cells,
+#     the flow-duration curve (for an aquifer without wells), OBS6 heads pooled over ten cells,
 #     domain storage change accumulated, a GRU's aquifer baseflow, and an HRU's aquifer storage as a
 #     departure from its mean.
 #  2. The same pinned trial, scored against them, must reproduce them.

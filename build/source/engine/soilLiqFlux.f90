@@ -2115,8 +2115,8 @@ contains
 
    ! a coupled water table at or above the base: drainage at the boundary conductivity, but rise into the column at the
    ! geometric mean of that and the bottom layer's own, which limits flow into dry soil.  Below the base it gives way
-   ! linearly over baseBlend to free drainage into the unsaturated zone, as GSFLOW's soil zone drains to UZF, so the
-   ! flux is continuous in the water table.  Both are less the recharge that zone rejected last step.
+   ! linearly over baseBlend to free drainage into the unsaturated zone, so the flux is continuous in the
+   ! water table.  Both are less the recharge that zone rejected last step.
    if(ix_groundwatr==modflowCpl .or. ix_groundwatr==modLatflow)then
      baseHydCond = hydCond_psi(max(lowerBoundHead, 0._rkind),bottomSatHydCond,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac
      pathLength = nodeDepth*0.5_rkind

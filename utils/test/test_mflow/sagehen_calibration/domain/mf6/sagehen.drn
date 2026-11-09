@@ -5,8 +5,7 @@
 # coupler returns this flow to SUMMA as surface runoff (role = surface_discharge).
 #
 # This is what the upstream MODFLOW 6 Sagehen example uses DRN for, alongside UZF, SFR and MVR.
-# In GSFLOW this water would be routed to the nearest downgradient stream reach by MVR; with no
-# SFR network here it goes back to SUMMA's surface runoff instead, which then routes normally.
+# With no SFR network here this water goes back to SUMMA's surface runoff, which then routes normally.
 #
 # Conductance = K_h * cell area / 1 m, a thin seepage face; K_h is from kh1.txt (m/day) converted
 # to m/s by the same 1.157e-5 factor sagehen.npf applies.  The three CHD outlet cells are excluded,

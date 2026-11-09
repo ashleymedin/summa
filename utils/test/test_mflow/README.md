@@ -89,9 +89,9 @@ Each SUMMA data step:
 3. the drainage out the base of the SUMMA soil column
    (BMI output `soil_water__drainage_volume_flux`, flux `scalarSoilDrainage`)
    is regridded onto the MODFLOW 6 grid. Where a cell's water table is below its top, the soil-column
-   base, a positive flux enters the UZF package's infiltration, as GSFLOW's gravity drainage enters
-   UZF1, held `uzf_hold_days` and then taken at a constant rate over the next so hourly pulses do
-   not each start a UZF wave; elsewhere it enters the RCH package `RECHARGE` array. The aquifer transpiration demand goes
+   base, a positive flux enters the UZF package's infiltration, held `uzf_hold_days` and then
+   taken at a constant rate over the next so hourly pulses do not each start a UZF wave;
+   elsewhere it enters the RCH package `RECHARGE` array. The aquifer transpiration demand goes
    into the EVT package `RATE` array.
 4. with the base exchange named, the coupler sets its GHB stage to the last head where that head
    was at or above the top, its DRN at the top where it was below, and both conductances to SUMMA's
@@ -387,6 +387,5 @@ so a mismatch hands the soil column a water table metres above or below it. The 
 checks this against `DIS/TOP` plus the column depth at start-up and stops with the offending HRU named, rather
 than letting SUMMA fail to converge for no visible reason.
 
-`DIS/TOP` must be the base of SUMMA's soil column, as GSFLOW puts its MODFLOW top at the
-soil-zone base, so the two models share no pore space. The test's grid has it 4 m below
-the native land surface, which is kept as `land1.txt`.
+`DIS/TOP` must be the base of SUMMA's soil column, so the two models share no pore space.
+The test's grid has it 4 m below the native land surface, which is kept as `land1.txt`.

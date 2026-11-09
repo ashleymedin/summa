@@ -52,12 +52,12 @@ module mf6_coupling
   !     feedback           = .true.    ! .false. => one-way (SUMMA drainage -> MODFLOW only)
   !   /
   !
-  ! DIS/TOP must be the base of SUMMA's soil column, as in GSFLOW, so the two models share no pore
-  ! space: SUMMA owns the saturated zone within the column and MODFLOW everything below.
-  ! Where a cell's water table is below its UZF top, positive drainage enters UZF, as GSFLOW's
-  ! gravity drainage enters UZF1, uzf_hold_days' worth at a time at a constant rate over the next, so
-  ! hourly pulses do not each start a wave; elsewhere it enters RCH.  The head restart carries that
-  ! store and UZF's waves; a restart file without them starts UZF from THTI with an empty store.
+  ! DIS/TOP must be the base of SUMMA's soil column, so the two models share no pore space:
+  ! SUMMA owns the saturated zone within the column and MODFLOW everything below.
+  ! Where a cell's water table is below its UZF top, positive drainage enters UZF, uzf_hold_days' worth at a
+  ! time at a constant rate over the next, so hourly pulses do not each start a wave; elsewhere it
+  ! enters RCH.  The head restart carries that store and UZF's waves; a restart file without them
+  ! starts UZF from THTI with an empty store.
   ! UZF's ET, groundwater ET and seepage must be off: EVT takes groundwater ET and SUMMA's presHead
   ! flux is the discharge into the column.  Rejected infiltration returns to the column base, and
   ! is added back onto the next step's drainage, which SUMMA reports net of it.
