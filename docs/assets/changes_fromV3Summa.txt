@@ -389,3 +389,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -90) Total water and critical temperature use a quadratic smooth min(psi,0) of width 1e-2 m, effectively only changes saturated soils that freeze (glacier debris), commit ece1f50d Nov 2, 2026
  91) glacAreaChange.f90 flow and debris models allocate their scratch arrays once per call, elemental helpers, column-major loops (also groundwatr, matrixOper), commit 0be67a7c 023dde00 Nov 9, 2026
 -92) glacAreaChange.f90 debris model takes one full step after each flow step instead of two Strang half steps, commit b21625fc Nov 9, 2026
+ 93) summaSolv4ida/kinsol keep the SUNDIALS context and vectors per thread, checkConv scales the Newton step inside, commit f43c0733 Nov 9, 2026
