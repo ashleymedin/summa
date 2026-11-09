@@ -304,7 +304,7 @@ AFTER tag of v4.0.0-exp-Sundials
      Multi-case runs via a --manifest file. Config moves to TOML (legacy -m/--control still accepted). parallel-utils submodule vendored into build/source/parallel/.
      Targets read NetCDF observation and may name the gru, hru or reach they score, commit 69e29caa Sep 28, 2026
      DDS (single target) or NSGA-II (multiple target) calibration, share one worker pool, commit cc30ba75 Sep 28, 2026
-     Calibration ordered chains can be searched by their gaps (sample_gaps = true), always in order and in bounds, commit aee97bff Sep 29, 2026
+     Calibration ordered chains can be searched by their gaps (sample_gaps = true), always in order and in bounds, commit aee97bff Sep 29, 2026, removed by PR #671
      Calibration keeps going past a failed physics trial, ranks it last and saves it to failed_trials/ with a serial rerun.sh, commit 66fdb1ef Sep 28, 2026
      Calibration can be against any output variable, currently tested with streamflow, stream temperature, well head, water storage change, and glacier mass balance. 
       Glacier balance targets (balance = seasonal|annual) score change between simulated extremes, commits 45a6637f, 769464dc Sep 30, 2026
@@ -315,8 +315,11 @@ AFTER tag of v4.0.0-exp-Sundials
      A modflow_obs target pools several OBS6 heads into one series (obs_name, vname_obs lists), commit 04934f0a Oct 8, 2026
      DDS with several targets warns that it searches their weighted sum, commit eede0d9b Oct 15, 2026
      A target over an HRU, GRU or the domain weights each HRU's domains by their area, without zero-area domains, commit 8ffcff1e Oct 16, 2026
-     [calibration.parameter_bounds] sets a parameter's search range, so name@domainType ones get their own, commit 57e61415 Oct 20, 2026
-     NSGA-II can seed its first generation from an earlier calibration's final population (seed_file, seed_fraction), the rest random, commit b2cfc8e8 Nov 4, 2026
+     [calibration.parameter_bounds] sets a parameter's search range, so name@domainType ones get their own, commit 57e61415 Oct 20, 2026, removed by PR #671 (bounds go in [calibration.parameters])
+     Calibration parameters refactored, PR #671: [calibration.parameters], spatial_multipliers and parameter_ratios replace param_list and parameter_transformations;
+      DDS and NSGA-II redraw candidates that break an ordered chain on the physical fields; zero-weight diagnostic targets; per-target boxcox_lambda;
+      targets select space with spatial_unit and spatial_id; an anomaly baseline is removed after alignment, merged Nov 9, 2026
+     MODFLOW multipliers take their search transformation in [[calibration.modflow_parameter]] (transformation = "log"), merged Nov 9, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits d632b36a to de2ae997 Sep 21, 2026
      A GRU may hold one stream HRU: its reach's water column (lake layers over soil/aquifer, linked via streamSegId). mizuRoute returns reach discharge, 
       volume and lateral inflow; new streamTemp.f90 solves the column energy balance upstream to downstream each step, advecting heat from upstream 
