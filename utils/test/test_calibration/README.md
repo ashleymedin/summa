@@ -243,6 +243,15 @@ An NSGA-II trials file carries, beside every trial's parameters and objectives:
 `objective:sense` lists `maximize` or `minimize` per target, which is what a reader needs to recompute
 dominance.
 
+## Repeating a run
+
+The random seed is fixed (42, plus the run index less one), so a calibration repeated with the same
+configuration draws the same numbers. NSGA-II repeats exactly, whatever the number of workers,
+because it proposes a whole generation before any of it is evaluated. DDS proposes each trial from the
+best result returned so far, so with more than one worker its trial sequence depends on the order the
+workers finish in, and two runs part ways after the first few trials. A given parameter set always
+scores the same. To repeat a DDS run exactly, run it with one worker (two ranks).
+
 ## Failed trials
 
 A parameter set the model refuses (`paramCheck`) or fails on during the run (a balance check, a solver
@@ -410,10 +419,10 @@ manifest unless `template_path` is given, and the common settings are read from
 | File | What it is |
 | --- | --- |
 | `make_stub_century.bash` | builds the stub dataset, and the manifest and template that drive it |
-| `manifest_century.toml` | the full manifest, listing 112 basins; the stub manifest is derived from it |
+| `manifest_century.toml` | the full manifest of the Century basins; the stub manifest is derived from it |
 | `summa_config_template.toml` | the per-case configuration template the manifest expands |
 | `summa_config_CAN_05BB001.toml` | a single filled-in case, useful for seeing what the template produces |
 
 `settings/` holds the common SUMMA settings the template names, shared by every case. The
-full 112-basin calibration needs the Century dataset, which is not in this repository; how it was
+full calibration needs the Century dataset, which is not in this repository; how it was
 run on Fir is in `utils/hpc/fir/README.md`.
