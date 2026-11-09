@@ -180,7 +180,7 @@ contains
     real(dp),    optional,   intent(in)  :: nReach(:,:)   ! Manning roughness of each reach per buffer step (s m-1/3)
     real(dp),    optional,   intent(in)  :: iceReach(:,:) ! ice cover thickness of each reach per buffer step (m)
     integer(i4b) :: varid_qbasin, varid_Qreach, varid_Treach, varid_vreach, varid_nreach, varid_icereach
-    integer(i4b) :: varid_qbasin, varid_Qreach, varid_lake
+    integer(i4b) :: varid_lake
     integer(i4b) :: iRoute
     integer(i4b), dimension(2) :: start2_basin, count2_basin, start2_seg, count2_seg
     integer(i4b), dimension(3) :: start3_reach, count3_reach
@@ -237,7 +237,8 @@ contains
         ierr = nf90_inq_varid(ncid, 'ice_reach', varid_icereach);                      if(ierr/=nf90_noerr) exit netcdf_block
         ierr = nf90_put_var(ncid, varid_icereach, iceReach(:,1:numtim), start=start2_seg, count=count2_seg)
         if(ierr/=nf90_noerr) exit netcdf_block
-        
+      endif
+
       ! lake precipitation and evaporation on the host runoff elements, and reach storage
       if (info%mrout%is_lake_sim) then
         start2_basin = (/1, istart/)
