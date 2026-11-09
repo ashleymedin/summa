@@ -126,16 +126,17 @@ end_date   = "2018-07-31"
 
 n_samples = ${N_SAMPLES}
 
-param_list = [
-    "frozenPrecipMultip",
-    "tempCritRain",
-    "glacierWindFactor",
-    "glacierTempReduction",
-    "albedoMax",
-    "aquiferBaseflowExp"
-]
-
 write_aligned = false
+
+
+[calibration.parameters]
+
+frozenPrecipMultip   = {}
+tempCritRain         = {}
+glacierWindFactor    = {}
+glacierTempReduction = {}
+albedoMax            = {}
+aquiferBaseflowExp   = {}
 
 
 [calibration.nsga2]
@@ -147,7 +148,8 @@ population_size = ${POPULATION}
 
 name      = "discharge"
 variable  = "streamflow"
-reach     = 2
+spatial_unit = "reach"
+spatial_id   = 2
 obs_path  = "${DATA}/observations/"
 obs_file  = "wolverine_USGS_15236900_daily_flow.nc"
 vname_obs = "q_obs"
@@ -158,7 +160,8 @@ metric    = "kge"
 
 name      = "stream_temperature"
 variable  = "T_reach"
-reach     = 2
+spatial_unit = "reach"
+spatial_id   = 2
 obs_path  = "${DATA}/observations/"
 obs_file  = "wolverine_USGS_15236900_daily_temperature.nc"
 vname_obs = "t_obs"
@@ -169,7 +172,8 @@ metric    = "rmse"
 
 name      = "mass_balance"
 variable  = "basin__GlacierMassChange"
-gru       = 2
+spatial_unit = "gru"
+spatial_id   = 2
 obs_path  = "${DATA}/observations/"
 obs_file  = "wolverine_mass_balance_seasonal.nc"
 vname_obs = "mb_obs"
@@ -182,7 +186,8 @@ balance    = "seasonal"
 
 name      = "well"
 variable  = "scalarAquiferStorage"
-hru       = 5
+spatial_unit = "hru"
+spatial_id   = 5
 obs_path  = "${DATA}/observations/"
 obs_file  = "wolverine_well_hru5_daily.nc"
 vname_obs = "well_obs"
@@ -250,7 +255,9 @@ check(bool(np.array_equal(front, nondominated(f))), "pareto_front flags exactly 
 population = np.asarray(d["population"][:]) - 1
 rank = np.asarray(d["population_rank"][:])
 check(population.shape == (ngen, pop), f"population is {ngen} generations x {pop} members")
-check(bool(np.all(front[population[-1][rank[-1] == 1]])), "the final population's first front is non-dominated overall")
+# a front larger than the population is cut by crowding, so its first front need only be non-dominated within it
+last = population[-1]
+check(bool(np.all(nondominated(f[:, last])[rank[-1] == 1])), "the final population's first front is non-dominated within it")
 
 nf = int(front.sum())
 check(nf >= 1, f"the front holds {nf} trial(s)")
