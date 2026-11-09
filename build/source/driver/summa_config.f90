@@ -639,6 +639,15 @@ contains
       endif
       call get_value(target_table, 'balance_window', config%calib%targets(i)%balance_window, stat=istat)
 
+      ! a low-flow target: the lowest fraction of the observations, paired in time or along the flow-duration curves
+      call get_value(target_table, 'low_flow', config%calib%targets(i)%low_flow, stat=istat)
+      if(config%calib%targets(i)%low_flow <= 0._rkind .or. config%calib%targets(i)%low_flow > 1._rkind)then
+        message=trim(message)//'calibration target "'//trim(config%calib%targets(i)%name)// &
+                '" needs a low_flow fraction in (0,1]'
+        ierr=20; return
+      endif
+      call get_value(target_table, 'flow_duration', config%calib%targets(i)%flow_duration, stat=istat)
+
     enddo
 
   end subroutine parse_calibration_targets
