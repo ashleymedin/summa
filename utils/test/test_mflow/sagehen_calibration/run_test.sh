@@ -180,15 +180,13 @@ end_date   = "2017-11-30"
 
 n_samples = ${samples}
 
-param_list = ["k_soil", "k_macropore"]
-
 write_aligned = false
 
 
-[calibration.parameter_transformations]
+[calibration.parameters]
 
 EOF
-  echo "${PARAMS}" | awk '$5 == "log" {printf "%-13s = \"log\"\n", $1}'
+  echo "${PARAMS}" | awk '$6 == "summa" {printf "%-13s = { transformation = \"%s\" }\n", $1, ($5 == "log") ? "log" : "none"}'
   echo
   echo "${PARAMS}" | awk -v pinned="${pinned}" '
     $6 == "summa" {next}
@@ -196,7 +194,8 @@ EOF
       lo = (pinned == "yes") ? $2 : $3; hi = (pinned == "yes") ? $2 : $4
       spec = $6; for (i = 7; i <= NF; i++) spec = spec " " $i
       gsub(/\|/, "\n", spec)
-      printf "[[calibration.modflow_parameter]]\n\nname = \"%s\"\n%s\nlower = %s\nupper = %s\n\n", $1, spec, lo, hi
+      tr = ($5 == "log") ? "transformation = \"log\"\n" : ""
+      printf "[[calibration.modflow_parameter]]\n\nname = \"%s\"\n%s\nlower = %s\nupper = %s\n%s\n", $1, spec, lo, hi, tr
     }'
   [ "${algorithm}" = "nsga2" ] && printf "[calibration.nsga2]\n\npopulation_size = %s\n\n" "${POPULATION}"
   cat "${targets}"
@@ -227,19 +226,25 @@ target() {  # target <name> <metric> <variable> <obs variable> [extra lines]
          "$1" "$2" "$3" "$4" "$(dirname "${OBS}")" "$(basename "${OBS}")" "${5:-}"
 }
 {
-  target discharge          kge  streamflow             '"q_obs"'        "reach = ${REACH}"
-  target low_flow           kge  streamflow             '"q_obs"'        "reach = ${REACH}
+  target discharge          kge  streamflow             '"q_obs"'        "spatial_unit = \"reach\"
+spatial_id   = ${REACH}"
+  target low_flow           kge  streamflow             '"q_obs"'        "spatial_unit = \"reach\"
+spatial_id   = ${REACH}
 obs_transform = \"log\"
 low_flow      = 0.3"
-  target low_flow_duration  rmse streamflow             '"q_obs"'        "reach = ${REACH}
+  target low_flow_duration  rmse streamflow             '"q_obs"'        "spatial_unit = \"reach\"
+spatial_id   = ${REACH}
 obs_transform = \"log\"
 low_flow      = 0.3
 flow_duration = true"
-  target stream_temperature rmse T_reach                '"t_obs"'        "reach = ${REACH}"
+  target stream_temperature rmse T_reach                '"t_obs"'        "spatial_unit = \"reach\"
+spatial_id   = ${REACH}"
   target heads              rmse modflow_obs            "[${vnames}]"    "obs_name = [${names}]"
   target storage            rmse basin__StorageChange   '"storage_obs"'  "accumulate = true"
-  target baseflow           kge  basin__AquiferBaseflow '"baseflow_obs"' "gru = ${GRU}"
-  target aquifer            rmse scalarAquiferStorage   '"aquifer_obs"'  "hru = ${HRU}
+  target baseflow           kge  basin__AquiferBaseflow '"baseflow_obs"' "spatial_unit = \"gru\"
+spatial_id   = ${GRU}"
+  target aquifer            rmse scalarAquiferStorage   '"aquifer_obs"'  "spatial_unit = \"hru\"
+spatial_id   = ${HRU}
 baseline_start = \"2017-10-01\"
 baseline_end   = \"2017-11-30\""
 } > "${WORK}/targets.toml"
@@ -250,7 +255,8 @@ cat > "${WORK}/placeholder.toml" <<EOF
 
 name      = "discharge"
 variable  = "streamflow"
-reach     = ${REACH}
+spatial_unit = "reach"
+spatial_id   = ${REACH}
 obs_path  = "${TEST_DIR}/"
 obs_file  = "USGS_10343500_daily_flow.nc"
 vname_obs = "q_obs"

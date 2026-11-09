@@ -45,6 +45,9 @@ USE globalData,only:kl              ! number of sub-diagonal bands
 
 ! global metadata
 USE globalData,only:flux_meta       ! metadata on the model fluxes
+USE globalData,only:diag_meta       ! metadata on the model diagnostic variables
+USE globalData,only:deriv_meta      ! metadata on the model derivatives
+USE globalData,only:indx_meta       ! metadata on the model indices
 
 ! constants
 USE multiconst,only:Tfreeze         ! temperature at freezing (K)
@@ -157,7 +160,7 @@ subroutine summaSolv4ida(&
   USE fsunlinsol_dense_mod                                    ! Fortran interface to dense SUNLinearSolver
   USE fsunlinsol_band_mod                                     ! Fortran interface to banded SUNLinearSolver
   USE fsunnonlinsol_newton_mod                                ! Fortran interface to Newton SUNNonlinearSolver
-  USE allocspace_module,only:allocCached,ixCache_idaFluxPrev  ! cached local data structures
+  USE allocspace_module,only:allocCached,allocCachedInt,ixCache_idaFluxPrev,ixCache_idaDiag,ixCache_idaFlux,ixCache_idaDeriv ! cached local data structures
   USE getVectorz_module, only:checkFeas                       ! check feasibility of state vector
   USE eval8summaWithPrime_module,only:eval8summa4ida          ! DAE/ODE functions
   USE computJacobWithPrime_module,only:computJacob4ida        ! system Jacobian
@@ -208,8 +211,8 @@ subroutine summaSolv4ida(&
   ! output: state vectors
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
   integer(i4b),intent(out)        :: nSteps                 ! number of time steps taken in solver
-  real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
-  real(rkind),intent(inout)       :: stateVecPrime(:)       ! model state vector (y')
+  real(rkind),intent(inout),contiguous :: stateVec(:)            ! model state vector (y)
+  real(rkind),intent(inout),contiguous :: stateVecPrime(:)       ! model state vector (y')
   logical(lgt),intent(out)        :: idaSucceeds            ! flag to indicate if IDA is successful
   logical(lgt),intent(inout)      :: tooMuchMelt            ! flag to denote that there was too much melt
   ! output: residual terms and balances
@@ -314,16 +317,24 @@ subroutine summaSolv4ida(&
     eqns_data%firstSubStep   = firstSubStep
     eqns_data%computeVegFlux = computeVegFlux
     eqns_data%scalarSolution = scalarSolution
-    eqns_data%deriv_data     = deriv_data
+    call allocCached(ixCache_idaDeriv,deriv_meta(:),eqns_data%deriv_data,nSnow,nLake,nSoil,nGlce,err,cmessage)
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+    call allocCached(ixCache_idaDiag,diag_meta(:),eqns_data%diag_data,nSnow,nLake,nSoil,nGlce,err,cmessage)
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+    call allocCached(ixCache_idaFlux,flux_meta(:),eqns_data%flux_data,nSnow,nLake,nSoil,nGlce,err,cmessage)
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+    call allocCachedInt(indx_meta(:),eqns_data%indx_data,nSnow,nLake,nSoil,nGlce,err,cmessage)
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+    do iVar=1,size(deriv_data%var); eqns_data%deriv_data%var(iVar)%dat = deriv_data%var(iVar)%dat; end do  ! copy in place
+    do iVar=1,size(indx_data%var); eqns_data%indx_data%var(iVar)%dat = indx_data%var(iVar)%dat; end do
+    do iVar=1,size(diag_data%var); eqns_data%diag_data%var(iVar)%dat = diag_data%var(iVar)%dat; end do
+    do iVar=1,size(flux_data%var); eqns_data%flux_data%var(iVar)%dat = flux_data%var(iVar)%dat; end do
     eqns_data%lookup_data    => lookup_data
     eqns_data%type_data      => type_data
     eqns_data%mpar_data      => mpar_data
     eqns_data%forc_data      => forc_data
     eqns_data%bvar_data      => bvar_data
     eqns_data%prog_data      => prog_data
-    eqns_data%indx_data      = indx_data
-    eqns_data%diag_data      = diag_data
-    eqns_data%flux_data      = flux_data
     eqns_data%ixSaturation   = ixSaturation
     
     ! allocate space and fill
@@ -534,7 +545,8 @@ subroutine summaSolv4ida(&
     
       tooMuchMelt = .false.
       ! loop through non-missing energy state variables in the snow domain to see if need to merge
-      do concurrent (i=1:nSnow,ixSnowOnlyNrg(i)/=integerMissing)
+      do i=1,nSnow
+        if(ixSnowOnlyNrg(i)==integerMissing) cycle
         if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm)then !using enthalpy as state variable
           if (stateVec(ixSnowOnlyNrg(i)) > 0._rkind) tooMuchMelt = .true. !need to merge
         else
@@ -542,7 +554,8 @@ subroutine summaSolv4ida(&
         endif
       enddo
       ! loop through non-missing energy state variables in the ice cover of the lake domain (the top nLakeFrz
-      do concurrent (i=1:nLakeFrz,ixLakeOnlyNrg(i)/=integerMissing)
+      do i=1,nLakeFrz
+        if(ixLakeOnlyNrg(i)==integerMissing) cycle
         if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm)then !using enthalpy as state variable
           if (stateVec(ixLakeOnlyNrg(i)) > 0._rkind) tooMuchMelt = .true. !need to merge
         else
@@ -550,7 +563,8 @@ subroutine summaSolv4ida(&
         endif
       enddo
       ! loop through non-missing energy state variables in the glacier domain to see if need to merge 
-      do concurrent (i=1:nGlce,ixGlceOnlyNrg(i)/=integerMissing)
+      do i=1,nGlce
+        if(ixGlceOnlyNrg(i)==integerMissing) cycle
         if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm)then !using enthalpy as state variable
           if (stateVec(ixGlceOnlyNrg(i)) > 0._rkind) tooMuchMelt = .true. !need to merge
         else
@@ -618,7 +632,8 @@ subroutine summaSolv4ida(&
         if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_mult/dt
         if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%resVec(ixVegNrg) + resVecPrev(ixVegNrg) )*dt_mult/dt
         if(nSnLaSoGlNrg>0)then
-          do concurrent (i=1:nLayers,ixSnLaSoGlNrg(i)/=integerMissing) 
+          do i=1,nLayers 
+            if(ixSnLaSoGlNrg(i)==integerMissing) cycle
             balance(ixSnLaSoGlNrg(i)) = balance(ixSnLaSoGlNrg(i)) + ( eqns_data%resVec(ixSnLaSoGlNrg(i)) + resVecPrev(ixSnLaSoGlNrg(i)) )*dt_mult/dt
           enddo
         endif
@@ -632,7 +647,8 @@ subroutine summaSolv4ida(&
         ! compute mass balance mean, resVec is the instantaneous residual vector from the solver
         if(ixVegHyd/=integerMissing) balance(ixVegHyd) = balance(ixVegHyd) + ( eqns_data%resVec(ixVegHyd) + resVecPrev(ixVegHyd) )*dt_mult/dt
         if(nSnLaSoGlHyd>0)then
-          do concurrent (i=1:nLayers,ixSnLaSoGlHyd(i)/=integerMissing) 
+          do i=1,nLayers 
+            if(ixSnLaSoGlHyd(i)==integerMissing) cycle
             balance(ixSnLaSoGlHyd(i)) = balance(ixSnLaSoGlHyd(i)) + ( eqns_data%resVec(ixSnLaSoGlHyd(i)) + resVecPrev(ixSnLaSoGlHyd(i)) )*dt_mult/dt
           enddo
         endif
