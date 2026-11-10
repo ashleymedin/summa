@@ -114,10 +114,14 @@ contains
     
     enddo
     
-    ! Add sampled parameters that are not already in the original file.
+    ! Add sampled and remainder parameters that are not already in the original file.
     do i=1,size(spec%params)
-    
-      if(.not.spec%params(i)%sampled .or. param_map(i)%external) cycle
+
+      if(param_map(i)%external) cycle
+      if(.not.spec%params(i)%sampled)then
+        if(.not.allocated(spec%remainder)) cycle
+        if(.not.any(spec%remainder(:)%target_index==i)) cycle
+      endif
     
       ! name@type is written under its parameter name: the file holds every domain's value
       base_name=spec%params(i)%name
