@@ -13,6 +13,7 @@ module calibration_types
   public :: param_bounds_info
   public :: ordered_constraint
   public :: multiplier_dependency
+  public :: remainder_dependency
   public :: mf6_param_info
 
   ! Derived type definitions go here.
@@ -50,6 +51,14 @@ module calibration_types
  type :: multiplier_dependency
    character(len=64), allocatable :: parameters(:)    ! Multiplicative parameter dependency.
  end type multiplier_dependency
+
+ ! -----------------------------------------------------------------------------------------------------------
+ ! A parameter set to what its sources leave of a total, such as silt = 1 - sand - clay.
+ type :: remainder_dependency
+   character(len=64)              :: parameter = ''   ! parameter set to the remainder
+   character(len=64), allocatable :: sources(:)       ! parameters subtracted from the total
+   real(rkind)                    :: total = 1._rkind ! total the parameter and its sources add to
+ end type remainder_dependency
 
  ! -----------------------------------------------------------------------------------------------------------
  ! One calibration target: an observed series, the simulated variable it is compared against, and the
@@ -125,6 +134,7 @@ module calibration_types
   type(param_bounds_info),     allocatable :: param_bounds(:) ! bounds that replace the parameter files'
   type(ordered_constraint),    allocatable :: ordered(:)      ! ordered parameter constraints
   type(multiplier_dependency), allocatable :: multiplier(:)   ! multiplicative parameter dependency
+  type(remainder_dependency),  allocatable :: remainder(:)    ! parameters set to the remainder of a total
   type(target_info),           allocatable :: targets(:)      ! calibration targets, one per objective
   type(mf6_param_info),        allocatable :: mf6_params(:)   ! MODFLOW 6 parameters searched with SUMMA's
   integer(i4b)                   :: n_samples      = 1000        ! number of parameter samples to evaluate
