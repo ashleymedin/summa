@@ -320,6 +320,7 @@ AFTER tag of v4.0.0-exp-Sundials
       DDS and NSGA-II redraw candidates that break an ordered chain on the physical fields; zero-weight diagnostic targets; per-target boxcox_lambda;
       targets select space with spatial_unit and spatial_id; an anomaly baseline is removed after alignment, merged Nov 9, 2026
      MODFLOW multipliers take their search transformation in [[calibration.modflow_parameter]] (transformation = "log"), merged Nov 9, 2026
+     [[parameter_dependencies.remainder]] sets a fixed parameter to a total minus its sources (silt = 1 - sand - clay), commit eb52ab55 Nov 10, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits d632b36a to de2ae997 Sep 21, 2026
      A GRU may hold one stream HRU: its reach's water column (lake layers over soil/aquifer, linked via streamSegId). mizuRoute returns reach discharge, 
       volume and lateral inflow; new streamTemp.f90 solves the column energy balance upstream to downstream each step, advecting heat from upstream 
@@ -391,3 +392,4 @@ AFTER tag of v4.0.0-exp-Sundials
  89) HRU cascade order kept in gru_struc instead of a module cache, elapsedUpdateArea atomic, so GRUs can run under OpenMP, commit 0da48b7c Nov 2, 2026
 -90) Total water and critical temperature use a quadratic smooth min(psi,0) of width 1e-2 m, effectively only changes saturated soils that freeze (glacier debris), commit ece1f50d Nov 2, 2026
 -91) Homegrown solver also converges on the depth-integrated snow water residual; binds only in snow deeper than 1 m (glacier firn), commit f35c00ba Nov 10, 2026
+ 92) paramCheck.f90 sand, silt and clay fractions must be non-negative and add to one, commit a1d4c4a5 Nov 10, 2026
