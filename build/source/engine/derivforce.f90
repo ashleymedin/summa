@@ -147,7 +147,7 @@ contains
  glacierWindFactor       => mpar_data%var(iLookPARAM%glacierWindFactor)%dat(1)    , & ! wind speed increase to account for glacier katabatic wind profile (-)
  glacierTempReduction    => mpar_data%var(iLookPARAM%glacierTempReduction)%dat(1) , & ! air temperature decrease to account for down-glacier katabatic wind (-)
  windExposure            => mpar_data%var(iLookPARAM%windExposure)%dat(1)         , & ! glacier surface wind as a fraction of the wind station's (-)
- precipElevGrad          => mpar_data%var(iLookPARAM%precipElevGrad)%dat(1)       , & ! fractional change in precipitation per metre above forcingElev (m-1)
+ precipElevGrad          => mpar_data%var(iLookPARAM%precipElevGrad)%dat(1)       , & ! fractional change in precipitation per metre above the HRU elevation (m-1)
  ! radiation geometry variables
  latitude                => attr_data%var(iLookATTR%latitude)                     , & ! latitude (degrees north)
  longitude               => attr_data%var(iLookATTR%longitude)                    , & ! longitude (degrees east)
@@ -157,7 +157,6 @@ contains
  ! elevation variables to adjust forcings (assuming forcings are at the HRU mean elevation)
  elevation               => attr_data%var(iLookATTR%elevation)                    , & ! mean elevation of HRU (m)
  DOMelev                 => prog_data%var(iLookPROG%DOMelev)%dat(1)               , & ! mean elevation of the domain in the HRU (m)
- forcingElev             => attr_data%var(iLookATTR%forcingElev)                  , & ! elevation the forcing's precipitation applies at (m)
  ! measurement height
  mHeight                 => attr_data%var(iLookATTR%mHeight)                      , & ! measurement height (m)
  adjMeasHeight           => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1)   , & ! adjusted measurement height for cases snowDepth>mHeight (m)
@@ -310,8 +309,8 @@ contains
 
  ! adjust the air temperature to the domain mean elevation
  airtemp = airtemp - (DOMelev - elevation) * lapseRate
- ! linear in elevation from forcingElev; at the HRU elevation (the default) the area-weighted domains keep the HRU's precipitation
- pptrate = pptrate * max(0._rkind, 1._rkind + precipElevGrad * (DOMelev - forcingElev))
+ ! linear in elevation, so the area-weighted domains keep the HRU's precipitation
+ pptrate = pptrate * max(0._rkind, 1._rkind + precipElevGrad * (DOMelev - elevation))
 
  ! compute relative humidity (-)
  relhum   = SPHM2RELHM(spechum, airpres, airtemp)

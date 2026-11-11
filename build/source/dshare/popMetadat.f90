@@ -119,7 +119,6 @@ subroutine popMetadat(err,message)
   attr_meta(iLookATTR%HRUarea)                         = var_info('HRUarea'                        , 'area of each HRU'                                                 , 'm2'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   attr_meta(iLookATTR%mHeight)                         = var_info('mHeight'                        , 'measurement height above bare ground'                             , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   attr_meta(iLookATTR%aspect)                          = var_info('aspect'                         , 'mean azimuth of HRU in degrees East of North (0)'                 , 'degrees'         , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  attr_meta(iLookATTR%forcingElev)                     = var_info('forcingElev'                    , 'elevation the forcing applies at, reference height of precipElevGrad', 'm'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local parameter data...
   ! -------------------------
