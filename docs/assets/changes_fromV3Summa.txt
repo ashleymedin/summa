@@ -394,3 +394,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -91) Homegrown solver also converges on the depth-integrated snow water residual; binds only in snow deeper than 1 m (glacier firn), commit f35c00ba Nov 10, 2026
  92) Sand, silt and clay fractions must be non-negative and add to one, commit a1d4c4a5 Nov 10, 2026
  93) Parameters precipElevGrad and tempLapseRate added to lapse from the HRU elevation to domain elevation (including relative humidity and longwave solar radiation), commit 8cd0949a and 03d1fe19 Nov 11, 2026
+ 94) windExposure parameter removed; glacierWindFactor (above freezing) is the glacier surface wind factor, lower limit 0.3, commit 2c63f98a Nov 11, 2026
