@@ -394,3 +394,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -91) Homegrown solver also converges on the depth-integrated snow water residual; binds only in snow deeper than 1 m (glacier firn), commit f35c00ba Nov 10, 2026
  92) paramCheck.f90 sand, silt and clay fractions must be non-negative and add to one, commit a1d4c4a5 Nov 10, 2026
  93) derivforce.f90 precipElevGrad from optional attribute forcingElev (default HRU elevation), commit 889b2fca Nov 11, 2026
+ 94) derivforce.f90 forcingElev attribute removed again, precipElevGrad from the HRU elevation, commit 8cd0949a Nov 11, 2026
