@@ -225,7 +225,7 @@ AFTER tag of v4.0.0-exp-Sundials
      New attributes file entries: nGlac, nWtld, nGrid (all optional, assumed 0), plus the glacier grid dimensions and variables when nGlac>0.
      New GRU (basin) variables: basin__GlacierArea, basin__GlacierStorage, and glacier reservoir routing (glacIceRunoffFuture,
       glacSnowRunoffFuture, glacFirnRunoffFuture, updateJulDay).
-     New parameters: glacierTempReduction, glacierWindFactor (HRU, katabatic air-temperature reduction, windspeed increase), windExposure (HRU, glacier sheltering surface-to-wind-station ratio (default 1)), precipElevGrad (HRU, fractional precipitation change per metre above the HRU elevation (default 0))
+     New parameters: glacierTempReduction, glacierWindFactor (HRU, katabatic air-temperature reduction, windspeed increase), precipElevGrad (HRU, fractional precipitation change per metre above the HRU elevation (default 0))
       glacStor_kIce / glacStor_kSnow / glacStor_kFirn and latMoraineWidth (GRU). All have defaults, so are only needed for glacier runs.
      maxSnowLayers is multiplied by 2.5 when any glacier is present, to allow firn development in the accumulation zone.
      The OpenWQ coupling was updated to be per (HRU, domain) rather than per HRU (see build/source/openwq), commit f16c3488 Sep 10, 2026.
@@ -394,4 +394,3 @@ AFTER tag of v4.0.0-exp-Sundials
 -91) Homegrown solver also converges on the depth-integrated snow water residual; binds only in snow deeper than 1 m (glacier firn), commit f35c00ba Nov 10, 2026
  92) Sand, silt and clay fractions must be non-negative and add to one, commit a1d4c4a5 Nov 10, 2026
  93) Parameters precipElevGrad and tempLapseRate added to lapse from the HRU elevation to domain elevation (including relative humidity and longwave solar radiation), commit 8cd0949a and 03d1fe19 Nov 11, 2026
- 94) windExposure parameter removed; glacierWindFactor (above freezing) is the glacier surface wind factor, lower limit 0.3, commit 2c63f98a Nov 11, 2026
