@@ -575,7 +575,7 @@ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,gridStr
       end do
 
      ! ** numerical data
-     case('latitude','longitude','elevation','tan_slope','contourLength','HRUarea','mHeight','aspect','forcingElev')
+     case('latitude','longitude','elevation','tan_slope','contourLength','HRUarea','mHeight','aspect')
 
       ! get the index of the variable
       varType = numerical
@@ -622,17 +622,6 @@ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,gridStr
    do iGRU=1,nGRU_local
      do iHRU = 1, gru_struc(iGRU)%hruCount
        attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = nr_realMissing      ! populate variable with out-of-range value, used later
-     end do
-   end do
-   checkAttr(varIndx) = .true.
- endif
-
- ! ** the optional forcingElev defaults to the HRU elevation, the forcing having been moved to it
- varIndx = get_ixAttr('forcingElev')
- if(.not. checkAttr(varIndx)) then
-   do iGRU=1,nGRU_local
-     do iHRU = 1, gru_struc(iGRU)%hruCount
-       attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = attrStruct%gru(iGRU)%hru(iHRU)%var(get_ixAttr('elevation'))
      end do
    end do
    checkAttr(varIndx) = .true.
