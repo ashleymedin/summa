@@ -124,6 +124,7 @@ MODULE var_lookup
   integer(i4b)    :: HRUarea       = integerMissing  ! area of each HRU  (m2)
   integer(i4b)    :: mHeight       = integerMissing  ! measurement height above bare ground (m)
   integer(i4b)    :: aspect        = integerMissing  ! mean azimuth of HRU (degrees E of N, range 0-360)
+  integer(i4b)    :: forcingElev   = integerMissing  ! elevation the forcing applies at, the reference height of precipElevGrad (m)
  end type iLook_attr
 
  ! ***********************************************************************************************************
@@ -1074,7 +1075,7 @@ MODULE var_lookup
  ! named variables: model forcing data
  type(iLook_force),   public,parameter :: iLookFORCE    =iLook_force   (  1,  2,  3,  4,  5,  6,  7,  8)
  ! named variables: model attributes
- type(iLook_attr),    public,parameter :: iLookATTR     =iLook_attr    (  1,  2,  3,  4,  5,  6,  7,  8)
+ type(iLook_attr),    public,parameter :: iLookATTR     =iLook_attr    (  1,  2,  3,  4,  5,  6,  7,  8,  9)
  ! named variables: soil and vegetation types
  type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4,  5)
  ! named variables: hru and gru IDs and associated information

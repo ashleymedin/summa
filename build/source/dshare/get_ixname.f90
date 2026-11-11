@@ -181,6 +181,7 @@ contains
   case('HRUarea'       ); get_ixAttr = iLookATTR%HRUarea        ! area of each HRU (m2)
   case('mHeight'       ); get_ixAttr = iLookATTR%mHeight        ! measurement height above bare ground (m)
   case('aspect'        ); get_ixAttr = iLookATTR%aspect         ! azimuth in degrees East of North (degrees)
+  case('forcingElev'   ); get_ixAttr = iLookATTR%forcingElev    ! elevation the forcing applies at (m)
   ! get to here if cannot find the variable
   case default
    get_ixAttr = integerMissing
