@@ -2738,6 +2738,7 @@ subroutine lakeRoughness(windspd,zRef,fetch,depth,z0m,z0h)
   real(rkind),parameter            :: fetchScale = 100._rkind       ! dimensionless fetch scale (-)
   real(rkind),parameter            :: prandtl = 0.71_rkind          ! Prandtl number of air (-)
   real(rkind),parameter            :: windMin = 0.1_rkind           ! smallest wind speed used (m s-1)
+  real(rkind),parameter            :: z0Max = 0.01_rkind            ! largest water roughness, which a storm's waves stay below (m)
   real(rkind)                      :: wind                          ! wind speed used (m s-1)
   real(rkind)                      :: charnock                      ! Charnock coefficient (-)
   real(rkind)                      :: ustar                         ! friction velocity (m s-1)
@@ -2747,7 +2748,7 @@ subroutine lakeRoughness(windspd,zRef,fetch,depth,z0m,z0h)
   z0m = 1.e-4_rkind
   do iter=1,10 ! fixed point of the neutral log profile
     ustar = vkc*wind/log(zRef/z0m)
-    z0m = max(smoothCoef*viscAir/ustar, charnock*ustar**2_i4b/gravity)
+    z0m = min(max(smoothCoef*viscAir/ustar, charnock*ustar**2_i4b/gravity), z0Max, 0.1_rkind*zRef) ! capped, so the profile stays logarithmic
   end do
   z0h = z0m*exp(-vkc/prandtl*(4._rkind*sqrt(sqrt(ustar*z0m/viscAir)) - 3.2_rkind))
 end subroutine lakeRoughness
