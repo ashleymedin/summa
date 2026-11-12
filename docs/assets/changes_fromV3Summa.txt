@@ -385,6 +385,7 @@ AFTER tag of v4.0.0-exp-Sundials
      and opens as ice leaves an optional wetlandMask, commit 2c60b683 Nov 12, 2026
      Basin fills with sediment from its inflow (wetlandSedConc, wetlandInfillShape), shrinking its full area and depth, commits 1e4fab0a and 38687bb0 Nov 12, 2026
      Share of the sediment that settles from the overflow rate (wetlandSettleVel), commit 229758c1 Nov 12, 2026
+     Open-water roughness from wind, fetch and depth with its own heat roughness (lakeFetch, Subin et al. 2012), commit ce9c47c8 Nov 12, 2026
 -85) Smoothly turn off infiltration into over-pressured soil and condensation into saturated soil, commits 87967f22 Jul 22, a52791c6 Sep 24, 6702053d and bba9cca9 Oct 22, 6805ba8b and c9154ece Oct 26, 2026
      Infiltration area scales by a Gaussian of the depth-weighted mean squared positive head (root zone for homegrown_SE, else all soil layers), condensation by a Gaussian of top-layer positive head.
      A coupled MODFLOW 6 aquifer evaluates the same Gaussian per cell on its hydrostatic head, commit f8f45287 Oct 26, 2026
