@@ -359,7 +359,7 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%wetlandShape)                   = var_info('wetlandShape'                   , 'power of the wetland area its stage follows below the outlet'    , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%wetlandFlatArea)                = var_info('wetlandFlatArea'                , 'area a wetland gains per metre of rise above its outlet'          , 'm2 m-1'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! wetland infill
-  mpar_meta(iLookPARAM%wetlandSedConc)                 = var_info('wetlandSedConc'                 , 'volume of sediment a wetland traps per volume of glacier runoff'  , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%wetlandSedConc)                 = var_info('wetlandSedConc'                 , 'volume of sediment a wetland traps per volume of its inflow'      , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%wetlandInfillShape)             = var_info('wetlandInfillShape'             , 'share of the infill that takes area rather than depth'            , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...

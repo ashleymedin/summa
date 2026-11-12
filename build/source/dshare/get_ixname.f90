@@ -479,7 +479,7 @@ contains
   case('wetlandShape'             ); get_ixParam = iLookPARAM%wetlandShape           ! power of the wetland area its stage follows below the outlet (-)
   case('wetlandFlatArea'          ); get_ixParam = iLookPARAM%wetlandFlatArea        ! area a wetland gains per metre of rise above its outlet (m2 m-1)
   ! wetland infill
-  case('wetlandSedConc'           ); get_ixParam = iLookPARAM%wetlandSedConc         ! volume of sediment a wetland traps per volume of glacier runoff it takes (-)
+  case('wetlandSedConc'           ); get_ixParam = iLookPARAM%wetlandSedConc         ! volume of sediment a wetland traps per volume of water flowing into it (-)
   case('wetlandInfillShape'       ); get_ixParam = iLookPARAM%wetlandInfillShape     ! share of the infill that takes area rather than depth from the full wetland (-)
   ! get to here if cannot find the variable
   case default
