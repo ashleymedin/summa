@@ -481,6 +481,7 @@ contains
   ! wetland infill
   case('wetlandSedConc'           ); get_ixParam = iLookPARAM%wetlandSedConc         ! volume of sediment a wetland traps per volume of water flowing into it (-)
   case('wetlandInfillShape'       ); get_ixParam = iLookPARAM%wetlandInfillShape     ! share of the infill that takes area rather than depth from the full wetland (-)
+  case('wetlandSettleVel'         ); get_ixParam = iLookPARAM%wetlandSettleVel       ! settling velocity of the sediment in a wetland's inflow (m s-1)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
