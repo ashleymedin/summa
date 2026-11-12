@@ -387,6 +387,8 @@ MODULE var_lookup
   integer(i4b)    :: wetlandSedConc        = integerMissing    ! volume of sediment a wetland traps per volume of water flowing into it (-)
   integer(i4b)    :: wetlandInfillShape    = integerMissing    ! share of the infill that takes area rather than depth from the full wetland (-)
   integer(i4b)    :: wetlandSettleVel      = integerMissing    ! settling velocity of the sediment in a wetland's inflow (m s-1)
+  ! open-water roughness
+  integer(i4b)    :: lakeFetch             = integerMissing    ! fetch over open lake water, 0 for a fixed z0Water (m)
  endtype iLook_param
 
  ! ***********************************************************************************************************
@@ -1116,7 +1118,7 @@ MODULE var_lookup
                                                                         181,182,183,184,185,186,187,188,189,190,&
                                                                         191,192,193,194,195,196,197,198,199,200,&
                                                                         201,202,203,204,205,206,207,208,209,210,&
-                                                                        211,212,213,214,215,216,217)
+                                                                        211,212,213,214,215,216,217,218)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
