@@ -469,7 +469,7 @@ subroutine lakeResize(&
       err=20; return
     end if
     mLayerDepth(iLake)      = depthNew
-    mLayerVolFracLiq(iLake) = massLiq/(iden_water*depthNew)
+    mLayerVolFracLiq(iLake) = min(massLiq/(iden_water*depthNew), 1._rkind) ! the layer is full, so round-off cannot overfill it
     mLayerVolFracIce(iLake) = massIce/(iden_ice*depthNew)
   end do
 end subroutine lakeResize
