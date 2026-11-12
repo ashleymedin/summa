@@ -381,6 +381,9 @@ AFTER tag of v4.0.0-exp-Sundials
 -83) Advective heat: soil layers gain the heat carried by water entering from the layer above or below, commit 3415be91 Oct 17, 2026
  84) Added wetland domain: a linear-reservoir water column over soil that takes the GRU glacier runoff, commit fb35bd65 Oct 19, 2026
      New parameters wetlandStorageK (outflow time constant, s) and wetlandMinDepth (no drainage below this liquid depth, m),
+     Area follows its volume (wetlandMaxArea, wetlandShape, wetlandFlatArea; wetlandMinDepth becomes the mean depth filled to the outlet)
+     and opens as ice leaves an optional wetlandMask, commit 2c60b683 Nov 12, 2026
+     Basin fills with sediment from its inflow (wetlandSedConc, wetlandInfillShape), shrinking its full area and depth, commits 1e4fab0a and 38687bb0 Nov 12, 2026
 -85) Smoothly turn off infiltration into over-pressured soil and condensation into saturated soil, commits 87967f22 Jul 22, a52791c6 Sep 24, 6702053d and bba9cca9 Oct 22, 6805ba8b and c9154ece Oct 26, 2026
      Infiltration area scales by a Gaussian of the depth-weighted mean squared positive head (root zone for homegrown_SE, else all soil layers), condensation by a Gaussian of top-layer positive head.
      A coupled MODFLOW 6 aquifer evaluates the same Gaussian per cell on its hydrostatic head, commit f8f45287 Oct 26, 2026
@@ -394,5 +397,3 @@ AFTER tag of v4.0.0-exp-Sundials
 -91) Homegrown solver also converges on the depth-integrated snow water residual; binds only in snow deeper than 1 m (glacier firn), commit f35c00ba Nov 10, 2026
  92) Sand, silt and clay fractions must be non-negative and add to one, commit a1d4c4a5 Nov 10, 2026
  93) Parameters precipElevGrad and tempLapseRate added to lapse from the HRU elevation to domain elevation (including relative humidity and longwave solar radiation), commit 8cd0949a and 03d1fe19 Nov 11, 2026
- 94) Wetland area follows its volume (wetlandMaxArea, wetlandShape, wetlandFlatArea) and opens as the glacier leaves an optional wetlandMask, commit 2c60b683 Nov 12, 2026
- 95) Wetland basin fills with sediment from its glacier runoff (wetlandSedConc, wetlandInfillShape), shrinking its full area and depth, commit 1e4fab0a Nov 12, 2026
