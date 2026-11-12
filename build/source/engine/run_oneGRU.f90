@@ -206,6 +206,8 @@ subroutine run_oneGRU(&
   ! stream temperature
   integer(i4b)                        :: ixStreamHRU                    ! index of the HRU holding the stream domain (0 = none)
   integer(i4b)                        :: ixWetHRU,ixWetDOM              ! HRU and domain of the wetland that takes the glacier runoff (0 = none)
+  integer(i4b)                        :: ixHeadHRU,ixHeadDOM            ! first open wetland that drains to the next one (0 = none)
+  integer(i4b)                        :: ixNextHRU,ixNextDOM            ! open wetland the head drains to (0 = none, the head drains to the channel)
   real(rkind)                         :: basinNrgFlux                   ! instantaneous energy flux carried by the runoff handed to the channel (W m-2)
   real(rkind)                         :: routedNrgFlux                  ! routed energy flux carried by the runoff (W m-2)
   real(rkind)                         :: notUsedNrgFlux                 ! instantaneous energy flux returned by the routing (W m-2)
@@ -219,6 +221,7 @@ subroutine run_oneGRU(&
   logical(lgt)                        :: wetOpen                        ! flag that a wetland with area takes the glacier runoff
   real(rkind)                         :: availArea                      ! HRU area a wetland can take (m2)
   real(rkind)                         :: wetInflow                      ! water flowing into a wetland (m3 s-1)
+  real(rkind)                         :: wetOutflow                     ! outflow of a wetland that reaches the channel (m3 s-1)
   logical(lgt)                        :: checkedUpdateTime              ! flag that the glacier update time has been checked for this GRU
   logical(lgt)                        :: hasGlacier                     ! flag that the current HRU has a glacier domain
   real(rkind)                         :: sec_since_last_update          ! seconds since last glacier area update
@@ -286,6 +289,10 @@ subroutine run_oneGRU(&
   ixStreamHRU    = 0
   ixWetHRU       = 0
   ixWetDOM       = 0
+  ixHeadHRU      = 0
+  ixHeadDOM      = 0
+  ixNextHRU      = 0
+  ixNextDOM      = 0
   basinNrgFlux   = 0._rkind
 
   ! ----- initialize the column inflows, find the stream and glacier domains, and check if the glacier area is updated ------
@@ -297,7 +304,13 @@ subroutine run_oneGRU(&
     do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
       associate(typeDOM => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type, &
                 DOMarea => progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1))
-        if(typeDOM==wetland .and. DOMarea>0._rkind .and. ixWetHRU==0)then; ixWetHRU = iHRU; ixWetDOM = iDOM; endif
+        if(typeDOM==wetland .and. DOMarea>0._rkind)then ! the first open head of a series, and the first open wetland otherwise
+          if(mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%wetlandFeedsNext)%dat(1) > 0.5_rkind)then
+            if(ixHeadHRU==0)then; ixHeadHRU = iHRU; ixHeadDOM = iDOM; endif
+          else if(ixWetHRU==0)then
+            ixWetHRU = iHRU; ixWetDOM = iDOM
+          endif
+        endif
         if(typeDOM==wetland)then ! the full area is found once, and again when the glacier area changes
           associate(fullArea => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%wetFullArea)
             if(fullArea < 0._rkind) fullArea = wetlandFullArea(iHRU, mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%wetlandMaxArea)%dat(1), gruInfo%gridInfo, gridData)
@@ -336,6 +349,26 @@ subroutine run_oneGRU(&
              glac_contourLength(nglacDOM),glac_debris_thick(nglacDOM),glac_ablFrac(nglacDOM),massChange(nglacDOM), &
              iden_soil_mean(nglacDOM),theta_sat_mean(nglacDOM),nclean(nglacHRU),ndebris(nglacHRU))
   endif
+
+  ! ----- a head wetland takes the glacier runoff and drains to the first open wetland that is not one, else to the channel ---
+  if(ixHeadHRU > 0)then
+    ixNextHRU = ixWetHRU; ixNextDOM = ixWetDOM
+    ixWetHRU  = ixHeadHRU; ixWetDOM = ixHeadDOM
+  endif
+
+  ! ----- the next wetland in series takes what the head released last step, at the head's temperature ---------------------
+  if(ixNextHRU > 0)then
+    associate(nextFlux => fluxHRU%hru(ixNextHRU)%dom(ixNextDOM)%var, &
+              chainFlow => bvarData%var(iLookBVAR%wetlandChainFlow)%dat(1), chainTemp => bvarData%var(iLookBVAR%wetlandChainTemp)%dat(1))
+      nextFlux(iLookFLUX%scalarStreamInflow)%dat(1)        = 0._rkind
+      nextFlux(iLookFLUX%scalarStreamInflowTemp)%dat(1)    = Tfreeze
+      nextFlux(iLookFLUX%scalarStreamLatInflow)%dat(1)     = max(chainFlow, 0._rkind)
+      nextFlux(iLookFLUX%scalarStreamLatInflowTemp)%dat(1) = merge(chainTemp, Tfreeze, chainFlow > 0._rkind .and. chainTemp > 0._rkind)
+      nextFlux(iLookFLUX%scalarStreamFrictionHeat)%dat(1)  = 0._rkind
+    end associate
+  endif
+  bvarData%var(iLookBVAR%wetlandChainFlow)%dat(1) = 0._rkind
+  bvarData%var(iLookBVAR%wetlandChainTemp)%dat(1) = Tfreeze
 
   ! ----- the wetland takes the glacier runoff routed last step, at the freezing point --------------------------------------
   if(ixWetHRU > 0)then
@@ -593,10 +626,18 @@ subroutine run_oneGRU(&
             hypTempPast(1) = max(diag(iLookDIAG%scalarStreamTemp)%dat(1), Tfreeze)
           end associate
         else if(typeDOM==wetland)then
-          ! the wetland's outflow, and the rain and melt on its water less evaporation, leave at the column temperature
+          ! the wetland's outflow, and the rain and melt on its water less evaporation, leave at the column temperature;
+          ! the outflow of a head with a next wetland goes to that wetland at the next step instead
+          if(iHRU==ixWetHRU .and. iDOM==ixWetDOM .and. ixNextHRU > 0)then
+            bvar(iLookBVAR%wetlandChainFlow)%dat(1) = flux(iLookFLUX%scalarStreamOutflow)%dat(1)
+            bvar(iLookBVAR%wetlandChainTemp)%dat(1) = max(diag(iLookDIAG%scalarStreamTemp)%dat(1), Tfreeze)
+            wetOutflow = 0._rkind
+          else
+            wetOutflow = flux(iLookFLUX%scalarStreamOutflow)%dat(1)
+          endif
           bvar(iLookBVAR%basin__SurfaceRunoff)%dat(1) = bvar(iLookBVAR%basin__SurfaceRunoff)%dat(1) &
-                                                        + flux(iLookFLUX%scalarStreamOutflow)%dat(1)/totalArea + flux(iLookFLUX%scalarStreamRunoff)%dat(1)*fracDOM
-          basinNrgFlux = basinNrgFlux + iden_water*Cp_water*(flux(iLookFLUX%scalarStreamOutflow)%dat(1)/totalArea + flux(iLookFLUX%scalarStreamRunoff)%dat(1)*fracDOM) &
+                                                        + wetOutflow/totalArea + flux(iLookFLUX%scalarStreamRunoff)%dat(1)*fracDOM
+          basinNrgFlux = basinNrgFlux + iden_water*Cp_water*(wetOutflow/totalArea + flux(iLookFLUX%scalarStreamRunoff)%dat(1)*fracDOM) &
                                         *max(diag(iLookDIAG%scalarStreamTemp)%dat(1), Tfreeze)
         else if(typeDOM==glacCln1 .or. typeDOM==glacCln2 .or. typeDOM==glacDbr)then
           ! glacier melt (m s-1) into the firn reservoir from the accumulation zone, and the snow or ice reservoir from the ablation zone

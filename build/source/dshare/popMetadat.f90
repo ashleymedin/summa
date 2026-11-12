@@ -364,6 +364,8 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%wetlandSettleVel)               = var_info('wetlandSettleVel'               , 'settling velocity of the sediment in a wetland inflow'            , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! open-water roughness
   mpar_meta(iLookPARAM%lakeFetch)                      = var_info('lakeFetch'                      , 'fetch over open lake water, 0 for a fixed z0Water'                , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! wetlands in series
+  mpar_meta(iLookPARAM%wetlandFeedsNext)               = var_info('wetlandFeedsNext'               , '1 for a wetland that drains to the next open wetland, 0 to the channel', '-'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------
@@ -853,6 +855,8 @@ subroutine popMetadat(err,message)
   bvar_meta(iLookBVAR%hypTempPast)             = var_info('hypTempPast'            , 'reach outlet temperature in past time steps'                   , 'K'     , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%averageRoutedRunoffTemp) = var_info('averageRoutedRunoffTemp', 'temperature of the routed runoff'                              , 'K'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%basin__GlacierMassChange)= var_info('basin__GlacierMassChange', 'glacier mass change per unit glacier area'                    , 'kg m-2 s-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%wetlandChainFlow)        = var_info('wetlandChainFlow'       , 'outflow the head wetland hands to the next one'                , 'm3 s-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%wetlandChainTemp)        = var_info('wetlandChainTemp'       , 'temperature of the outflow the head wetland hands on'          , 'K'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin glacier grids
   ! -----------------------------------------
