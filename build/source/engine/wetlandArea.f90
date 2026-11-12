@@ -97,10 +97,11 @@ end subroutine lakeImposeLiquid
 ! public function wetlandFullArea: area of a wetland filled to its outlet (m2)
 ! ************************************************************************************************
 ! maxArea, or the ice-free part of the wetlandMask cells of HRU ixHRU if the HRU has any and that is smaller
-function wetlandFullArea(ixHRU,maxArea,gridInfo,gridData) result(fullArea)
+function wetlandFullArea(ixHRU,maxArea,useMask,gridInfo,gridData) result(fullArea)
   implicit none
   integer(i4b),intent(in)          :: ixHRU       ! index of the wetland's HRU in its GRU
   real(rkind),intent(in)           :: maxArea     ! wetlandMaxArea (m2)
+  logical(lgt),intent(in)          :: useMask     ! flag that the wetland fills the HRU's wetlandMask cells
   type(grid_info),intent(in)       :: gridInfo(:) ! size and spacing of each grid of the GRU
   type(grid_double),intent(in)     :: gridData    ! grids of the GRU
   real(rkind)                      :: fullArea    ! area of the wetland filled to its outlet (m2)
@@ -109,7 +110,7 @@ function wetlandFullArea(ixHRU,maxArea,gridInfo,gridData) result(fullArea)
   integer(i4b)                     :: nBasin      ! number of mask cells in the HRU
   real(rkind)                      :: freeArea    ! area of those cells that is free of ice (m2)
   fullArea = maxArea
-  if(.not.allocated(gridData%grid)) return
+  if(.not.useMask .or. .not.allocated(gridData%grid)) return
   nBasin = 0; freeArea = 0._rkind
   do iGrid=1,size(gridInfo)
     associate(nx => gridInfo(iGrid)%nx, ny => gridInfo(iGrid)%ny, var => gridData%grid(iGrid)%var)

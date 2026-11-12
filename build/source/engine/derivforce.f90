@@ -68,7 +68,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine derivforce: compute derived forcing data
  ! ************************************************************************************************
- subroutine derivforce(is_glac, has_canopy, forc_data,attr_data,mpar_data, prog_data,diag_data,flux_data,tmZoneOffsetFracDay,err,message)
+ subroutine derivforce(is_glac, is_wetland, has_canopy, forc_data,attr_data,mpar_data, prog_data,diag_data,flux_data,tmZoneOffsetFracDay,err,message)
  USE sunGeomtry_module,only:clrsky_rad                            ! compute cosine of the solar zenith angle
  USE convert_funcs_module,only:vapPress                           ! compute vapor pressure of air (Pa)
  USE convert_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP   ! conversion functions
@@ -80,6 +80,7 @@ contains
  implicit none
  ! input variables
  logical(lgt),intent(in)              :: is_glac                       ! flag to indicate if is a glacier domain
+ logical(lgt),intent(in)              :: is_wetland                    ! flag to indicate if is a wetland domain
  logical(lgt),intent(in)              :: has_canopy                    ! flag to indicate if the domain can have a vegetation canopy
  type(var_d),intent(inout)            :: forc_data                     ! vector of forcing data for a given time step
  type(var_d),intent(in)               :: attr_data                     ! vector of model attributes
@@ -147,6 +148,8 @@ contains
  newSnowDenBase          => mpar_data%var(iLookPARAM%newSnowDenBase)%dat(1)       , & ! Anderson 1976, base value that is rasied to the (3/2) power (K)
  glacierWindFactor       => mpar_data%var(iLookPARAM%glacierWindFactor)%dat(1)    , & ! wind speed factor to account for glacier sheltering and katabatic wind profile (-)
  glacierTempReduction    => mpar_data%var(iLookPARAM%glacierTempReduction)%dat(1) , & ! air temperature factor decrease to account for down-glacier katabatic wind (-)
+ wetlandWindFactor       => mpar_data%var(iLookPARAM%wetlandWindFactor)%dat(1)    , & ! wind speed factor over a wetland, for sheltering (-)
+ wetlandAirCooling       => mpar_data%var(iLookPARAM%wetlandAirCooling)%dat(1)    , & ! share of the glacier's katabatic cooling a wetland's air takes (-)
  precipElevGrad          => mpar_data%var(iLookPARAM%precipElevGrad)%dat(1)       , & ! fractional change in precipitation per metre above the HRU elevation (m-1)
  tempLapseRate           => mpar_data%var(iLookPARAM%tempLapseRate)%dat(1)        , & ! air temperature decrease per metre above the HRU elevation (K m-1)
  ! radiation geometry variables
@@ -211,6 +214,15 @@ contains
  ! see e.g. Radic et al., 2017, https://doi.org/10.5194/tc-11-2897-2017, following Oerlemans and Grisogono (2002)
  ! NOTE2: Should make dependent on the glacier geometry so wind speed increases and temperature decreases are larger down-glacier
  katabaticCooling = 0._rkind
+ if (is_wetland) then ! a wetland below the ice can be sheltered and take air cooled over the glacier
+  windspd   = windspd   * wetlandWindFactor
+  windspd_x = windspd_x * wetlandWindFactor
+  windspd_y = windspd_y * wetlandWindFactor
+  if (airtemp>Tfreeze) then
+   katabaticCooling = wetlandAirCooling*(1._rkind - glacierTempReduction)*(airtemp - Tfreeze)
+   airtemp = airtemp - katabaticCooling
+  endif
+ endif
  if (is_glac) then
   windspd   = windspd   * glacierWindFactor
   windspd_x = windspd_x * glacierWindFactor

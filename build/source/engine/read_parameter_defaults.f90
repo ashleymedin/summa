@@ -355,6 +355,21 @@ contains
     parFallback(iLookPARAM%wetlandFeedsNext)%lower_limit = 0._rkind
     parFallback(iLookPARAM%wetlandFeedsNext)%upper_limit = 1._rkind
   end if
+  if (parFallback(iLookPARAM%wetlandWindFactor)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandWindFactor)%default_val = 1._rkind ! the HRU's wind (-)
+    parFallback(iLookPARAM%wetlandWindFactor)%lower_limit = 0.1_rkind
+    parFallback(iLookPARAM%wetlandWindFactor)%upper_limit = 1.5_rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandAirCooling)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandAirCooling)%default_val = 0._rkind ! the HRU's air (-)
+    parFallback(iLookPARAM%wetlandAirCooling)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandAirCooling)%upper_limit = 1._rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandUseMask)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandUseMask)%default_val = 1._rkind ! a wetland fills its HRU's wetlandMask cells, if it has any (-)
+    parFallback(iLookPARAM%wetlandUseMask)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandUseMask)%upper_limit = 1._rkind
+  end if
   if (parFallback(iLookPARAM%lakeIceMinThick)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%lakeIceMinThick)%default_val = 0.005_rkind ! 5 mm: the minimum ice thickness of flowing water in Wanders et al. (2019), below which the cover breaks up (m)
   end if

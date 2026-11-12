@@ -313,7 +313,8 @@ subroutine run_oneGRU(&
         endif
         if(typeDOM==wetland)then ! the full area is found once, and again when the glacier area changes
           associate(fullArea => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%wetFullArea)
-            if(fullArea < 0._rkind) fullArea = wetlandFullArea(iHRU, mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%wetlandMaxArea)%dat(1), gruInfo%gridInfo, gridData)
+            if(fullArea < 0._rkind) fullArea = wetlandFullArea(iHRU, mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%wetlandMaxArea)%dat(1), &
+                            mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%wetlandUseMask)%dat(1) > 0.5_rkind, gruInfo%gridInfo, gridData)
             call wetlandInfill(fullArea, mparHRU%hru(iHRU)%dom(iDOM), progHRU%hru(iHRU)%dom(iDOM), diagHRU%hru(iHRU)%dom(iDOM))
           end associate
         endif
@@ -931,7 +932,8 @@ subroutine run_oneGRU(&
       if(mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%wetlandMaxArea)%dat(1) <= 0._rkind) cycle
       associate(fullArea => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%wetFullArea)
         if(updateGlacArea)then
-          fullArea = wetlandFullArea(iHRU, mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%wetlandMaxArea)%dat(1), gruInfo%gridInfo, gridData)
+          fullArea = wetlandFullArea(iHRU, mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%wetlandMaxArea)%dat(1), &
+                            mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%wetlandUseMask)%dat(1) > 0.5_rkind, gruInfo%gridInfo, gridData)
         endif
         call wetlandInfill(fullArea, mparHRU%hru(iHRU)%dom(iDOM), progHRU%hru(iHRU)%dom(iDOM), diagHRU%hru(iHRU)%dom(iDOM))
         availArea = attrHRU%hru(iHRU)%var(iLookATTR%HRUarea)
