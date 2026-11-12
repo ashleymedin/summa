@@ -484,6 +484,8 @@ contains
   case('wetlandSettleVel'         ); get_ixParam = iLookPARAM%wetlandSettleVel       ! settling velocity of the sediment in a wetland's inflow (m s-1)
   ! open-water roughness
   case('lakeFetch'                ); get_ixParam = iLookPARAM%lakeFetch              ! fetch over open lake water, 0 for a fixed z0Water (m)
+  ! wetlands in series
+  case('wetlandFeedsNext'         ); get_ixParam = iLookPARAM%wetlandFeedsNext       ! 1 for a wetland that drains to the next open wetland, 0 to the channel (-)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
@@ -1169,6 +1171,8 @@ contains
   case('hypTempPast'                   ); get_ixBvar = iLookBVAR%hypTempPast                     ! reach outlet temperature in past time steps (K)
   case('averageRoutedRunoffTemp'       ); get_ixBvar = iLookBVAR%averageRoutedRunoffTemp         ! temperature of the routed runoff (K)
   case('basin__GlacierMassChange'      ); get_ixBvar = iLookBVAR%basin__GlacierMassChange        ! glacier mass change per unit glacier area (kg m-2 s-1)
+  case('wetlandChainFlow'              ); get_ixBvar = iLookBVAR%wetlandChainFlow                ! outflow the head wetland hands to the next one (m3 s-1)
+  case('wetlandChainTemp'              ); get_ixBvar = iLookBVAR%wetlandChainTemp                ! temperature of that outflow (K)
   ! get to here if cannot find the variable
   case default
    get_ixBvar = integerMissing
