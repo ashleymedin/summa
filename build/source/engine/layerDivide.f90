@@ -383,7 +383,7 @@ contains
   nLayers = nSnow + nLake + nSoil + nGlce
 
   ! re-set coordinate variables
-  iLayerHeight(0) = -scalarSnowDepth
+  iLayerHeight(0) = -scalarSnowDepth - sum(prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nSnow+nLake)) ! the soil surface is at zero, under any lake layers
   do jLayer=1,nLayers
    iLayerHeight(jLayer) = iLayerHeight(jLayer-1) + depth(jLayer)
    mLayerHeight(jLayer) = (iLayerHeight(jLayer-1) + iLayerHeight(jLayer))/2._rkind

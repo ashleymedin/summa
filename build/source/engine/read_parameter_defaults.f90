@@ -311,9 +311,24 @@ contains
     parFallback(iLookPARAM%wetlandStorageK)%upper_limit = 864000._rkind
   end if
   if (parFallback(iLookPARAM%wetlandMinDepth)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%wetlandMinDepth)%default_val = 0.05_rkind ! water left standing when the wetland stops draining (m)
+    parFallback(iLookPARAM%wetlandMinDepth)%default_val = 0.05_rkind ! mean depth of the wetland filled to its outlet (m)
     parFallback(iLookPARAM%wetlandMinDepth)%lower_limit = 0.01_rkind
-    parFallback(iLookPARAM%wetlandMinDepth)%upper_limit = 2._rkind
+    parFallback(iLookPARAM%wetlandMinDepth)%upper_limit = 50._rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandMaxArea)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandMaxArea)%default_val = 0._rkind ! the wetland keeps the area it starts with (m2)
+    parFallback(iLookPARAM%wetlandMaxArea)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandMaxArea)%upper_limit = 1.e9_rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandShape)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandShape)%default_val = 1._rkind ! stage rises linearly with area: a paraboloid (-)
+    parFallback(iLookPARAM%wetlandShape)%lower_limit = 0.1_rkind
+    parFallback(iLookPARAM%wetlandShape)%upper_limit = 10._rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandFlatArea)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandFlatArea)%default_val = 0._rkind ! no spreading above the outlet (m2 m-1)
+    parFallback(iLookPARAM%wetlandFlatArea)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandFlatArea)%upper_limit = 1.e7_rkind
   end if
   if (parFallback(iLookPARAM%lakeIceMinThick)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%lakeIceMinThick)%default_val = 0.005_rkind ! 5 mm: the minimum ice thickness of flowing water in Wanders et al. (2019), below which the cover breaks up (m)

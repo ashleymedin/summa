@@ -459,7 +459,7 @@ contains
   case('lakeMixingThermalC'       ); get_ixParam = iLookPARAM%lakeMixingThermalC     ! effective thermal conductivity between liquid lake layers (W m-1 K-1)
   case('lakeIceMinThick'          ); get_ixParam = iLookPARAM%lakeIceMinThick        ! ice cover thinner than this breaks up and returns to the water (m)
   case('wetlandStorageK'          ); get_ixParam = iLookPARAM%wetlandStorageK        ! storage time constant of the wetland outflow (s)
-  case('wetlandMinDepth'          ); get_ixParam = iLookPARAM%wetlandMinDepth        ! liquid depth below which a wetland does not drain (m)
+  case('wetlandMinDepth'          ); get_ixParam = iLookPARAM%wetlandMinDepth        ! mean liquid depth of a wetland filled to its outlet (m)
   ! lower boundary condition for thermodynamics
   case('lowerBoundNrgFlux'        ); get_ixParam = iLookPARAM%lowerBoundNrgFlux      ! energy flux at the lower boundary, the geothermal heat flux (W m-2)
   ! temperature of the groundwater reaching the channel
@@ -474,6 +474,10 @@ contains
   case('oudinPETScaleK1'          ); get_ixParam = iLookPARAM%oudinPETScaleK1        ! Oudin PET formula scaling factor (deg C)
   case('oudinPETTempThrK2'        ); get_ixParam = iLookPARAM%oudinPETTempThrK2      ! Oudin PET formula temperature threshold (deg C)
   case('tempLapseRate'            ); get_ixParam = iLookPARAM%tempLapseRate          ! air temperature decrease per metre above the HRU elevation (K m-1)
+  ! wetland area from the water it holds
+  case('wetlandMaxArea'           ); get_ixParam = iLookPARAM%wetlandMaxArea         ! area of a wetland filled to its outlet, 0 keeps the area fixed (m2)
+  case('wetlandShape'             ); get_ixParam = iLookPARAM%wetlandShape           ! power of the wetland area its stage follows below the outlet (-)
+  case('wetlandFlatArea'          ); get_ixParam = iLookPARAM%wetlandFlatArea        ! area a wetland gains per metre of rise above its outlet (m2 m-1)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
@@ -693,6 +697,8 @@ contains
   case('scalarHypTemp'                  ); get_ixDiag = iLookDIAG%scalarHypTemp                    ! temperature of the hyporheic return flow (K)
   case('scalarInfilLimAqfr'             ); get_ixDiag = iLookDIAG%scalarInfilLimAqfr               ! aquifer control on the infiltrating area (-)
   case('scalarAquiferReject'            ); get_ixDiag = iLookDIAG%scalarAquiferReject              ! recharge rejected below the soil column, returned to its base (m s-1)
+  ! wetland area
+  case('scalarWetlandFullArea'          ); get_ixDiag = iLookDIAG%scalarWetlandFullArea            ! area of the wetland filled to its outlet (m2)
   case('scalarLakeLiqDepth'             ); get_ixDiag = iLookDIAG%scalarLakeLiqDepth               ! total liquid depth of the lake layers (m)
   case('scalarLakeIceThick'             ); get_ixDiag = iLookDIAG%scalarLakeIceThick               ! thickness of the ice cover of the lake layers (m)
   case('scalarStreamSfcInflowTemp'      ); get_ixDiag = iLookDIAG%scalarStreamSfcInflowTemp        ! temperature of the rain plus melt entering the open water column (K)
@@ -1179,6 +1185,7 @@ contains
     case('glacierMask'           ); get_ixGrid = iLookGRID%glacierMask              ! glacier mask
     case('surface_elev'          ); get_ixGrid = iLookGRID%surface_elev             ! glacier surface elevation (m)
     case('debris_thick'          ); get_ixGrid = iLookGRID%debris_thick             ! debris thickness (m)
+    case('wetlandMask'           ); get_ixGrid = iLookGRID%wetlandMask              ! cells a wetland can fill once free of ice (-)
     ! get to here if cannot find the variable
     case default
      get_ixGrid = integerMissing

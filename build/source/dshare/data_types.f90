@@ -162,6 +162,7 @@ MODULE data_types
   integer(i4b)                           :: nGlce                         ! number of glacier ice layers
   integer(i4b)                           :: nBedrock                      ! number of thermal-only bedrock layers at the base of the soil column
   logical(lgt)                           :: bedrockNew                    ! flag that the bedrock layers were built, so are absent from the initial conditions
+  real(rkind)                            :: wetFullArea = -1._rkind       ! area of a wetland filled to its outlet, negative until computed (m2)
  endtype dom_info
 
  ! hru info data structure
