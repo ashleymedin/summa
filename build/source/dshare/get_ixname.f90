@@ -490,6 +490,7 @@ contains
   case('wetlandWindFactor'        ); get_ixParam = iLookPARAM%wetlandWindFactor      ! wind speed factor over a wetland, for sheltering (-)
   case('wetlandAirCooling'        ); get_ixParam = iLookPARAM%wetlandAirCooling      ! share of the glacier's katabatic cooling a wetland's air takes (-)
   case('wetlandUseMask'           ); get_ixParam = iLookPARAM%wetlandUseMask         ! 1 for a wetland that fills its HRU's wetlandMask cells (-)
+  case('reachOutletElev'          ); get_ixParam = iLookPARAM%reachOutletElev        ! elevation of the reach outlet, 0 for slope times length (m)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
@@ -1177,6 +1178,7 @@ contains
   case('basin__GlacierMassChange'      ); get_ixBvar = iLookBVAR%basin__GlacierMassChange        ! glacier mass change per unit glacier area (kg m-2 s-1)
   case('wetlandChainFlow'              ); get_ixBvar = iLookBVAR%wetlandChainFlow                ! outflow the head wetland hands to the next one (m3 s-1)
   case('wetlandChainTemp'              ); get_ixBvar = iLookBVAR%wetlandChainTemp                ! temperature of that outflow (K)
+  case('basin__TerminusElev'           ); get_ixBvar = iLookBVAR%basin__TerminusElev             ! surface elevation of the lowest glacier ice (m)
   ! get to here if cannot find the variable
   case default
    get_ixBvar = integerMissing

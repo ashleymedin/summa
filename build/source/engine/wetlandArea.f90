@@ -39,6 +39,7 @@ private
 public::lakeImposeLiquid
 public::wetlandFullArea
 public::wetlandInfill
+public::terminusElev
 public::wetlandUpdateArea
 real(rkind),parameter,public :: wetMinLiquid=0.01_rkind ! water depth a wetland keeps, liquid or ice (m)
 real(rkind),parameter        :: minAreaFrac=0.01_rkind  ! smallest area of an open wetland, as a fraction of wetlandMaxArea (-)
@@ -123,6 +124,31 @@ function wetlandFullArea(ixHRU,maxArea,useMask,gridInfo,gridData) result(fullAre
   end do
   if(nBasin > 0) fullArea = min(maxArea, freeArea)
 end function wetlandFullArea
+
+! ************************************************************************************************
+! public function terminusElev: surface elevation of the lowest glacier ice of a GRU, where its meltwater leaves the ice (m)
+! ************************************************************************************************
+! realMissing when the GRU has no glacier grids or no ice left
+function terminusElev(gridInfo,gridData) result(elev)
+  USE globalData,only:realMissing                    ! missing real number
+  implicit none
+  type(grid_info),intent(in)       :: gridInfo(:) ! size and spacing of each grid of the GRU
+  type(grid_double),intent(in)     :: gridData    ! grids of the GRU
+  real(rkind)                      :: elev        ! surface elevation of the lowest ice (m)
+  integer(i4b)                     :: iGrid       ! grid index
+  elev = huge(1._rkind)
+  if(allocated(gridData%grid))then
+    do iGrid=1,size(gridInfo)
+      associate(nx => gridInfo(iGrid)%nx, ny => gridInfo(iGrid)%ny, var => gridData%grid(iGrid)%var)
+        associate(surface => var(iLookGRID%surface_elev)%dat2(1:nx,1:ny), &
+                  iceThick => var(iLookGRID%surface_elev)%dat2(1:nx,1:ny) - var(iLookGRID%debris_thick)%dat2(1:nx,1:ny) - var(iLookGRID%bed_elev)%dat2(1:nx,1:ny))
+          if(any(iceThick > thick4area)) elev = min(elev, minval(surface, mask=iceThick > thick4area))
+        end associate
+      end associate
+    end do
+  end if
+  if(elev > 0.5_rkind*huge(1._rkind)) elev = realMissing
+end function terminusElev
 
 ! ************************************************************************************************
 ! public subroutine wetlandInfill: full area and depth of a wetland whose basin holds sediment
