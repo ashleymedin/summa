@@ -478,6 +478,9 @@ contains
   case('wetlandMaxArea'           ); get_ixParam = iLookPARAM%wetlandMaxArea         ! area of a wetland filled to its outlet, 0 keeps the area fixed (m2)
   case('wetlandShape'             ); get_ixParam = iLookPARAM%wetlandShape           ! power of the wetland area its stage follows below the outlet (-)
   case('wetlandFlatArea'          ); get_ixParam = iLookPARAM%wetlandFlatArea        ! area a wetland gains per metre of rise above its outlet (m2 m-1)
+  ! wetland infill
+  case('wetlandSedConc'           ); get_ixParam = iLookPARAM%wetlandSedConc         ! volume of sediment a wetland traps per volume of glacier runoff it takes (-)
+  case('wetlandInfillShape'       ); get_ixParam = iLookPARAM%wetlandInfillShape     ! share of the infill that takes area rather than depth from the full wetland (-)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
@@ -528,6 +531,7 @@ contains
   case('scalarAquiferTemp'              ); get_ixProg = iLookPROG%scalarAquiferTemp                ! temperature of the water in the aquifer (K)
   case('scalarAirTempWindow'            ); get_ixProg = iLookPROG%scalarAirTempWindow              ! running mean of the air temperature over gwTempWindow (K)
   case('scalarAirTempAnnual'            ); get_ixProg = iLookPROG%scalarAirTempAnnual              ! running mean of the air temperature over a year (K)
+  case('scalarWetlandSediment'          ); get_ixProg = iLookPROG%scalarWetlandSediment            ! volume of sediment a wetland has trapped (m3)
   case('scalarSurfaceTemp'              ); get_ixProg = iLookPROG%scalarSurfaceTemp                ! surface temperature (K)
   ! coordinate variables
   case('mLayerDepth'                    ); get_ixProg = iLookPROG%mLayerDepth                      ! depth of each layer (m)
@@ -699,6 +703,7 @@ contains
   case('scalarAquiferReject'            ); get_ixDiag = iLookDIAG%scalarAquiferReject              ! recharge rejected below the soil column, returned to its base (m s-1)
   ! wetland area
   case('scalarWetlandFullArea'          ); get_ixDiag = iLookDIAG%scalarWetlandFullArea            ! area of the wetland filled to its outlet (m2)
+  case('scalarWetlandFullDepth'         ); get_ixDiag = iLookDIAG%scalarWetlandFullDepth           ! mean liquid depth of the wetland filled to its outlet (m)
   case('scalarLakeLiqDepth'             ); get_ixDiag = iLookDIAG%scalarLakeLiqDepth               ! total liquid depth of the lake layers (m)
   case('scalarLakeIceThick'             ); get_ixDiag = iLookDIAG%scalarLakeIceThick               ! thickness of the ice cover of the lake layers (m)
   case('scalarStreamSfcInflowTemp'      ); get_ixDiag = iLookDIAG%scalarStreamSfcInflowTemp        ! temperature of the rain plus melt entering the open water column (K)

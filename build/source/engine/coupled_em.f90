@@ -409,7 +409,8 @@ subroutine coupled_em(&
                   outflow => flux_data%var(iLookFLUX%scalarStreamOutflow)%dat(1))
           ! the outlet depth is that of the full area, so it is deeper over a wetland that has shrunk
           wetSill = mpar_data%var(iLookPARAM%wetlandMinDepth)%dat(1)
-          if(mpar_data%var(iLookPARAM%wetlandMaxArea)%dat(1) > 0._rkind) wetSill = wetSill*diag_data%var(iLookDIAG%scalarWetlandFullArea)%dat(1)/DOMarea
+          if(mpar_data%var(iLookPARAM%wetlandMaxArea)%dat(1) > 0._rkind) wetSill = diag_data%var(iLookDIAG%scalarWetlandFullDepth)%dat(1) &
+                                                                                *diag_data%var(iLookDIAG%scalarWetlandFullArea)%dat(1)/DOMarea
           wetDepth  = sum(mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake)*mLayerVolFracLiq(nSnow+nLakeFrz+1:nSnow+nLake))
           wetInflow = max(flux_data%var(iLookFLUX%scalarStreamLatInflow)%dat(1), 0._rkind)/DOMarea
           if(wetDepth + wetInflow*data_step <= wetSill)then

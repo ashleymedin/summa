@@ -24,7 +24,8 @@ module wetlandArea_module
 ! outlet its stage follows area**wetlandShape (0.5 a cone, 1 a paraboloid, large a pan); above it the
 ! area grows by wetlandFlatArea for each metre of rise. The full area is wetlandMaxArea, or the part
 ! of the wetlandMask cells of the wetland's HRU that the glacier has left free of ice if that is
-! smaller, so a wetland with no area opens when the ice leaves its basin.
+! smaller, so a wetland with no area opens when the ice leaves its basin. Sediment it traps fills the basin:
+! the full area and depth shrink with the filled fraction f as (1-f)**wetlandInfillShape and (1-f)**(1-wetlandInfillShape).
 
 USE nr_type
 USE data_types,only:var_ilength,var_dlength          ! data vectors with variable length dimension
@@ -37,6 +38,7 @@ implicit none
 private
 public::lakeImposeLiquid
 public::wetlandFullArea
+public::wetlandInfill
 public::wetlandUpdateArea
 real(rkind),parameter,public :: wetMinLiquid=0.01_rkind ! water depth a wetland keeps, liquid or ice (m)
 real(rkind),parameter        :: minAreaFrac=0.01_rkind  ! smallest area of an open wetland, as a fraction of wetlandMaxArea (-)
@@ -122,6 +124,26 @@ function wetlandFullArea(ixHRU,maxArea,gridInfo,gridData) result(fullArea)
 end function wetlandFullArea
 
 ! ************************************************************************************************
+! public subroutine wetlandInfill: full area and depth of a wetland whose basin holds sediment
+! ************************************************************************************************
+subroutine wetlandInfill(basinArea,mpar_data,prog_data,diag_data)
+  implicit none
+  real(rkind),intent(in)           :: basinArea  ! area of the basin filled to its outlet with no sediment (m2)
+  type(var_dlength),intent(in)     :: mpar_data  ! model parameters
+  type(var_dlength),intent(in)     :: prog_data  ! prognostic variables
+  type(var_dlength),intent(inout)  :: diag_data  ! diagnostic variables
+  real(rkind)                      :: basinVol   ! water the basin holds to its outlet with no sediment (m3)
+  real(rkind)                      :: water      ! fraction of that volume not filled with sediment (-)
+  associate(depth0 => mpar_data%var(iLookPARAM%wetlandMinDepth)%dat(1), shapeA => mpar_data%var(iLookPARAM%wetlandInfillShape)%dat(1))
+    basinVol = basinArea*depth0
+    water = 1._rkind
+    if(basinVol > 0._rkind) water = max(1._rkind - prog_data%var(iLookPROG%scalarWetlandSediment)%dat(1)/basinVol, 0._rkind)
+    diag_data%var(iLookDIAG%scalarWetlandFullArea)%dat(1)  = basinArea*water**shapeA
+    diag_data%var(iLookDIAG%scalarWetlandFullDepth)%dat(1) = depth0*water**(1._rkind - shapeA)
+  end associate
+end subroutine wetlandInfill
+
+! ************************************************************************************************
 ! public subroutine wetlandUpdateArea: set the area of a wetland from the liquid water it holds
 ! ************************************************************************************************
 ! The water volume and temperature are kept, so the liquid depth changes with the area. A wetland with snow or ice
@@ -153,7 +175,7 @@ subroutine wetlandUpdateArea(fullArea,availArea,mpar_data,indx_data,prog_data,di
             volFracLiq  => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,       &
             volFracIce  => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,       &
             maxArea     => mpar_data%var(iLookPARAM%wetlandMaxArea)%dat(1),     &
-            fullDepth   => mpar_data%var(iLookPARAM%wetlandMinDepth)%dat(1),    &
+            fullDepth   => diag_data%var(iLookDIAG%scalarWetlandFullDepth)%dat(1), &
             stagePower  => mpar_data%var(iLookPARAM%wetlandShape)%dat(1),       &
             flatArea    => mpar_data%var(iLookPARAM%wetlandFlatArea)%dat(1))
     nAbove  = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nLakeFrz)%dat(1)
