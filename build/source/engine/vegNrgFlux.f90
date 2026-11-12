@@ -195,6 +195,8 @@ subroutine vegNrgFlux(&
   ! turbulent heat transfer
   real(rkind)                        :: z0Ground                        ! roughness length of the ground (ground below the canopy or non-vegetated surface) (m)
   logical(lgt)                       :: andreasScalar                   ! flag for a snow or ice surface whose heat and vapour roughness follows Andreas (1987)
+  real(rkind)                        :: z0Lake                          ! momentum roughness length of open lake water (m)
+  real(rkind)                        :: z0hLake                         ! heat and vapour roughness length of open lake water, negative when not set (m)
   real(rkind)                        :: soilEvapFactor                  ! soil water control on evaporation from non-vegetated surfaces
   real(rkind)                        :: soilRelHumidity_noSnow          ! relative humidity in the soil pores [0-1]
   real(rkind)                        :: scalarLeafConductance           ! leaf conductance (m s-1)
@@ -299,6 +301,7 @@ subroutine vegNrgFlux(&
     ! input: aerodynamic resistance parameters
     z0Snow                          => mpar_data%var(iLookPARAM%z0Snow)%dat(1),                        & ! intent(in): [dp] roughness length of snow (m)
     z0Water                         => mpar_data%var(iLookPARAM%z0Water)%dat(1),                       & ! intent(in): [dp] roughness length of unfrozen water (m)
+    lakeFetch                       => mpar_data%var(iLookPARAM%lakeFetch)%dat(1),                     & ! intent(in): [dp] fetch over open lake water, 0 for a fixed z0Water (m)
     z0Soil                          => mpar_data%var(iLookPARAM%z0Soil)%dat(1),                        & ! intent(in): [dp] roughness length of soil (m)
     z0Ice                           => mpar_data%var(iLookPARAM%z0Ice)%dat(1),                         & ! intent(in): [dp] roughness length of ice (m), on glacier or lake ice
     z0CanopyParam                   => mpar_data%var(iLookPARAM%z0Canopy)%dat(1),                      & ! intent(in): [dp] roughness length of the canopy (m)
@@ -572,9 +575,13 @@ subroutine vegNrgFlux(&
         end if  ! end if the first flux call
 
         ! compute the roughness length (m) of the ground (ground below the canopy or non-vegetated surface)
+        z0hLake = -1._rkind
         if (nLake>0)then
-          ! NOTE: these should eventually be adjusted to account for fetch
-          if (nLakeFrz==0) z0Ground = z0Water*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction ! depends on surface waves
+          z0Lake = z0Water
+          if (nLakeFrz==0 .and. lakeFetch>0._rkind) call lakeRoughness(windspd, mHeight - scalarSnowDepth, lakeFetch, &
+                                                        sum(prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nSnow+nLake)), z0Lake, z0hLake)
+          if (scalarGroundSnowFraction > 0._rkind) z0hLake = -1._rkind ! snow on the water keeps z0 for heat
+          if (nLakeFrz==0) z0Ground = z0Lake*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction ! depends on surface waves
           if (nLakeFrz> 0) z0Ground = z0Ice*  (1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction
         else if (nSoil>0)then
           z0Ground = z0Soil*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction
@@ -680,6 +687,7 @@ subroutine vegNrgFlux(&
                         ! input: parameters
                         z0Ground,                           & ! intent(in): roughness length of the ground (below canopy or non-vegetated surface [snow]) (m)
                         andreasScalar,                      & ! intent(in): flag for a heat and vapour roughness from Andreas (1987)
+                        z0hLake,                            & ! intent(in): heat and vapour roughness of open lake water, negative when not set (m)
                         z0CanopyParam,                      & ! intent(in): roughness length of the canopy (m)
                         zpdFraction,                        & ! intent(in): zero plane displacement / canopy height (-)
                         critRichNumber,                     & ! intent(in): critical value for the bulk Richardson number where turbulence ceases (-)
@@ -1448,6 +1456,7 @@ subroutine aeroResist(&
                       ! input: parameters
                       z0Ground,                      & ! intent(in):  roughness length of the ground (below canopy or non-vegetated surface [snow]) (m)
                       andreasScalar,                 & ! intent(in):  flag for a heat and vapour roughness from Andreas (1987)
+                      z0hLake,                       & ! intent(in):  heat and vapour roughness of open lake water, negative when not set (m)
                       z0CanopyParam,                 & ! intent(in):  roughness length of the canopy (m)
                       zpdFraction,                   & ! intent(in):  zero plane displacement / canopy height (-)
                       critRichNumber,                & ! intent(in):  critical value for the bulk Richardson number where turbulence ceases (-)
@@ -1506,6 +1515,7 @@ subroutine aeroResist(&
   ! input: parameters
   real(rkind),intent(in)           :: z0Ground                      ! roughness length of the ground (below canopy or non-vegetated surface [snow]) (m)
   logical(lgt),intent(in)          :: andreasScalar                 ! flag for a heat and vapour roughness from Andreas (1987)
+  real(rkind),intent(in)           :: z0hLake                       ! heat and vapour roughness of open lake water, negative when not set (m)
   real(rkind),intent(in)           :: z0CanopyParam                 ! roughness length of the canopy (m)
   real(rkind),intent(in)           :: zpdFraction                   ! zero plane displacement / canopy height (-)
   real(rkind),intent(in)           :: critRichNumber                ! critical value for the bulk Richardson number where turbulence ceases (-)
@@ -1809,6 +1819,7 @@ subroutine aeroResist(&
         z0hGround = z0Ground*exp(0.317_rkind - 0.565_rkind*lnRstar - 0.183_rkind*lnRstar**2_i4b)
       end if
     end if
+    if (z0hLake > 0._rkind) z0hGround = z0hLake
     groundExNeut = (vkc**2_i4b) / ( log(heightAboveGround/z0Ground)*log(heightAboveGround/z0hGround) ) ! turbulent transfer coefficient under conditions of neutral stability (-)
     groundResistanceNeutral = 1._rkind / (groundExNeut*windspd)
 
@@ -2705,5 +2716,40 @@ real(rkind)                   :: RiMult                 ! dimensionless scaling 
   endif
 
 end subroutine bulkRichardson
+
+! *******************************************************************************************************
+! private subroutine lakeRoughness: roughness of open lake water from the wind, fetch and depth
+! *******************************************************************************************************
+! Subin et al. (2012, CLM lake): momentum roughness is the smooth-flow limit or Charnock's, whichever is larger,
+! with a Charnock coefficient raised for waves young on a short fetch or shallow water; heat and vapour roughness
+! from the roughness Reynolds number. Neutral friction velocity, as the wind is the forcing.
+subroutine lakeRoughness(windspd,zRef,fetch,depth,z0m,z0h)
+  implicit none
+  real(rkind),intent(in)           :: windspd                       ! wind speed at the measurement height (m s-1)
+  real(rkind),intent(in)           :: zRef                          ! measurement height above the water (m)
+  real(rkind),intent(in)           :: fetch                         ! fetch over the water (m)
+  real(rkind),intent(in)           :: depth                         ! depth of the water (m)
+  real(rkind),intent(out)          :: z0m                           ! momentum roughness length (m)
+  real(rkind),intent(out)          :: z0h                           ! heat and vapour roughness length (m)
+  real(rkind),parameter            :: viscAir = 1.3e-5_rkind        ! kinematic viscosity of air (m2 s-1)
+  real(rkind),parameter            :: smoothCoef = 0.1_rkind        ! smooth-flow coefficient (-)
+  real(rkind),parameter            :: charnockMin = 0.01_rkind      ! Charnock coefficient of fully grown waves (-)
+  real(rkind),parameter            :: charnockAdd = 0.1_rkind       ! most it rises for young waves (-)
+  real(rkind),parameter            :: fetchScale = 100._rkind       ! dimensionless fetch scale (-)
+  real(rkind),parameter            :: prandtl = 0.71_rkind          ! Prandtl number of air (-)
+  real(rkind),parameter            :: windMin = 0.1_rkind           ! smallest wind speed used (m s-1)
+  real(rkind)                      :: wind                          ! wind speed used (m s-1)
+  real(rkind)                      :: charnock                      ! Charnock coefficient (-)
+  real(rkind)                      :: ustar                         ! friction velocity (m s-1)
+  integer(i4b)                     :: iter                          ! iteration index
+  wind = max(windspd, windMin)
+  charnock = charnockMin + charnockAdd*exp(max(-(fetch*gravity/wind**2_i4b)**(1._rkind/3._rkind)/fetchScale, -sqrt(max(depth,0._rkind)*gravity)/wind))
+  z0m = 1.e-4_rkind
+  do iter=1,10 ! fixed point of the neutral log profile
+    ustar = vkc*wind/log(zRef/z0m)
+    z0m = max(smoothCoef*viscAir/ustar, charnock*ustar**2_i4b/gravity)
+  end do
+  z0h = z0m*exp(-vkc/prandtl*(4._rkind*sqrt(sqrt(ustar*z0m/viscAir)) - 3.2_rkind))
+end subroutine lakeRoughness
 
 end module vegNrgFlux_module

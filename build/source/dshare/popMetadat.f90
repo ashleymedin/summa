@@ -362,6 +362,8 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%wetlandSedConc)                 = var_info('wetlandSedConc'                 , 'volume of sediment a wetland traps per volume of its inflow'      , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%wetlandInfillShape)             = var_info('wetlandInfillShape'             , 'share of the infill that takes area rather than depth'            , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%wetlandSettleVel)               = var_info('wetlandSettleVel'               , 'settling velocity of the sediment in a wetland inflow'            , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! open-water roughness
+  mpar_meta(iLookPARAM%lakeFetch)                      = var_info('lakeFetch'                      , 'fetch over open lake water, 0 for a fixed z0Water'                , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------
