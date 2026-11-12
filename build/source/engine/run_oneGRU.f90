@@ -218,6 +218,7 @@ subroutine run_oneGRU(&
   logical(lgt)                        :: wetChanged                     ! flag that a wetland changed its area
   logical(lgt)                        :: wetOpen                        ! flag that a wetland with area takes the glacier runoff
   real(rkind)                         :: availArea                      ! HRU area a wetland can take (m2)
+  real(rkind)                         :: wetInflow                      ! water flowing into a wetland (m3 s-1)
   logical(lgt)                        :: checkedUpdateTime              ! flag that the glacier update time has been checked for this GRU
   logical(lgt)                        :: hasGlacier                     ! flag that the current HRU has a glacier domain
   real(rkind)                         :: sec_since_last_update          ! seconds since last glacier area update
@@ -349,14 +350,17 @@ subroutine run_oneGRU(&
   endif
 
   ! ----- the sediment each open wetland's inflow carries settles in its basin, until the basin is full -------------------
+  ! the share that settles is 1 - exp(-settling velocity * area / inflow), the overflow-rate trap of a well-mixed basin
   do iHRU=1,gruInfo%hruCount
     do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
       if(gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type/=wetland) cycle
       associate(mpar => mparHRU%hru(iHRU)%dom(iDOM)%var, basinArea => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%wetFullArea, &
                 sediment => progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarWetlandSediment)%dat(1))
         if(mpar(iLookPARAM%wetlandMaxArea)%dat(1) <= 0._rkind .or. progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) <= 0._rkind) cycle
-        sediment = min(sediment + mpar(iLookPARAM%wetlandSedConc)%dat(1)*max(fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarStreamLatInflow)%dat(1), 0._rkind)*data_step, &
-                       basinArea*mpar(iLookPARAM%wetlandMinDepth)%dat(1))
+        wetInflow = max(fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarStreamLatInflow)%dat(1), 0._rkind)
+        if(wetInflow > 0._rkind) sediment = min(sediment + mpar(iLookPARAM%wetlandSedConc)%dat(1)*wetInflow*data_step &
+                                                *(1._rkind - exp(-mpar(iLookPARAM%wetlandSettleVel)%dat(1)*progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)/wetInflow)), &
+                                                basinArea*mpar(iLookPARAM%wetlandMinDepth)%dat(1))
         call wetlandInfill(basinArea, mparHRU%hru(iHRU)%dom(iDOM), progHRU%hru(iHRU)%dom(iDOM), diagHRU%hru(iHRU)%dom(iDOM))
       end associate
     enddo

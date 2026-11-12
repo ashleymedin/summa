@@ -340,6 +340,11 @@ contains
     parFallback(iLookPARAM%wetlandInfillShape)%lower_limit = 0._rkind
     parFallback(iLookPARAM%wetlandInfillShape)%upper_limit = 1._rkind
   end if
+  if (parFallback(iLookPARAM%wetlandSettleVel)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandSettleVel)%default_val = 1._rkind ! all the sediment settles (m s-1)
+    parFallback(iLookPARAM%wetlandSettleVel)%lower_limit = 1.e-7_rkind
+    parFallback(iLookPARAM%wetlandSettleVel)%upper_limit = 1._rkind
+  end if
   if (parFallback(iLookPARAM%lakeIceMinThick)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%lakeIceMinThick)%default_val = 0.005_rkind ! 5 mm: the minimum ice thickness of flowing water in Wanders et al. (2019), below which the cover breaks up (m)
   end if
