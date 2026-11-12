@@ -215,6 +215,13 @@ contains
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! stream domain possible
      allocate(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(gru_struc(iGRU)%hruInfo(iHRU)%domCount)) ! allocate third level of gru to hru map
      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(:)%dom_type = dom_type(1:gru_struc(iGRU)%hruInfo(iHRU)%domCount,iHRU_global)
+     ! the domains are read from the first slots of the HRU, so none can sit beyond them
+     associate(nDom => gru_struc(iGRU)%hruInfo(iHRU)%domCount)
+       if(any(dom_type(nDom+1:fileDOM,iHRU_global)>=upland .and. dom_type(nDom+1:fileDOM,iHRU_global)<=stream))then
+         write(message,'(a,i0,a)') trim(message)//'the domains of HRU ',gru_struc(iGRU)%hruInfo(iHRU)%hru_id,' must fill its first slots of the dom dimension, with no empty slot between them'
+         err=20; return
+       end if
+     end associate
    enddo
  enddo
 

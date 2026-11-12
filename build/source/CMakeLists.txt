@@ -131,6 +131,7 @@ set(SOLVER
     ${ENGINE_DIR}/computResid.f90
     ${ENGINE_DIR}/snowLakeGlceDepth.f90
     ${ENGINE_DIR}/thermConductivity.f90
+    ${ENGINE_DIR}/wetlandArea.f90
     ${ENGINE_DIR}/coupled_em.f90
     ${ENGINE_DIR}/eval8summa.f90
     ${ENGINE_DIR}/groundwatr.f90

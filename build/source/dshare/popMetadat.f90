@@ -339,7 +339,7 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%lakeMixingThermalC)             = var_info('lakeMixingThermalC'             , 'effective thermal conductivity between liquid lake layers (turbulent mixing)', 'W m-1 K-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%lakeIceMinThick)                = var_info('lakeIceMinThick'                , 'ice cover thinner than this breaks up and returns to the water'   , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%wetlandStorageK)                = var_info('wetlandStorageK'                , 'storage time constant of the wetland outflow'                     , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%wetlandMinDepth)                = var_info('wetlandMinDepth'                , 'liquid depth below which a wetland does not drain'                , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%wetlandMinDepth)                = var_info('wetlandMinDepth'                , 'mean liquid depth of a wetland filled to its outlet'              , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! lower boundary condition for thermodynamics
   mpar_meta(iLookPARAM%lowerBoundNrgFlux)              = var_info('lowerBoundNrgFlux'              , 'energy flux at the lower boundary, the geothermal heat flux'      , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! temperature of the groundwater reaching the channel
@@ -354,6 +354,10 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%oudinPETScaleK1)                = var_info('oudinPETScaleK1'                , 'Oudin PET formula scaling factor'                                 , 'deg C'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%oudinPETTempThrK2)              = var_info('oudinPETTempThrK2'              , 'Oudin PET formula temperature threshold'                          , 'deg C'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%tempLapseRate)                  = var_info('tempLapseRate'                  , 'air temperature decrease per metre above the HRU elevation'      , 'K m-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! wetland area from the water it holds
+  mpar_meta(iLookPARAM%wetlandMaxArea)                 = var_info('wetlandMaxArea'                 , 'area of a wetland filled to its outlet, 0 keeps the area fixed'   , 'm2'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%wetlandShape)                   = var_info('wetlandShape'                   , 'power of the wetland area its stage follows below the outlet'    , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%wetlandFlatArea)                = var_info('wetlandFlatArea'                , 'area a wetland gains per metre of rise above its outlet'          , 'm2 m-1'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------
@@ -570,6 +574,8 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%scalarHypTemp)                   = var_info('scalarHypTemp'                  , 'temperature of the hyporheic return flow'                         , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarInfilLimAqfr)              = var_info('scalarInfilLimAqfr'             , 'aquifer control on the infiltrating area'                         , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarAquiferReject)             = var_info('scalarAquiferReject'            , 'recharge rejected below the soil column, returned to its base'   , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! wetland area
+  diag_meta(iLookDIAG%scalarWetlandFullArea)           = var_info('scalarWetlandFullArea'          , 'area of the wetland filled to its outlet'                        , 'm2'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model fluxes...
   ! -----------------------
@@ -847,6 +853,7 @@ subroutine popMetadat(err,message)
   grid_meta(iLookGRID%glacierMask)            = var_info('glacierMask'             , 'binary mask of area grid that glacier can grow into'       , '-'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)
   grid_meta(iLookGRID%surface_elev)           = var_info('surface_elev'            , 'glacier surface elevation'                                 , 'm'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)
   grid_meta(iLookGRID%debris_thick)           = var_info('debris_thick'            , 'debris thickness'                                          , 'm'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)
+  grid_meta(iLookGRID%wetlandMask)            = var_info('wetlandMask'             , 'binary mask of cells a wetland can fill once free of ice' , '-'     , get_ixVarType('gridvar'), iMissVec, iMissVec, .false.)
   ! -----
   ! * temperature and enthalpy lookup tables...
   ! -------------------------------------------

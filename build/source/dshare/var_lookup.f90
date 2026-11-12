@@ -363,7 +363,7 @@ MODULE var_lookup
   integer(i4b)    :: lakeMixingThermalC    = integerMissing    ! effective thermal conductivity between liquid lake layers, emulating turbulent mixing (W m-1 K-1)
   integer(i4b)    :: lakeIceMinThick       = integerMissing    ! ice cover thinner than this breaks up and returns to the water (m)
   integer(i4b)    :: wetlandStorageK       = integerMissing    ! storage time constant of the wetland outflow (s)
-  integer(i4b)    :: wetlandMinDepth       = integerMissing    ! liquid depth below which a wetland does not drain (m)
+  integer(i4b)    :: wetlandMinDepth       = integerMissing    ! mean liquid depth of a wetland filled to its outlet (m)
   ! lower boundary condition for thermodynamics
   integer(i4b)    :: lowerBoundNrgFlux     = integerMissing    ! energy flux into the base of the soil column, the geothermal heat flux (W m-2)
   ! temperature of the groundwater reaching the channel
@@ -379,6 +379,10 @@ MODULE var_lookup
   integer(i4b)    :: oudinPETTempThrK2     = integerMissing    ! Oudin PET formula temperature threshold (deg C)
   ! air temperature lapse from the HRU to its domains
   integer(i4b)    :: tempLapseRate         = integerMissing    ! air temperature decrease per metre above the HRU elevation (K m-1)
+  ! wetland area from the water it holds
+  integer(i4b)    :: wetlandMaxArea        = integerMissing    ! area of a wetland filled to its outlet, 0 keeps the area fixed (m2)
+  integer(i4b)    :: wetlandShape          = integerMissing    ! power of the wetland area its stage follows below the outlet (-)
+  integer(i4b)    :: wetlandFlatArea       = integerMissing    ! area a wetland gains per metre of rise above its outlet (m2 m-1)
  endtype iLook_param
 
  ! ***********************************************************************************************************
@@ -580,6 +584,8 @@ MODULE var_lookup
   ! coupled groundwater
   integer(i4b)    :: scalarInfilLimAqfr              = integerMissing ! aquifer control on the infiltrating area (-)
   integer(i4b)    :: scalarAquiferReject             = integerMissing ! recharge the aquifer's unsaturated zone rejected, returned to the soil base (m s-1)
+  ! wetland area
+  integer(i4b)    :: scalarWetlandFullArea           = integerMissing ! area of the wetland filled to its outlet (m2)
  endtype iLook_diag
 
  ! ***********************************************************************************************************
@@ -999,6 +1005,7 @@ MODULE var_lookup
   integer(i4b)    :: glacierMask             = integerMissing ! glacier mask (-)
   integer(i4b)    :: surface_elev            = integerMissing ! surface elevation (m)
   integer(i4b)    :: debris_thick            = integerMissing ! debris thickness (m)
+  integer(i4b)    :: wetlandMask             = integerMissing ! cells a wetland can fill once free of ice (-)
  endtype iLook_grid
 
  ! ***********************************************************************************************************
@@ -1102,7 +1109,7 @@ MODULE var_lookup
                                                                         181,182,183,184,185,186,187,188,189,190,&
                                                                         191,192,193,194,195,196,197,198,199,200,&
                                                                         201,202,203,204,205,206,207,208,209,210,&
-                                                                        211)
+                                                                        211,212,213,214)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1121,7 +1128,7 @@ MODULE var_lookup
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
                                                                         101,102,103,104,105,106,107,108,109,110,&
                                                                         111,112,113,114,115,116,117,118,119,120,&
-                                                                        121,122,123,124)
+                                                                        121,122,123,124,125)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1161,7 +1168,7 @@ MODULE var_lookup
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28)
  ! named variables: basin-grid variables
- type(iLook_grid),    public,parameter :: iLookGRID     =iLook_grid    (  1,  2,  3,  4,  5)
+ type(iLook_grid),    public,parameter :: iLookGRID     =iLook_grid    (  1,  2,  3,  4,  5,  6)
  ! named variables in variable type structure
  type(iLook_varType), public,parameter :: iLookVarType  =iLook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18)
