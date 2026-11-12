@@ -330,6 +330,16 @@ contains
     parFallback(iLookPARAM%wetlandFlatArea)%lower_limit = 0._rkind
     parFallback(iLookPARAM%wetlandFlatArea)%upper_limit = 1.e7_rkind
   end if
+  if (parFallback(iLookPARAM%wetlandSedConc)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandSedConc)%default_val = 0._rkind ! the wetland traps no sediment (-)
+    parFallback(iLookPARAM%wetlandSedConc)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandSedConc)%upper_limit = 0.01_rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandInfillShape)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandInfillShape)%default_val = 1._rkind ! a delta front: the wetland loses area at its full depth (-)
+    parFallback(iLookPARAM%wetlandInfillShape)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandInfillShape)%upper_limit = 1._rkind
+  end if
   if (parFallback(iLookPARAM%lakeIceMinThick)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%lakeIceMinThick)%default_val = 0.005_rkind ! 5 mm: the minimum ice thickness of flowing water in Wanders et al. (2019), below which the cover breaks up (m)
   end if

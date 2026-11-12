@@ -151,6 +151,7 @@ subroutine run_oneGRU(&
   USE glacAreaChange_module,only:startGlacDomain              ! start a glacier domain that has just gained area
   USE wetlandArea_module,only:wetlandFullArea                 ! area of a wetland filled to its outlet
   USE wetlandArea_module,only:wetlandUpdateArea               ! set the area of a wetland from the water it holds
+  USE wetlandArea_module,only:wetlandInfill                   ! full area and depth of a wetland whose basin holds sediment
   USE mDecisions_module,only:enthalpyForm                     ! enthalpy with soil temperature-enthalpy lookup tables
   USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
   ! ----- define dummy variables ------------------------------------------------------------------------------------------
@@ -299,7 +300,7 @@ subroutine run_oneGRU(&
         if(typeDOM==wetland)then ! the full area is found once, and again when the glacier area changes
           associate(fullArea => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%wetFullArea)
             if(fullArea < 0._rkind) fullArea = wetlandFullArea(iHRU, mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%wetlandMaxArea)%dat(1), gruInfo%gridInfo, gridData)
-            diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarWetlandFullArea)%dat(1) = fullArea
+            call wetlandInfill(fullArea, mparHRU%hru(iHRU)%dom(iDOM), progHRU%hru(iHRU)%dom(iDOM), diagHRU%hru(iHRU)%dom(iDOM))
           end associate
         endif
         if(typeDOM==stream .and. DOMarea>0._rkind) ixStreamHRU = iHRU ! the reach water column, run in the network pass (at most one per GRU)
@@ -344,6 +345,16 @@ subroutine run_oneGRU(&
                                                             *bvarData%var(iLookBVAR%basin__totalArea)%dat(1)
       wetFlux(iLookFLUX%scalarStreamLatInflowTemp)%dat(1) = Tfreeze
       wetFlux(iLookFLUX%scalarStreamFrictionHeat)%dat(1)  = 0._rkind
+      ! the sediment the glacier runoff carries settles in the basin, until it is full
+      if(mparHRU%hru(ixWetHRU)%dom(ixWetDOM)%var(iLookPARAM%wetlandMaxArea)%dat(1) > 0._rkind)then
+        associate(sediment => progHRU%hru(ixWetHRU)%dom(ixWetDOM)%var(iLookPROG%scalarWetlandSediment)%dat(1))
+          sediment = min(sediment + mparHRU%hru(ixWetHRU)%dom(ixWetDOM)%var(iLookPARAM%wetlandSedConc)%dat(1) &
+                                    *wetFlux(iLookFLUX%scalarStreamLatInflow)%dat(1)*data_step, &
+                         gruInfo%hruInfo(ixWetHRU)%domInfo(ixWetDOM)%wetFullArea*mparHRU%hru(ixWetHRU)%dom(ixWetDOM)%var(iLookPARAM%wetlandMinDepth)%dat(1))
+        end associate
+        call wetlandInfill(gruInfo%hruInfo(ixWetHRU)%domInfo(ixWetDOM)%wetFullArea, mparHRU%hru(ixWetHRU)%dom(ixWetDOM), &
+                           progHRU%hru(ixWetHRU)%dom(ixWetDOM), diagHRU%hru(ixWetHRU)%dom(ixWetDOM))
+      endif
     end associate
   endif
 
@@ -872,14 +883,14 @@ subroutine run_oneGRU(&
       associate(fullArea => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%wetFullArea)
         if(updateGlacArea)then
           fullArea = wetlandFullArea(iHRU, mparHRU%hru(iHRU)%dom(iDOM)%var(iLookPARAM%wetlandMaxArea)%dat(1), gruInfo%gridInfo, gridData)
-          diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarWetlandFullArea)%dat(1) = fullArea
         endif
+        call wetlandInfill(fullArea, mparHRU%hru(iHRU)%dom(iDOM), progHRU%hru(iHRU)%dom(iDOM), diagHRU%hru(iHRU)%dom(iDOM))
         availArea = attrHRU%hru(iHRU)%var(iLookATTR%HRUarea)
         do jDOM = 1, gruInfo%hruInfo(iHRU)%domCount
           if(jDOM==iDOM .or. gruInfo%hruInfo(iHRU)%domInfo(jDOM)%dom_type==upland) cycle
           availArea = availArea - max(progHRU%hru(iHRU)%dom(jDOM)%var(iLookPROG%DOMarea)%dat(1), 0._rkind)
         enddo
-        call wetlandUpdateArea(fullArea, max(availArea, 0._rkind), mparHRU%hru(iHRU)%dom(iDOM), indxHRU%hru(iHRU)%dom(iDOM), &
+        call wetlandUpdateArea(diagHRU%hru(iHRU)%dom(iDOM)%var(iLookDIAG%scalarWetlandFullArea)%dat(1), max(availArea, 0._rkind), mparHRU%hru(iHRU)%dom(iDOM), indxHRU%hru(iHRU)%dom(iDOM), &
                                progHRU%hru(iHRU)%dom(iDOM), diagHRU%hru(iHRU)%dom(iDOM), wetChanged, err, cmessage)
         if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
         if(wetChanged) updateLakeArea = .true.

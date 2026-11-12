@@ -472,6 +472,10 @@ USE globalData,only:gru_struc                           ! gru-hru mapping struct
        endif
      endif
 
+     ! a wetland basin starts empty of sediment unless the initial conditions carry it
+     if(progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarWetlandSediment)%dat(1) < 0._rkind) &
+       progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarWetlandSediment)%dat(1) = 0._rkind
+
      ! compute the maximum volumetric ice content for the layer domains
      if(nGlce>0)then ! snow can be firn
        maxVolIceContent_use = min(maxVolIceContent+0.15,0.85_rkind) ! firn maximum volumetric ice content to store water (-)
