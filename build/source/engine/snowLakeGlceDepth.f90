@@ -94,6 +94,10 @@ subroutine snowIceDepth(&
   !       ice cover of a lake sublimates like glacier ice
   if(nSnow>0 .or. (nLake>0 .and. nLakeFrz>0) .or. (nGlce>0 .and. nSoil==0) )then ! snow or ice layers exist on top
     massLiquid = mLayerDepth(1)*mLayerVolFracLiq(1)*iden_water ! save the mass of liquid water (kg m-2)
+    if(mLayerVolFracIce(1) < verySmall)then ! a top layer whose ice melted within the step has none to sublimate or frost onto
+      tooMuchSublim = .true.
+      return
+    endif
 
     ! add/remove the depth of snow/ice gained/lost by frost/sublimation (m)
     mLayerDepth(1) = mLayerDepth(1) + dt_sub*scalarGroundSublimation/(mLayerVolFracIce(1)*iden_ice) ! assume constant density
