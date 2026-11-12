@@ -152,6 +152,7 @@ subroutine run_oneGRU(&
   USE wetlandArea_module,only:wetlandFullArea                 ! area of a wetland filled to its outlet
   USE wetlandArea_module,only:wetlandUpdateArea               ! set the area of a wetland from the water it holds
   USE wetlandArea_module,only:wetlandInfill                   ! full area and depth of a wetland whose basin holds sediment
+  USE wetlandArea_module,only:terminusElev                    ! surface elevation of the lowest glacier ice
   USE mDecisions_module,only:enthalpyForm                     ! enthalpy with soil temperature-enthalpy lookup tables
   USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
   ! ----- define dummy variables ------------------------------------------------------------------------------------------
@@ -350,6 +351,9 @@ subroutine run_oneGRU(&
              glac_contourLength(nglacDOM),glac_debris_thick(nglacDOM),glac_ablFrac(nglacDOM),massChange(nglacDOM), &
              iden_soil_mean(nglacDOM),theta_sat_mean(nglacDOM),nclean(nglacHRU),ndebris(nglacHRU))
   endif
+
+  ! ----- where the glacier's meltwater leaves the ice, for the fall the reach dissipates --------------------------------------
+  bvarData%var(iLookBVAR%basin__TerminusElev)%dat(1) = terminusElev(gruInfo%gridInfo, gridData)
 
   ! ----- a head wetland takes the glacier runoff and drains to the first open wetland that is not one, else to the channel ---
   if(ixHeadHRU > 0)then

@@ -370,6 +370,11 @@ contains
     parFallback(iLookPARAM%wetlandUseMask)%lower_limit = 0._rkind
     parFallback(iLookPARAM%wetlandUseMask)%upper_limit = 1._rkind
   end if
+  if (parFallback(iLookPARAM%reachOutletElev)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%reachOutletElev)%default_val = 0._rkind ! the reach falls its slope times its length (m)
+    parFallback(iLookPARAM%reachOutletElev)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%reachOutletElev)%upper_limit = 9000._rkind
+  end if
   if (parFallback(iLookPARAM%lakeIceMinThick)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%lakeIceMinThick)%default_val = 0.005_rkind ! 5 mm: the minimum ice thickness of flowing water in Wanders et al. (2019), below which the cover breaks up (m)
   end if

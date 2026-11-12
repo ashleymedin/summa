@@ -370,6 +370,7 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%wetlandWindFactor)              = var_info('wetlandWindFactor'              , 'wind speed factor over a wetland, for sheltering'                 , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%wetlandAirCooling)              = var_info('wetlandAirCooling'              , 'share of the glacier katabatic cooling a wetland air takes'       , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%wetlandUseMask)                 = var_info('wetlandUseMask'                 , '1 for a wetland that fills its HRU wetlandMask cells'             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%reachOutletElev)                = var_info('reachOutletElev'                , 'elevation of the reach outlet, 0 for slope times length'          , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------
@@ -861,6 +862,7 @@ subroutine popMetadat(err,message)
   bvar_meta(iLookBVAR%basin__GlacierMassChange)= var_info('basin__GlacierMassChange', 'glacier mass change per unit glacier area'                    , 'kg m-2 s-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%wetlandChainFlow)        = var_info('wetlandChainFlow'       , 'outflow the head wetland hands to the next one'                , 'm3 s-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%wetlandChainTemp)        = var_info('wetlandChainTemp'       , 'temperature of the outflow the head wetland hands on'          , 'K'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  bvar_meta(iLookBVAR%basin__TerminusElev)     = var_info('basin__TerminusElev'    , 'surface elevation of the lowest glacier ice'                   , 'm'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin glacier grids
   ! -----------------------------------------

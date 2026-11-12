@@ -395,6 +395,8 @@ MODULE var_lookup
   integer(i4b)    :: wetlandWindFactor     = integerMissing    ! wind speed factor over a wetland, for sheltering (-)
   integer(i4b)    :: wetlandAirCooling     = integerMissing    ! share of the glacier's katabatic cooling a wetland's air takes (-)
   integer(i4b)    :: wetlandUseMask        = integerMissing    ! 1 for a wetland that fills its HRU's wetlandMask cells, 0 for one that keeps wetlandMaxArea (-)
+  ! fall of the reach
+  integer(i4b)    :: reachOutletElev       = integerMissing    ! elevation of the reach outlet; with a glacier, the reach falls from its front to it, 0 for slope times length (m)
  endtype iLook_param
 
  ! ***********************************************************************************************************
@@ -1011,6 +1013,7 @@ MODULE var_lookup
   ! water a wetland hands to the next one in series
   integer(i4b)    :: wetlandChainFlow           = integerMissing ! outflow of the head wetland, the next wetland's inflow at the next step (m3 s-1)
   integer(i4b)    :: wetlandChainTemp           = integerMissing ! temperature of that outflow (K)
+  integer(i4b)    :: basin__TerminusElev        = integerMissing ! surface elevation of the lowest glacier ice (m)
  endtype iLook_bvar
 
  ! ***********************************************************************************************************
@@ -1128,7 +1131,7 @@ MODULE var_lookup
                                                                         191,192,193,194,195,196,197,198,199,200,&
                                                                         201,202,203,204,205,206,207,208,209,210,&
                                                                         211,212,213,214,215,216,217,218,219,220,&
-                                                                        221,222)
+                                                                        221,222,223)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1185,7 +1188,8 @@ MODULE var_lookup
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =iLook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21, 22, 23, 24, 25, 26, 27, 28, 29, 30)
+                                                                         21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
+                                                                         31)
  ! named variables: basin-grid variables
  type(iLook_grid),    public,parameter :: iLookGRID     =iLook_grid    (  1,  2,  3,  4,  5,  6)
  ! named variables in variable type structure
