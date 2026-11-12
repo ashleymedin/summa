@@ -345,18 +345,22 @@ subroutine run_oneGRU(&
                                                             *bvarData%var(iLookBVAR%basin__totalArea)%dat(1)
       wetFlux(iLookFLUX%scalarStreamLatInflowTemp)%dat(1) = Tfreeze
       wetFlux(iLookFLUX%scalarStreamFrictionHeat)%dat(1)  = 0._rkind
-      ! the sediment the glacier runoff carries settles in the basin, until it is full
-      if(mparHRU%hru(ixWetHRU)%dom(ixWetDOM)%var(iLookPARAM%wetlandMaxArea)%dat(1) > 0._rkind)then
-        associate(sediment => progHRU%hru(ixWetHRU)%dom(ixWetDOM)%var(iLookPROG%scalarWetlandSediment)%dat(1))
-          sediment = min(sediment + mparHRU%hru(ixWetHRU)%dom(ixWetDOM)%var(iLookPARAM%wetlandSedConc)%dat(1) &
-                                    *wetFlux(iLookFLUX%scalarStreamLatInflow)%dat(1)*data_step, &
-                         gruInfo%hruInfo(ixWetHRU)%domInfo(ixWetDOM)%wetFullArea*mparHRU%hru(ixWetHRU)%dom(ixWetDOM)%var(iLookPARAM%wetlandMinDepth)%dat(1))
-        end associate
-        call wetlandInfill(gruInfo%hruInfo(ixWetHRU)%domInfo(ixWetDOM)%wetFullArea, mparHRU%hru(ixWetHRU)%dom(ixWetDOM), &
-                           progHRU%hru(ixWetHRU)%dom(ixWetDOM), diagHRU%hru(ixWetHRU)%dom(ixWetDOM))
-      endif
     end associate
   endif
+
+  ! ----- the sediment each open wetland's inflow carries settles in its basin, until the basin is full -------------------
+  do iHRU=1,gruInfo%hruCount
+    do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
+      if(gruInfo%hruInfo(iHRU)%domInfo(iDOM)%dom_type/=wetland) cycle
+      associate(mpar => mparHRU%hru(iHRU)%dom(iDOM)%var, basinArea => gruInfo%hruInfo(iHRU)%domInfo(iDOM)%wetFullArea, &
+                sediment => progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarWetlandSediment)%dat(1))
+        if(mpar(iLookPARAM%wetlandMaxArea)%dat(1) <= 0._rkind .or. progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) <= 0._rkind) cycle
+        sediment = min(sediment + mpar(iLookPARAM%wetlandSedConc)%dat(1)*max(fluxHRU%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarStreamLatInflow)%dat(1), 0._rkind)*data_step, &
+                       basinArea*mpar(iLookPARAM%wetlandMinDepth)%dat(1))
+        call wetlandInfill(basinArea, mparHRU%hru(iHRU)%dom(iDOM), progHRU%hru(iHRU)%dom(iDOM), diagHRU%hru(iHRU)%dom(iDOM))
+      end associate
+    enddo
+  enddo
 
   ! ----- order the HRUs so that an HRU is run after everything that drains into it -----------------------------------------
   ! the topology is static and the match below is O(hruCount^2), so build the order once per GRU

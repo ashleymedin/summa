@@ -384,7 +384,7 @@ MODULE var_lookup
   integer(i4b)    :: wetlandShape          = integerMissing    ! power of the wetland area its stage follows below the outlet (-)
   integer(i4b)    :: wetlandFlatArea       = integerMissing    ! area a wetland gains per metre of rise above its outlet (m2 m-1)
   ! wetland infill
-  integer(i4b)    :: wetlandSedConc        = integerMissing    ! volume of sediment a wetland traps per volume of glacier runoff it takes (-)
+  integer(i4b)    :: wetlandSedConc        = integerMissing    ! volume of sediment a wetland traps per volume of water flowing into it (-)
   integer(i4b)    :: wetlandInfillShape    = integerMissing    ! share of the infill that takes area rather than depth from the full wetland (-)
  endtype iLook_param
 
