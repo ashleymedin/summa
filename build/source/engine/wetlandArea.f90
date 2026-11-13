@@ -126,9 +126,10 @@ function wetlandFullArea(ixHRU,maxArea,useMask,gridInfo,gridData) result(fullAre
 end function wetlandFullArea
 
 ! ************************************************************************************************
-! public function terminusElev: surface elevation of the lowest glacier ice of a GRU, where its meltwater leaves the ice (m)
+! public function terminusElev: surface elevation of the lowest ice of a GRU's largest glacier, where its meltwater leaves the ice (m)
 ! ************************************************************************************************
-! realMissing when the GRU has no glacier grids or no ice left
+! The glacier is the largest body of edge-connected ice cells over the GRU's grids, so ice cut off from it does not
+! count; realMissing when the GRU has no glacier grids or no ice left
 function terminusElev(gridInfo,gridData) result(elev)
   USE globalData,only:realMissing                    ! missing real number
   implicit none
@@ -136,18 +137,45 @@ function terminusElev(gridInfo,gridData) result(elev)
   type(grid_double),intent(in)     :: gridData    ! grids of the GRU
   real(rkind)                      :: elev        ! surface elevation of the lowest ice (m)
   integer(i4b)                     :: iGrid       ! grid index
-  elev = huge(1._rkind)
-  if(allocated(gridData%grid))then
-    do iGrid=1,size(gridInfo)
-      associate(nx => gridInfo(iGrid)%nx, ny => gridInfo(iGrid)%ny, var => gridData%grid(iGrid)%var)
-        associate(surface => var(iLookGRID%surface_elev)%dat2(1:nx,1:ny), &
-                  iceThick => var(iLookGRID%surface_elev)%dat2(1:nx,1:ny) - var(iLookGRID%debris_thick)%dat2(1:nx,1:ny) - var(iLookGRID%bed_elev)%dat2(1:nx,1:ny))
-          if(any(iceThick > thick4area)) elev = min(elev, minval(surface, mask=iceThick > thick4area))
-        end associate
+  integer(i4b)                     :: i,j,k,ii,jj ! cell indices
+  integer(i4b)                     :: nCell       ! cells in the body being filled
+  integer(i4b)                     :: nBest       ! cells in the largest body so far
+  integer(i4b)                     :: top         ! top of the fill stack
+  real(rkind)                      :: low         ! lowest surface in the body being filled (m)
+  logical(lgt),allocatable         :: ice(:,:)    ! ice not yet assigned to a body
+  integer(i4b),allocatable         :: stack(:,:)  ! cells waiting to be filled
+  integer(i4b),parameter           :: di(4)=[1,-1,0,0], dj(4)=[0,0,1,-1] ! the four edge neighbours
+  elev = realMissing
+  nBest = 0
+  if(.not.allocated(gridData%grid)) return
+  do iGrid=1,size(gridInfo)
+    associate(nx => gridInfo(iGrid)%nx, ny => gridInfo(iGrid)%ny, var => gridData%grid(iGrid)%var)
+      associate(surface => var(iLookGRID%surface_elev)%dat2(1:nx,1:ny))
+        ice = var(iLookGRID%surface_elev)%dat2(1:nx,1:ny) - var(iLookGRID%debris_thick)%dat2(1:nx,1:ny) &
+              - var(iLookGRID%bed_elev)%dat2(1:nx,1:ny) > thick4area
+        if(.not.any(ice)) cycle
+        allocate(stack(2,count(ice)))
+        do j=1,ny
+          do i=1,nx
+            if(.not.ice(i,j)) cycle
+            ice(i,j) = .false.; top = 1; stack(:,1) = [i,j]
+            nCell = 0; low = huge(1._rkind)
+            do while(top > 0)
+              ii = stack(1,top); jj = stack(2,top); top = top - 1
+              nCell = nCell + 1; low = min(low, surface(ii,jj))
+              do k=1,4
+                if(ii+di(k) < 1 .or. ii+di(k) > nx .or. jj+dj(k) < 1 .or. jj+dj(k) > ny) cycle
+                if(.not.ice(ii+di(k),jj+dj(k))) cycle
+                ice(ii+di(k),jj+dj(k)) = .false.; top = top + 1; stack(:,top) = [ii+di(k),jj+dj(k)]
+              end do
+            end do
+            if(nCell > nBest)then; nBest = nCell; elev = low; endif
+          end do
+        end do
+        deallocate(stack)
       end associate
-    end do
-  end if
-  if(elev > 0.5_rkind*huge(1._rkind)) elev = realMissing
+    end associate
+  end do
 end function terminusElev
 
 ! ************************************************************************************************

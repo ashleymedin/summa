@@ -352,8 +352,9 @@ subroutine run_oneGRU(&
              iden_soil_mean(nglacDOM),theta_sat_mean(nglacDOM),nclean(nglacHRU),ndebris(nglacHRU))
   endif
 
-  ! ----- where the glacier's meltwater leaves the ice, for the fall the reach dissipates --------------------------------------
-  bvarData%var(iLookBVAR%basin__TerminusElev)%dat(1) = terminusElev(gruInfo%gridInfo, gridData)
+  ! ----- where the glacier's meltwater leaves the ice, for the fall the reach dissipates; set again when the glacier moves -----
+  if(bvarData%var(iLookBVAR%basin__TerminusElev)%dat(1) < 0.99_rkind*realMissing) &
+    bvarData%var(iLookBVAR%basin__TerminusElev)%dat(1) = terminusElev(gruInfo%gridInfo, gridData)
 
   ! ----- a head wetland takes the glacier runoff and drains to the first open wetland that is not one, else to the channel ---
   if(ixHeadHRU > 0)then
@@ -833,6 +834,7 @@ subroutine run_oneGRU(&
                   ! error handling
                   err, cmessage)                                ! intent(out):   error control
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+    bvarData%var(iLookBVAR%basin__TerminusElev)%dat(1) = terminusElev(gruInfo%gridInfo, gridData)
 
     ! update the glacier domains and their layers in each HRU
     allocate(newDOM(gruInfo%hruCount, maxval(gruInfo%hruInfo(:)%domCount)))
