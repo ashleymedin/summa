@@ -321,6 +321,7 @@ AFTER tag of v4.0.0-exp-Sundials
       targets select space with spatial_unit and spatial_id; an anomaly baseline is removed after alignment, merged Nov 9, 2026
      MODFLOW multipliers take their search transformation in [[calibration.modflow_parameter]] (transformation = "log"), merged Nov 9, 2026
      [[parameter_dependencies.remainder]] sets a fixed parameter to a total minus its sources (silt = 1 - sand - clay), commit eb52ab55 Nov 10, 2026
+     name@glacier sets a parameter on every clean and debris-covered glacier domain, commit 81a7b60c Nov 16, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits d632b36a to de2ae997 Sep 21, 2026
      A GRU may hold one stream HRU: its reach's water column (lake layers over soil/aquifer, linked via streamSegId). mizuRoute returns reach discharge, 
       volume and lateral inflow; new streamTemp.f90 solves the column energy balance upstream to downstream each step, advecting heat from upstream 
@@ -394,4 +395,3 @@ AFTER tag of v4.0.0-exp-Sundials
 -91) Homegrown solver also converges on the depth-integrated snow water residual; binds only in snow deeper than 1 m (glacier firn), commit f35c00ba Nov 10, 2026
  92) Sand, silt and clay fractions must be non-negative and add to one, commit a1d4c4a5 Nov 10, 2026
  93) Parameters precipElevGrad and tempLapseRate added to lapse from the HRU elevation to domain elevation (including relative humidity and longwave solar radiation), commit 8cd0949a and 03d1fe19 Nov 11, 2026
- 96) Parameter wetSnowCompact raises overburden compaction with liquid water (Vionnet et al. 2012); default 0 keeps old compaction, commit db532f2f Nov 16, 2026

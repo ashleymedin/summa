@@ -379,10 +379,7 @@ MODULE var_lookup
   integer(i4b)    :: oudinPETTempThrK2     = integerMissing    ! Oudin PET formula temperature threshold (deg C)
   ! air temperature lapse from the HRU to its domains
   integer(i4b)    :: tempLapseRate         = integerMissing    ! air temperature decrease per metre above the HRU elevation (K m-1)
-  ! snowfall multiplier on glacier domains for wind-blown and avalanched snow
-  integer(i4b)    :: glacierSnowFactor     = integerMissing    ! glacier-domain snowfall multiplier (-)
-  ! wet snow compaction
-  integer(i4b)    :: wetSnowCompact        = integerMissing    ! increase of the overburden compaction rate per unit volumetric liquid water (-)
+  ! glacier firn compaction
   integer(i4b)    :: firnViscosity         = integerMissing    ! viscosity of glacier firn under its overburden, scaled by the remaining pore space (Pa s)
  endtype iLook_param
 
@@ -1107,7 +1104,7 @@ MODULE var_lookup
                                                                         181,182,183,184,185,186,187,188,189,190,&
                                                                         191,192,193,194,195,196,197,198,199,200,&
                                                                         201,202,203,204,205,206,207,208,209,210,&
-                                                                        211,212,213,214)
+                                                                        211,212)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

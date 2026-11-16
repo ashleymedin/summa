@@ -15,7 +15,6 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `frozenPrecipMultip` | frozen precipitation multiplier | - |
 | `precipElevGrad` | fractional change in precipitation per metre above the HRU | m-1 |
 | `tempLapseRate` | air temperature decrease per metre above the HRU elevation | K m-1 |
-| `glacierSnowFactor` | snowfall multiplier on glacier domains for wind-blown and avalanched snow | - |
 | `snowfrz_scale` | scaling parameter for the freezing curve for snow | K-1 |
 | `fixedThermalCond_snow` | temporally constant thermal conductivity for snow | W m-1 K-1 |
 | `albedoMax` | maximum snow albedo (single spectral band) | - |
@@ -51,7 +50,6 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `densScalOvrbdn` | density scaling factor for overburden pressure | kg-1 m3 |
 | `tempScalOvrbdn` | temperature scaling factor for overburden pressure | K-1 |
 | `baseViscosity` | viscosity coefficient at T=T_frz and snow density=0 | kg s m-2 |
-| `wetSnowCompact` | increase of the overburden compaction rate per unit volumetric liquid water; 0 for dry-snow compaction, 60 in Crocus (Vionnet et al., 2012) | - |
 | `firnViscosity` | viscosity of glacier firn under its overburden, scaled by the remaining pore space (Arthern et al., 2010); glacier domains only | Pa s |
 | `Fcapil` | capillary retention (fraction of total pore volume) | - |
 | `k_snow` | hydraulic conductivity of snow | m s-1 |
