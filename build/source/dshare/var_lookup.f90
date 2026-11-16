@@ -381,6 +381,7 @@ MODULE var_lookup
   integer(i4b)    :: tempLapseRate         = integerMissing    ! air temperature decrease per metre above the HRU elevation (K m-1)
   ! wet snow compaction
   integer(i4b)    :: wetSnowCompact        = integerMissing    ! increase of the overburden compaction rate per unit volumetric liquid water (-)
+  integer(i4b)    :: firnViscosity         = integerMissing    ! viscosity of glacier firn under its overburden, scaled by the remaining pore space (Pa s)
  endtype iLook_param
 
  ! ***********************************************************************************************************
@@ -1104,7 +1105,7 @@ MODULE var_lookup
                                                                         181,182,183,184,185,186,187,188,189,190,&
                                                                         191,192,193,194,195,196,197,198,199,200,&
                                                                         201,202,203,204,205,206,207,208,209,210,&
-                                                                        211,212)
+                                                                        211,212,213)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
