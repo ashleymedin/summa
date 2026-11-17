@@ -209,12 +209,19 @@ contains
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! glacier clean domain 2 possible
       if (any(dom_type(1:fileDOM,iHRU_global)==glacDbr)) &
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! glacier debris domain possible
-     if (any(dom_type(1:fileDOM,iHRU_global)==wetland)) &
-       gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! wetland domain possible
+     gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount &
+       + count(dom_type(1:fileDOM,iHRU_global)==wetland)                                     ! wetland domains, which can be in series
      if (any(dom_type(1:fileDOM,iHRU_global)==stream)) &
        gru_struc(iGRU)%hruInfo(iHRU)%domCount = gru_struc(iGRU)%hruInfo(iHRU)%domCount + 1   ! stream domain possible
      allocate(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(gru_struc(iGRU)%hruInfo(iHRU)%domCount)) ! allocate third level of gru to hru map
      gru_struc(iGRU)%hruInfo(iHRU)%domInfo(:)%dom_type = dom_type(1:gru_struc(iGRU)%hruInfo(iHRU)%domCount,iHRU_global)
+     ! the domains are read from the first slots of the HRU, so none can sit beyond them
+     associate(nDom => gru_struc(iGRU)%hruInfo(iHRU)%domCount)
+       if(any(dom_type(nDom+1:fileDOM,iHRU_global)>=upland .and. dom_type(nDom+1:fileDOM,iHRU_global)<=stream))then
+         write(message,'(a,i0,a)') trim(message)//'the domains of HRU ',gru_struc(iGRU)%hruInfo(iHRU)%hru_id,' must fill its first slots of the dom dimension, with no empty slot between them'
+         err=20; return
+       end if
+     end associate
    enddo
  enddo
 
@@ -533,6 +540,7 @@ else
       prog_meta(iVar)%varName=='glacMass4AreaChange'       )then; err=nf90_noerr; no_ice_vars=.true.; cycle; endif ! backwards compatible, may be missing, correct in check_icond
    if(prog_meta(iVar)%varName=='scalarAblFrac'             )then; err=nf90_noerr; no_ablfrac=.true.; cycle; endif ! backwards compatible, may be missing, correct in check_icond
    if(prog_meta(iVar)%varName=='scalarAquiferTemp'         )then; err=nf90_noerr; cycle; endif ! backwards compatible, may be missing: stays realMissing and check_icond sets it from the soil column
+   if(prog_meta(iVar)%varName=='scalarWetlandSediment'     )then; err=nf90_noerr; cycle; endif ! backwards compatible, may be missing: check_icond starts it at zero
    if(prog_meta(iVar)%varName=='scalarAirTempWindow'   .or. &
       prog_meta(iVar)%varName=='scalarAirTempAnnual'        )then; err=nf90_noerr; cycle; endif ! backwards compatible, may be missing: stays realMissing and the first forcing step starts the running mean
    if(prog_meta(iVar)%varName=='scalarCanairEnthalpy' .or. &

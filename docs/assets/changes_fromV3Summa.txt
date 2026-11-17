@@ -382,6 +382,14 @@ AFTER tag of v4.0.0-exp-Sundials
 -83) Advective heat: soil layers gain the heat carried by water entering from the layer above or below, commit 3415be91 Oct 17, 2026
  84) Added wetland domain: a linear-reservoir water column over soil that takes the GRU glacier runoff, commit fb35bd65 Oct 19, 2026
      New parameters wetlandStorageK (outflow time constant, s) and wetlandMinDepth (no drainage below this liquid depth, m),
+     Area follows its volume (wetlandMaxArea, wetlandShape, wetlandFlatArea; wetlandMinDepth becomes the mean depth filled to the outlet)
+     and opens as ice leaves an optional wetlandMask, commit 2c60b683 Nov 12, 2026
+     Basin fills with sediment from its inflow (wetlandSedConc, wetlandInfillShape), shrinking its full area and depth, commits 1e4fab0a and 38687bb0 Nov 12, 2026
+     Share of the sediment that settles from the overflow rate (wetlandSettleVel), commit 229758c1 Nov 12, 2026
+     Open-water roughness from wind, fetch and depth with its own heat roughness (lakeFetch, Subin et al. 2012), commits ce9c47c8 and f67142a5 Nov 12, 2026
+     Wetlands in series: a head wetland takes the glacier runoff and drains to the next open wetland (wetlandFeedsNext, wetlandUseMask), commits 15ffdcc1, 7ff3f617 and cf49f279 Nov 13, 2026
+     Wind and air over a wetland can be sheltered or cooled by the glacier (wetlandWindFactor, wetlandAirCooling), commit 7ff3f617 Nov 13, 2026
+     Reach friction heat from the fall between the glacier front (lowest ice of the largest connected body) and the reach outlet (reachOutletElev), commits 0d5f61c2 and fa8de327 Nov 13, 2026
 -85) Smoothly turn off infiltration into over-pressured soil and condensation into saturated soil, commits 87967f22 Jul 22, a52791c6 Sep 24, 6702053d and bba9cca9 Oct 22, 6805ba8b and c9154ece Oct 26, 2026
      Infiltration area scales by a Gaussian of the depth-weighted mean squared positive head (root zone for homegrown_SE, else all soil layers), condensation by a Gaussian of top-layer positive head.
      A coupled MODFLOW 6 aquifer evaluates the same Gaussian per cell on its hydrostatic head, commit f8f45287 Oct 26, 2026
