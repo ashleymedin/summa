@@ -311,9 +311,69 @@ contains
     parFallback(iLookPARAM%wetlandStorageK)%upper_limit = 864000._rkind
   end if
   if (parFallback(iLookPARAM%wetlandMinDepth)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%wetlandMinDepth)%default_val = 0.05_rkind ! water left standing when the wetland stops draining (m)
+    parFallback(iLookPARAM%wetlandMinDepth)%default_val = 0.05_rkind ! mean depth of the wetland filled to its outlet (m)
     parFallback(iLookPARAM%wetlandMinDepth)%lower_limit = 0.01_rkind
-    parFallback(iLookPARAM%wetlandMinDepth)%upper_limit = 2._rkind
+    parFallback(iLookPARAM%wetlandMinDepth)%upper_limit = 50._rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandMaxArea)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandMaxArea)%default_val = 0._rkind ! the wetland keeps the area it starts with (m2)
+    parFallback(iLookPARAM%wetlandMaxArea)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandMaxArea)%upper_limit = 1.e9_rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandShape)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandShape)%default_val = 1._rkind ! stage rises linearly with area: a paraboloid (-)
+    parFallback(iLookPARAM%wetlandShape)%lower_limit = 0.1_rkind
+    parFallback(iLookPARAM%wetlandShape)%upper_limit = 10._rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandFlatArea)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandFlatArea)%default_val = 0._rkind ! no spreading above the outlet (m2 m-1)
+    parFallback(iLookPARAM%wetlandFlatArea)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandFlatArea)%upper_limit = 1.e7_rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandSedConc)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandSedConc)%default_val = 0._rkind ! the wetland traps no sediment (-)
+    parFallback(iLookPARAM%wetlandSedConc)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandSedConc)%upper_limit = 0.01_rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandInfillShape)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandInfillShape)%default_val = 1._rkind ! a delta front: the wetland loses area at its full depth (-)
+    parFallback(iLookPARAM%wetlandInfillShape)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandInfillShape)%upper_limit = 1._rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandSettleVel)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandSettleVel)%default_val = 1._rkind ! all the sediment settles (m s-1)
+    parFallback(iLookPARAM%wetlandSettleVel)%lower_limit = 1.e-7_rkind
+    parFallback(iLookPARAM%wetlandSettleVel)%upper_limit = 1._rkind
+  end if
+  if (parFallback(iLookPARAM%lakeFetch)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%lakeFetch)%default_val = 0._rkind ! open water keeps z0Water (m)
+    parFallback(iLookPARAM%lakeFetch)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%lakeFetch)%upper_limit = 1.e6_rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandFeedsNext)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandFeedsNext)%default_val = 0._rkind ! a wetland drains to the channel (-)
+    parFallback(iLookPARAM%wetlandFeedsNext)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandFeedsNext)%upper_limit = 1._rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandWindFactor)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandWindFactor)%default_val = 1._rkind ! the HRU's wind (-)
+    parFallback(iLookPARAM%wetlandWindFactor)%lower_limit = 0.1_rkind
+    parFallback(iLookPARAM%wetlandWindFactor)%upper_limit = 1.5_rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandAirCooling)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandAirCooling)%default_val = 0._rkind ! the HRU's air (-)
+    parFallback(iLookPARAM%wetlandAirCooling)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandAirCooling)%upper_limit = 1._rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandUseMask)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandUseMask)%default_val = 1._rkind ! a wetland fills its HRU's wetlandMask cells, if it has any (-)
+    parFallback(iLookPARAM%wetlandUseMask)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandUseMask)%upper_limit = 1._rkind
+  end if
+  if (parFallback(iLookPARAM%reachOutletElev)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%reachOutletElev)%default_val = 0._rkind ! the reach falls its slope times its length (m)
+    parFallback(iLookPARAM%reachOutletElev)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%reachOutletElev)%upper_limit = 9000._rkind
   end if
   if (parFallback(iLookPARAM%lakeIceMinThick)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%lakeIceMinThick)%default_val = 0.005_rkind ! 5 mm: the minimum ice thickness of flowing water in Wanders et al. (2019), below which the cover breaks up (m)

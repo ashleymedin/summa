@@ -56,6 +56,7 @@ USE var_lookup,only:iLookFLUX             ! look-up values for local column mode
 USE var_lookup,only:iLookDIAG             ! look-up values for local column model diagnostic variables
 USE var_lookup,only:iLookPROG             ! look-up values for local column model prognostic variables
 USE var_lookup,only:iLookBVAR             ! look-up values for basin-average variables
+USE var_lookup,only:iLookPARAM            ! look-up values for model parameters
 USE var_lookup,only:iLookFORCE            ! look-up values for forcing data
 
 ! constants
@@ -152,6 +153,7 @@ subroutine run_streamNetwork(&
   integer(i4b)                              :: jSeg                 ! index of an upstream reach
   integer(i4b)                              :: iGRU,iHRU,iDOM       ! indices of the stream domain
   real(rkind)                               :: qUpSum,eUpSum        ! discharge and energy flux arriving from upstream
+  real(rkind)                               :: drop                 ! fall the reach's flow dissipates (m)
   logical(lgt)                              :: computeVegFluxFlag   ! flag to indicate if we are computing fluxes over vegetation
   real(rkind),parameter                     :: minFlow=1.e-12_rkind ! flow below which a temperature is not defined (m3 s-1)
   ! ----------------------------------------------------------------------------------------------------------------------
@@ -186,8 +188,14 @@ subroutine run_streamNetwork(&
         fluxDOM%var(iLookFLUX%scalarStreamOutflow)%dat(1)       = net%qOut(iSeg)
         diagDOM%var(iLookDIAG%scalarStreamDepth)%dat(1)         = net%depth(iSeg)
         diagDOM%var(iLookDIAG%scalarStreamVelocity)%dat(1)      = net%velocity(iSeg)
-        ! the flow leaving the reach has fallen its length, and friction turns that drop into heat
-        fluxDOM%var(iLookFLUX%scalarStreamFrictionHeat)%dat(1)  = iden_water*gravity*net%qOut(iSeg)*net%slope(iSeg)*net%length(iSeg) &
+        ! the flow leaving the reach has fallen its length, or from the glacier front to the reach outlet when that is given,
+        ! and friction turns that drop into heat
+        drop = net%slope(iSeg)*net%length(iSeg)
+        associate(outletElev => mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%reachOutletElev)%dat(1), &
+                  frontElev => bvarStruct%gru(iGRU)%var(iLookBVAR%basin__TerminusElev)%dat(1))
+          if(outletElev > 0._rkind .and. frontElev > outletElev) drop = frontElev - outletElev
+        end associate
+        fluxDOM%var(iLookFLUX%scalarStreamFrictionHeat)%dat(1)  = iden_water*gravity*net%qOut(iSeg)*drop &
                                                                   /progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)
       end associate
       computeVegFluxFlag = (computeVegFlux%gru(iGRU)%hru(iHRU) == yes)

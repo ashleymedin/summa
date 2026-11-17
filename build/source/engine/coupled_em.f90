@@ -184,7 +184,8 @@ subroutine coupled_em(&
   USE tempAdjust_module,only:tempAdjust                         ! adjust snow temperature associated with new snowfall
   USE var_derive_module,only:calcHeight                         ! module to calculate height at layer interfaces and layer mid-point
   USE snowLakeGlceDepth_module,only:snowIceDepth                ! compute snow/ice depth
-  USE snowLakeGlceDepth_module,only:lakePrescribeDepth          ! set the stream water column from the reach volume
+  USE wetlandArea_module,only:lakeImposeLiquid                  ! set the liquid depth of the water layers of a stream or wetland
+  USE wetlandArea_module,only:wetMinLiquid                      ! water depth a wetland keeps, liquid or ice (m)
   USE lakeIceCover_module,only:lakeIceCover                     ! grow or break up the ice cover of the lake layers
   USE convertEnthalpyTemp_module,only:T2enthTemp_veg            ! convert temperature to enthalpy for vegetation
   USE convertEnthalpyTemp_module,only:T2enthTemp_snLaGl         ! convert temperature to enthalpy for snow, lake, and ice
@@ -229,7 +230,11 @@ subroutine coupled_em(&
   real(rkind)                          :: wetFill                  ! time the inflow takes to fill a wetland to its outlet (s)
   real(rkind)                          :: wetExcess                ! liquid depth above the outlet (m)
   real(rkind)                          :: wetDecay                 ! decay of that depth over the draining part of the step (-)
-  real(rkind),parameter                :: wetMinLiquid=0.01_rkind  ! liquid depth a wetland keeps under its ice (m)
+  real(rkind)                          :: wetSill                  ! liquid depth of a wetland filled to its outlet, at its present area (m)
+  real(rkind)                          :: wetIce                   ! ice in the water layers of a wetland (m)
+  real(rkind)                          :: wetCover                 ! liquid the ice cover of a wetland gives back (m)
+  real(rkind)                          :: coverWater               ! water the ice cover holds per unit depth (-)
+  integer(i4b)                         :: ixCover                  ! layer index of the ice cover
   logical(lgt)                         :: modifiedIce              ! flag to denote that the lake ice cover changed the layers
   integer(i4b)                         :: nSoil                    ! number of soil layers
   integer(i4b)                         :: nGlce                    ! number of glacier ice layers
@@ -406,46 +411,39 @@ subroutine coupled_em(&
                           + sum(mLayerDepth(nSnow+1:nSnow+nLakeFrz)*mLayerVolFracLiq(nSnow+1:nSnow+nLakeFrz))
         liqImpose = max(diag_data%var(iLookDIAG%scalarStreamDepth)%dat(1) - streamFrozenDepth, mpar_data%var(iLookPARAM%streamMinDepth)%dat(1))
       else
-        associate(minDepth => mpar_data%var(iLookPARAM%wetlandMinDepth)%dat(1), kStore => mpar_data%var(iLookPARAM%wetlandStorageK)%dat(1), &
-                  outflow  => flux_data%var(iLookFLUX%scalarStreamOutflow)%dat(1))
+        associate(kStore => mpar_data%var(iLookPARAM%wetlandStorageK)%dat(1), DOMarea => prog_data%var(iLookPROG%DOMarea)%dat(1), &
+                  outflow => flux_data%var(iLookFLUX%scalarStreamOutflow)%dat(1))
+          ! the outlet depth is that of the full area, so it is deeper over a wetland that has shrunk
+          wetSill = mpar_data%var(iLookPARAM%wetlandMinDepth)%dat(1)
+          if(mpar_data%var(iLookPARAM%wetlandMaxArea)%dat(1) > 0._rkind) wetSill = diag_data%var(iLookDIAG%scalarWetlandFullDepth)%dat(1) &
+                                                                                *diag_data%var(iLookDIAG%scalarWetlandFullArea)%dat(1)/DOMarea
           wetDepth  = sum(mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake)*mLayerVolFracLiq(nSnow+nLakeFrz+1:nSnow+nLake))
-          wetInflow = max(flux_data%var(iLookFLUX%scalarStreamLatInflow)%dat(1), 0._rkind)/prog_data%var(iLookPROG%DOMarea)%dat(1)
-          if(wetDepth + wetInflow*data_step <= minDepth)then
+          wetInflow = max(flux_data%var(iLookFLUX%scalarStreamLatInflow)%dat(1), 0._rkind)/DOMarea
+          if(wetDepth + wetInflow*data_step <= wetSill)then
             liqImpose = wetDepth + wetInflow*data_step
           else
-            wetFill   = merge((minDepth - wetDepth)/max(wetInflow, tiny(1._rkind)), 0._rkind, wetDepth < minDepth)
-            wetExcess = max(wetDepth - minDepth, 0._rkind)
+            wetFill   = merge((wetSill - wetDepth)/max(wetInflow, tiny(1._rkind)), 0._rkind, wetDepth < wetSill)
+            wetExcess = max(wetDepth - wetSill, 0._rkind)
             wetDecay  = exp(-(data_step - wetFill)/kStore)
-            liqImpose = minDepth + wetExcess*wetDecay + wetInflow*kStore*(1._rkind - wetDecay)
+            liqImpose = wetSill + wetExcess*wetDecay + wetInflow*kStore*(1._rkind - wetDecay)
           end if
-          ! a column frozen nearly solid keeps a little liquid, taken from the outflow so the water still balances
-          liqImpose = max(liqImpose, wetMinLiquid)
-          outflow = prog_data%var(iLookPROG%DOMarea)%dat(1)*(wetInflow*data_step - (liqImpose - wetDepth))/data_step
+          ! the water layers keep a little water, liquid or ice: an ice cover gives back up to half of itself
+          wetIce   = sum(mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake)*mLayerVolFracIce(nSnow+nLakeFrz+1:nSnow+nLake))
+          wetCover = 0._rkind
+          if(liqImpose + wetIce < wetMinLiquid .and. nLakeFrz > 0)then
+            ixCover    = nSnow + nLakeFrz
+            coverWater = mLayerVolFracLiq(ixCover) + mLayerVolFracIce(ixCover)*(iden_ice/iden_water)
+            wetCover   = min(wetMinLiquid - wetIce - liqImpose, 0.5_rkind*mLayerDepth(ixCover)*coverWater)
+            mLayerDepth(ixCover) = mLayerDepth(ixCover) - wetCover/coverWater
+          end if
+          ! what the cover cannot give is taken from the outflow, so the water still balances
+          liqImpose = max(liqImpose + wetCover, wetMinLiquid - wetIce)
+          outflow = DOMarea*(wetInflow*data_step - (liqImpose - wetCover - wetDepth))/data_step
         end associate
       end if
     end associate
-    call lakePrescribeDepth(&
-                    nSnow+nLakeFrz,nLake-nLakeFrz,                                          & ! intent(in):    number of layers above the water layers, and of water layers
-                    liqImpose,                                                              & ! intent(in):    liquid depth to impose (m)
-                    prog_data%var(iLookPROG%mLayerDepth)%dat,                               & ! intent(inout): depth of each layer (m)
-                    prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,                          & ! intent(inout): volumetric fraction of liquid water (-)
-                    prog_data%var(iLookPROG%mLayerVolFracIce)%dat,                          & ! intent(inout): volumetric fraction of ice (-)
-                    err,cmessage)                                                             ! intent(out):   error control
+    call lakeImposeLiquid(liqImpose,mpar_data,indx_data,prog_data,diag_data,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-    call calcHeight(indx_data,prog_data,err,cmessage) ! layer heights follow the new depths
-    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-    do iLayer=nSnow+nLakeFrz+1,nSnow+nLake ! the enthalpy per unit volume of the water layers follows the new liquid and ice fractions
-      prog_data%var(iLookPROG%mLayerVolFracWat)%dat(iLayer) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(iLayer) &
-                                                              + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(iLayer)*(iden_ice/iden_water)
-      call T2enthTemp_snLaGl(&
-                    .false.,                                                                & ! intent(in):  flag that no liquid water in layer
-                    mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)*icefrz_mult,             & ! intent(in):  scaling parameter for the lake freezing curve (K-1)
-                    prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer),                        & ! intent(in):  layer temperature (K)
-                    prog_data%var(iLookPROG%mLayerVolFracWat)%dat(iLayer),                  & ! intent(in):  volumetric total water content (-)
-                    diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(iLayer))                      ! intent(out): temperature component of enthalpy (J m-3)
-      prog_data%var(iLookPROG%mLayerEnthalpy)%dat(iLayer) = diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(iLayer) &
-                                                            - iden_ice*LH_fus*prog_data%var(iLookPROG%mLayerVolFracIce)%dat(iLayer)
-    end do
   end if
 
   ! link canopy depth to the information in the data structure

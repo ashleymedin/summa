@@ -605,7 +605,7 @@ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,gridStr
       checkId(varIndx) = .true.
 
      ! for glacier grid variables, will do later in read_attrbGlac call
-     case('cell2hruId','bed_elev','glacierMask'); cycle
+     case('cell2hruId','bed_elev','glacierMask','wetlandMask'); cycle
 
      ! check that variables are what we expect
      case default; message=trim(message)//'unknown variable ['//trim(varName)//'] in local attributes file'; err=20; return
@@ -747,6 +747,17 @@ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,gridStr
       endif
       deallocate(grid_var)
     end do ! variable loop
+    ! the wetland mask is optional: no cells when the file has none
+    associate(wetMask => gridStruct%gru(iGRU)%grid(iGrid)%var(iLookGRID%wetlandMask)%dat2)
+      wetMask = 0._rkind
+      if(nf90_inq_varid(ncid,trim(grid_meta(iLookGRID%wetlandMask)%varName),varID)==nf90_noerr)then
+        allocate(grid_var(1,1,nx,ny))
+        err = nf90_get_var(ncid,varID,grid_var,start=(/gru_struc(iGRU)%gru_nc,iGrid,1,1/),count=(/1,1,nx,ny/))
+        if (err/=nf90_noerr) then; message=trim(message)//'problem reading '//trim(grid_meta(iLookGRID%wetlandMask)%varName); return; end if
+        wetMask(1:nx,1:ny) = grid_var(1,1,1:nx,1:ny)
+        deallocate(grid_var)
+      end if
+    end associate
   end do ! grid loop
  end do ! gru loop
 
