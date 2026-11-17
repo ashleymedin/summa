@@ -321,6 +321,10 @@ contains
             field(i)%effective%hspatial(h)%dat(:)=field(i)%effective%hspatial(h)%dat(:)- &
                                                   field(j)%effective%hspatial(h)%dat(:)
           enddo
+          ! a remainder below zero only by roundoff, which the constraints accept, is zero
+          value=128._rkind*epsilon(1._rkind)*max(1._rkind,abs(spec%remainder(c)%total))
+          where(field(i)%effective%hspatial(h)%dat(:)<0._rkind .and. field(i)%effective%hspatial(h)%dat(:)>=-value) &
+            field(i)%effective%hspatial(h)%dat(:)=0._rkind
         enddo
       enddo
     endif
