@@ -7,9 +7,9 @@ several targets, GRUs and reaches; they calibrate nothing.
 
 | | |
 | --- | --- |
-| Forcing | ERA5, Oct 2015 – Jul 2018, 34 monthly files |
-| GRU 1, Gulkana | HRUs 1–3 (26.6 km²) and stream HRU 4, draining to reach 1 |
-| GRU 2, Wolverine | HRUs 5–7 (24.7 km²) and stream HRU 8, draining to reach 2 |
+| Forcing | ERA5, Oct 2015 – Jul 2018, 34 monthly files: the general setup (global data only, ERA5 free air) of both basins |
+| GRU 1, Gulkana | HRUs 1–3 (31.1 km²) and stream HRU 4, draining to reach 1 |
+| GRU 2, Wolverine | HRUs 5–7 (24.3 km²) and stream HRU 8, draining to reach 2 |
 | Settings | the Wolverine glacier settings: `deepTherml = bedrockLyrs`, `hyporhTdyn = proxy` |
 
 | Observation file | Record | Scored by |
