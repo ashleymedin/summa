@@ -1,6 +1,7 @@
 module error_utils
   USE nr_type, only: i4b
   USE mpi
+  USE iso_fortran_env, only: output_unit
   implicit none
 
   private
@@ -35,6 +36,7 @@ contains
     integer(i4b) :: ierr
 
     write(*,'(A,I0,A,A)') 'ERROR [rank ', rank, ']: ', trim(message)
+    flush(output_unit) ! MPI_Abort kills the rank before a buffered write reaches the log
     call MPI_Abort(MPI_COMM_WORLD, 1, ierr)
 
   end subroutine abort_mpi
