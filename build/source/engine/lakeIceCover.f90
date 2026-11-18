@@ -55,6 +55,8 @@ USE globalData,only:iceResidWaterFrac                ! residual volumetric liqui
 USE globalData,only:nLakeIceLayers_poss              ! number of ice cover layers a lake can grow
 USE globalData,only:verySmall                        ! a small number
 USE globalData,only:icefrz_mult                      ! freezing curve scaling factor multiplier of snow to ice
+USE globalData,only:wetland                          ! horizontal domain type for a wetland
+USE wetlandArea_module,only:wetMinLiquid             ! water depth a wetland keeps, liquid or ice (m)
 USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta ! metadata, to resize the data structures
 USE var_lookup,only:iLookPROG,iLookINDEX,iLookPARAM,iLookVarType ! named variables
 
@@ -98,6 +100,8 @@ subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flu
   logical(lgt)                    :: mixWat          ! flag to mix the ice and liquid over the water layers
   real(rkind)                     :: depthNew        ! updated layer depth (m)
   real(rkind)                     :: minMassIce      ! ice mass of a cover at the minimum thickness (kg m-2)
+  real(rkind)                     :: keepIce         ! ice mass a wetland's water layers keep (kg m-2)
+  logical(lgt)                    :: isWetland       ! flag for a wetland domain
   ! ----------------------------------------------------------------------------------------------------------------
   err=0; message='lakeIceCover/'
   modifiedLayers = .false.
@@ -152,11 +156,15 @@ subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flu
     depthWat   = depthWat   + depth(iLayer)
   end do
   if(massLiqWat > verySmall) tempWat = tempWat/massLiqWat ! liquid-weighted temperature of the water
+  ! a wetland's water layers keep wetMinLiquid of water, liquid or ice, so a shallow wetland freezes solid in them
+  isWetland = indx_data%var(iLookINDEX%domType)%dat(1)==wetland
+  keepIce   = 0._rkind
+  if(isWetland) keepIce = min(max(wetMinLiquid - massLiqWat/iden_water, 0._rkind)*iden_ice, massIceWat)
   ! a new cover needs to be thick enough to stand (twice the breakup thickness, so it is not undone at once), and is not
   ! re-formed from ice a forced breakup just returned to the water; an existing cover takes whatever ice there is
-  if( (nLakeFrz==0 .and. massIceWat >= 2._rkind*minMassIce .and. .not.forceBreakup) .or. (nLakeFrz>0 .and. massIceWat > 0._rkind) )then
-    if(massLiqWat < verySmall)then; err=20; message=trim(message)//'the lake water froze solid'; return; end if
-    massIce  = massIceWat
+  if( (nLakeFrz==0 .and. massIceWat - keepIce >= 2._rkind*minMassIce .and. .not.forceBreakup) .or. (nLakeFrz>0 .and. massIceWat - keepIce > 0._rkind) )then
+    if(massLiqWat < verySmall .and. keepIce <= 0._rkind)then; err=20; message=trim(message)//'the lake water froze solid'; return; end if
+    massIce  = massIceWat - keepIce
     ! the ice keeps a residual liquid fraction, taken from the water; the layer is sized for that liquid at the density
     ! of ice, so the ice fraction stays at or below one when the residual freezes later (iceReduce keeps the fractions
     ! as it thins)
@@ -166,10 +174,18 @@ subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flu
     ! its liquid-weighted temperature, so a thin layer that froze solid is water again (its cold content went into the ice)
     massLiqWat = massLiqWat - massLiq
     do iLayer=ixWat,nSnow+nLake
-      call setDepth(iLayer, massLiqWat*depth(iLayer)/(depthWat*iden_water))
-      call setLiq(iLayer, 1._rkind)
-      call setIce(iLayer, 0._rkind)
-      call setTemp(iLayer, max(tempWat, Tfreeze))
+      if(keepIce > 0._rkind)then ! the ice a wetland keeps mixes with the liquid on the freezing curve
+        depthNew = (massLiqWat/iden_water + keepIce/iden_ice)*depth(iLayer)/depthWat
+        call setLiq(iLayer, massLiqWat*depth(iLayer)/(depthWat*iden_water*depthNew))
+        call setIce(iLayer, keepIce*depth(iLayer)/(depthWat*iden_ice*depthNew))
+        call setDepth(iLayer, depthNew)
+        call setTemp(iLayer, iceTemp(liq(iLayer),ice(iLayer)))
+      else
+        call setDepth(iLayer, massLiqWat*depth(iLayer)/(depthWat*iden_water))
+        call setLiq(iLayer, 1._rkind)
+        call setIce(iLayer, 0._rkind)
+        call setTemp(iLayer, max(tempWat, Tfreeze))
+      end if
     end do
     if(nLakeFrz==0)then
       ! create the ice layer above the water layer, then set its state
@@ -206,7 +222,7 @@ subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flu
       if(ice(iLayer) > liq(iLayer)) mixWat = .true.
     end do
     if(mixWat)then
-      if(massLiqWat < verySmall)then; err=20; message=trim(message)//'the lake water froze solid'; return; end if
+      if(massLiqWat < verySmall .and. .not.isWetland)then; err=20; message=trim(message)//'the lake water froze solid'; return; end if
       do iLayer=ixWat,nSnow+nLake
         depthNew = (massLiqWat/iden_water + massIceWat/iden_ice)*depth(iLayer)/depthWat
         call setLiq(iLayer, massLiqWat*depth(iLayer)/(depthWat*iden_water*depthNew))
