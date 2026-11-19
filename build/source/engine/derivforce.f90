@@ -79,7 +79,7 @@ contains
  ! compute derived forcing data variables
  implicit none
  ! input variables
- logical(lgt),intent(in)              :: is_glac                       ! flag to indicate if is a glacier domain
+ logical(lgt),intent(in)              :: is_glac                       ! clean-ice glacier domain: glacier wind and air cooling apply (debris recouples the air)
  logical(lgt),intent(in)              :: is_wetland                    ! flag to indicate if is a wetland domain
  logical(lgt),intent(in)              :: has_canopy                    ! flag to indicate if the domain can have a vegetation canopy
  type(var_d),intent(inout)            :: forc_data                     ! vector of forcing data for a given time step
