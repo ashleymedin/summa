@@ -345,8 +345,8 @@ contains
 
  ! adjust the air temperature to the domain mean elevation
  airtemp = airtemp - (DOMelev - elevation) * tempLapseRate
- ! linear in elevation, so the area-weighted domains keep the HRU's precipitation
- pptrate = pptrate * max(0._rkind, 1._rkind + precipElevGrad * (DOMelev - elevation))
+ ! linear in elevation, so the area-weighted domains keep the HRU's precipitation; a wetland takes the HRU's own
+ if(.not.is_wetland) pptrate = pptrate * max(0._rkind, 1._rkind + precipElevGrad * (DOMelev - elevation))
  ! the HRU's relative humidity and sky emissivity carried to the domain's temperature and pressure
  if(DOMelev /= elevation)then
   airtempDOM = airtempHRU - (DOMelev - elevation) * tempLapseRate
