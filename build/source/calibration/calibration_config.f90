@@ -93,6 +93,9 @@ contains
         case('n_samples')
           call get_value(calib_table,trim(keys(i)%key),calib%n_samples,stat=istat)
 
+        case('seed')
+          call get_value(calib_table,trim(keys(i)%key),calib%seed,stat=istat)
+
         case('algorithm')
           call get_value(calib_table,trim(keys(i)%key),cvalue,stat=istat)
           if(istat/=0 .or. .not.allocated(cvalue))then

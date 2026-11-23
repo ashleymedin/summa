@@ -138,6 +138,7 @@ module calibration_types
   type(target_info),           allocatable :: targets(:)      ! calibration targets, one per objective
   type(mf6_param_info),        allocatable :: mf6_params(:)   ! MODFLOW 6 parameters searched with SUMMA's
   integer(i4b)                   :: n_samples      = 1000        ! number of parameter samples to evaluate
+  integer(i4b)                   :: seed           = 42          ! random-number seed of the first independent run
   real(rkind)                    :: default_metric = 9999._rkind ! default objective function
   character(len=16)              :: algorithm      = 'dds'       ! dds (on the scalarized targets) or nsga2 (on each)
   type(nsga2_info)               :: nsga2                        ! NSGA-II settings
