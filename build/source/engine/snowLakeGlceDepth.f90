@@ -24,6 +24,7 @@ USE var_lookup,only:iLookDIAG        ! named variables for structure elements
 USE var_lookup,only:iLookFLUX        ! named variables for structure elements
 USE var_lookup,only:iLookPARAM       ! named variables for structure elements
 USE var_lookup,only:iLookINDEX       ! named variables for structure elements
+USE snow_utils_module,only:isWhiteIce ! a lake ice cover layer with air in it is white ice
 
 ! privacy
 implicit none
@@ -81,6 +82,8 @@ subroutine snowIceDepth(&
   real(rkind)                          :: massLiquid               ! mass liquid water (kg m-2)
   real(rkind)                          :: lakeReduceLiq            ! liquid water squeezed out of the lake ice cover as it thins (m s-1), not used: the melt already left through the ice branch
   logical(lgt)                         :: tooMuchLakeMelt          ! flag to denote that the ice cover melted away within the step
+  logical(lgt)                         :: white(nLakeFrz)          ! flag for a white ice layer in the cover
+  integer(i4b)                         :: iLake                    ! index of a cover layer
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="snowIceDepth/"
@@ -142,10 +145,12 @@ subroutine snowIceDepth(&
 
   ! *** thin the ice cover of the lake as it melts, like glacier ice (the squeezed liquid joins the flow through the ice branch)...
   if(nLakeFrz>0)then
+    ! white ice keeps its depth as its slush freezes, so only its melt thins it
+    white = isWhiteIce(mLayerVolFracLiq(nSnow+1:nSnow+nLakeFrz), mLayerVolFracIce(nSnow+1:nSnow+nLakeFrz))
     call iceReduce(&
                     dt_sub,                                          & ! intent(in):    time step (s)
                     nLakeFrz,                                        & ! intent(in):    number of ice cover layers to reduce
-                    mLayerMeltFreeze(nSnow+1:nSnow+nLakeFrz),        & ! intent(in):    volumetric melt in each layer (kg m-3)
+                    merge(max(mLayerMeltFreeze(nSnow+1:nSnow+nLakeFrz), 0._rkind), mLayerMeltFreeze(nSnow+1:nSnow+nLakeFrz), white), & ! intent(in): volumetric melt in each layer (kg m-3)
                     mLayerDepth(nSnow+1:nSnow+nLakeFrz),             & ! intent(inout): depth of each layer (m)
                     mLayerVolFracLiq(nSnow+1:nSnow+nLakeFrz),        & ! intent(inout): volumetric fraction of liquid water (-)
                     mLayerVolFracIce(nSnow+1:nSnow+nLakeFrz),        & ! intent(inout): volumetric fraction of ice (-)
@@ -157,14 +162,17 @@ subroutine snowIceDepth(&
     if(tooMuchLakeMelt)then
       mLayerDepth(nSnow+1:nSnow+nLakeFrz) = max(mLayerDepth(nSnow+1:nSnow+nLakeFrz), 1.e-4_rkind)
     else
-      ! the cover holds no air either: melt that collected in it before draining, or refrozen residual water, sets its depth
-      call lakeResize(&
-                      nLakeFrz,                                        & ! intent(in):    number of ice cover layers
-                      mLayerDepth(nSnow+1:nSnow+nLakeFrz),             & ! intent(inout): depth of each ice cover layer (m)
-                      mLayerVolFracLiq(nSnow+1:nSnow+nLakeFrz),        & ! intent(inout): volumetric fraction of liquid water (-)
-                      mLayerVolFracIce(nSnow+1:nSnow+nLakeFrz),        & ! intent(inout): volumetric fraction of ice (-)
-                      err,cmessage)                                      ! intent(out):   error control
-      if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+      ! black ice holds no air either: melt that collected in it before draining, or refrozen residual water, sets its depth
+      do iLake=nSnow+1,nSnow+nLakeFrz
+        if(white(iLake-nSnow)) cycle
+        call lakeResize(&
+                        1,                                               & ! intent(in):    number of ice cover layers
+                        mLayerDepth(iLake:iLake),                        & ! intent(inout): depth of the ice cover layer (m)
+                        mLayerVolFracLiq(iLake:iLake),                   & ! intent(inout): volumetric fraction of liquid water (-)
+                        mLayerVolFracIce(iLake:iLake),                   & ! intent(inout): volumetric fraction of ice (-)
+                        err,cmessage)                                      ! intent(out):   error control
+        if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+      end do
     end if
   end if
 

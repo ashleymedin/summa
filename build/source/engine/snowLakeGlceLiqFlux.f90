@@ -33,6 +33,8 @@ USE globalData,only:realMissing            ! missing real number
 ! physical constants
 USE globalData,only:maxVolIceContent       ! snow maximum volumetric ice content to store water (-)
 USE globalData,only:iceResidWaterFrac      ! residual volumetric liquid water content in ice (-)
+USE globalData,only:iname_lake             ! named variable for lake layers
+USE snow_utils_module,only:isWhiteIce     ! a lake ice cover layer with air in it is white ice
 
 ! horizontal domain types
 USE globalData,only:wetland                ! sub-GRU lake or pothole: mass balance in a linear reservoir once per data step
@@ -130,6 +132,8 @@ subroutine snowIceLiqFlux(&
     k_snow           => mpar_data%var(iLookPARAM%k_snow)%dat(1),                                & ! intent(in):    hydraulic conductivity of snow (m s-1)    
     mw_exp           => mpar_data%var(iLookPARAM%mw_exp)%dat(1),                                & ! intent(in):    exponent on relative saturation in meltwater drainage (-)
     snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),                         & ! intent(in):    freezing curve scaling factor for snow (-)
+    rhoWhite         => mpar_data%var(iLookPARAM%lakeWhiteIceDensity)%dat(1),                   & ! intent(in):    density of white ice (kg m-3)
+    layerType        => indx_data%var(iLookINDEX%layerType)%dat,                                & ! intent(in):    type of each layer
     ! input-output: diagnostic variables -- only computed for the first iteration
     mLayerPoreSpace  => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat(nStart+1:nStart+nLayers),  & ! intent(inout): pore space in each layer (-)
     mLayerThetaResid => diag_data%var(iLookDIAG%mLayerThetaResid)%dat(nStart+1:nStart+nLayers), & ! intent(inout): residual volumetric liquid water content in each layer (-)
@@ -188,6 +192,11 @@ subroutine snowIceLiqFlux(&
         end do  ! end looping through snow/firn layers
       else ! glacier ice
         mLayerThetaResid = iceResidWaterFrac ! 3% reasonable for temperate ice, or non-black ice on lake
+        ! white ice on a lake holds its slush until it freezes to the white-ice density
+        do iLayer=1,nLayers
+          if(layerType(nStart+iLayer)==iname_lake .and. isWhiteIce(mLayerVolFracLiqTrial(iLayer),mLayerVolFracIce(iLayer))) &
+            mLayerThetaResid(iLayer) = max(iceResidWaterFrac, (rhoWhite - mLayerVolFracIce(iLayer)*iden_ice)/iden_water)
+        end do
       end if  ! end if snow or ice
     end if  ! end if the first flux call
      
