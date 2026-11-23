@@ -68,7 +68,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine derivforce: compute derived forcing data
  ! ************************************************************************************************
- subroutine derivforce(is_glac, is_wetland, has_canopy, forc_data,attr_data,mpar_data, prog_data,diag_data,flux_data,tmZoneOffsetFracDay,err,message)
+ subroutine derivforce(is_glac, is_wetland, on_water, has_canopy, forc_data,attr_data,mpar_data, prog_data,diag_data,flux_data,tmZoneOffsetFracDay,err,message)
  USE sunGeomtry_module,only:clrsky_rad                            ! compute cosine of the solar zenith angle
  USE convert_funcs_module,only:vapPress                           ! compute vapor pressure of air (Pa)
  USE convert_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP   ! conversion functions
@@ -81,6 +81,7 @@ contains
  ! input variables
  logical(lgt),intent(in)              :: is_glac                       ! clean-ice glacier domain: glacier wind and air cooling apply (debris recouples the air)
  logical(lgt),intent(in)              :: is_wetland                    ! flag to indicate if is a wetland domain
+ logical(lgt),intent(in)              :: on_water                      ! flag for a wetland or stream domain, whose snow falls on water or its ice
  logical(lgt),intent(in)              :: has_canopy                    ! flag to indicate if the domain can have a vegetation canopy
  type(var_d),intent(inout)            :: forc_data                     ! vector of forcing data for a given time step
  type(var_d),intent(in)               :: attr_data                     ! vector of model attributes
@@ -139,6 +140,7 @@ contains
  tempRangeTimestep       => mpar_data%var(iLookPARAM%tempRangeTimestep)%dat(1)    , & ! temperature range over the time step (K)
  frozenPrecipMultip      => mpar_data%var(iLookPARAM%frozenPrecipMultip)%dat(1)   , & ! frozen precipitation multiplier (-)
  newSnowDenMin           => mpar_data%var(iLookPARAM%newSnowDenMin)%dat(1)        , & ! minimum new snow density (kg m-3)
+ lakeSnowDensity         => mpar_data%var(iLookPARAM%lakeSnowDensity)%dat(1)      , & ! least density of new snow on a wetland or stream (kg m-3)
  newSnowDenMult          => mpar_data%var(iLookPARAM%newSnowDenMult)%dat(1)       , & ! multiplier for new snow density (kg m-3)
  newSnowDenScal          => mpar_data%var(iLookPARAM%newSnowDenScal)%dat(1)       , & ! scaling factor for new snow density (K)
  constSnowDen            => mpar_data%var(iLookPARAM%constSnowDen)%dat(1)         , & ! Constant new snow density (kg m-3)
@@ -427,6 +429,8 @@ contains
     newSnowDensity = constSnowDen ! new snow density (kg m-3)
    case default; message=trim(message)//'unable to identify option for new snow density'; err=20; return
   end select ! identifying option for new snow density
+  ! the wind packs the snow that falls on open water or ice
+  if(on_water) newSnowDensity = max(newSnowDensity, lakeSnowDensity)
  else
   newSnowDensity = realMissing
   rainfall = rainfall + snowfall ! in most cases snowfall will be zero here

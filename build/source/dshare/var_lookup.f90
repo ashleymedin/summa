@@ -401,6 +401,7 @@ MODULE var_lookup
   integer(i4b)    :: reachOutletElev       = integerMissing    ! elevation of the reach outlet; with a glacier, the reach falls from its front to it, 0 for slope times length (m)
   ! white ice of a lake or stream cover
   integer(i4b)    :: lakeWhiteIceDensity   = integerMissing    ! density of white ice, frozen slush of flooded snow and lake water (kg m-3)
+  integer(i4b)    :: lakeSnowDensity       = integerMissing    ! least density of new snow on a wetland or stream, packed by the wind over open ice (kg m-3)
  endtype iLook_param
 
  ! ***********************************************************************************************************
@@ -1137,7 +1138,7 @@ MODULE var_lookup
                                                                         191,192,193,194,195,196,197,198,199,200,&
                                                                         201,202,203,204,205,206,207,208,209,210,&
                                                                         211,212,213,214,215,216,217,218,219,220,&
-                                                                        221,222,223,224,225)
+                                                                        221,222,223,224,225,226)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

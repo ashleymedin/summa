@@ -192,6 +192,7 @@ subroutine run_oneHRU(&
       call derivforce(&
                       is_glac .and. domInfo(i)%dom_type /= glacDbr, & ! intent(in): clean-ice glacier domain, whose air the ice cools
                       domInfo(i)%dom_type == wetland, & ! intent(in): flag to indicate if is a wetland domain
+                      domInfo(i)%dom_type == wetland .or. domInfo(i)%dom_type == stream, & ! intent(in): flag for a domain whose snow falls on water or its ice
                       domInfo(i)%dom_type == upland, & ! intent(in): flag to indicate if the domain can have a canopy
                       forcData,             & ! intent(inout): vector of model forcing data
                       attrData,             & ! intent(in):    vector of model attributes
