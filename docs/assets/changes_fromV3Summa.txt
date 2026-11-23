@@ -337,6 +337,8 @@ AFTER tag of v4.0.0-exp-Sundials
      New basin parameter streamWidthMultip scales a stream domain's reach width and area together, 0.5-3, commits ef87668a, ed2535ca Oct 1, 2026
      Stream column gains the heat friction dissipates down the reach, new flux scalarStreamFrictionHeat, commit 5e9f4ef6 Oct 1, 2026
      simulation.stream_temp = false skips the stream columns, routing only their precipitation; calibration sets it off without a T_reach target unless the config says, commits 145cb32a, b7dcda37 Nov 4, 2026
+     White ice: snow that sinks a lake or stream cover floods into slush above the black ice, frozen at lakeWhiteIceDensity (output scalarLakeWhiteIceThick), commits cdcd1d9b and 5e428c6f Nov 23, 2026
+     Snow on a wetland or stream falls at least at lakeSnowDensity, packed by the wind over open ice, commit 3bc8b2d1 Nov 23, 2026
  69) Allow baseflow to have a temperature, various commits Sept 24-26 2026
       1) Geothermal heat flux as a lower boundary condition for thermodynamics-- New bcLowrTdyn option presFlux prescribes lowerBoundNrgFlux (W m-2, default 0.06) into the base of a soil column.
       2) Frozen-ground diagnostics, and ice-impeded lateral flow, scalarFrostTableDepth and scalarActiveLayerDepth; each layer's transmissivity scaled by its ice impedance factor.
@@ -391,6 +393,7 @@ AFTER tag of v4.0.0-exp-Sundials
      Wetlands in series: a head wetland takes the glacier runoff and drains to the next open wetland (wetlandFeedsNext, wetlandUseMask), commits 217dfa93, fb5b1009 and c9486b2c Nov 13, 2026
      Wind and air over a wetland can be sheltered or cooled by the glacier (wetlandWindFactor, wetlandAirCooling), commit fb5b1009 Nov 13, 2026
      Reach friction heat from the fall between the glacier front (lowest ice of the largest connected body) and the reach outlet (reachOutletElev), commits c9d6214f and dc31d832 Nov 13, 2026
+     A wetland takes its HRU's precipitation rather than the elevation gradient to its own elevation, commit 0c154554 Nov 20, 2026
 -85) Smoothly turn off infiltration into over-pressured soil and condensation into saturated soil, commits 87967f22 Jul 22, 94c4f7a0 Sep 24, 0515771b and a8135c87 Oct 22, 3bd10e52 and cac687f8 Oct 26, 2026
      Infiltration area scales by a Gaussian of the depth-weighted mean squared positive head (root zone for homegrown_SE, else all soil layers), condensation by a Gaussian of top-layer positive head.
      A coupled MODFLOW 6 aquifer evaluates the same Gaussian per cell on its hydrostatic head, commit 2110a20d Oct 26, 2026
