@@ -340,6 +340,7 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%lakeIceMinThick)                = var_info('lakeIceMinThick'                , 'ice cover thinner than this breaks up and returns to the water'   , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%lakeWhiteIceDensity)            = var_info('lakeWhiteIceDensity'            , 'density of white ice, frozen slush of flooded snow and lake water', 'kg m-3'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%lakeSnowDensity)                = var_info('lakeSnowDensity'                , 'least density of new snow on a wetland or stream, wind-packed'    , 'kg m-3'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%wetlandPoolCooling)             = var_info('wetlandPoolCooling'             , 'cold-air pooling over a wetland while its HRU upland holds snow'  , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%wetlandStorageK)                = var_info('wetlandStorageK'                , 'storage time constant of the wetland outflow'                     , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%wetlandMinDepth)                = var_info('wetlandMinDepth'                , 'mean liquid depth of a wetland filled to its outlet'              , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! lower boundary condition for thermodynamics

@@ -388,6 +388,11 @@ contains
     parFallback(iLookPARAM%lakeSnowDensity)%lower_limit = 50._rkind
     parFallback(iLookPARAM%lakeSnowDensity)%upper_limit = 450._rkind
   end if
+  if (parFallback(iLookPARAM%wetlandPoolCooling)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandPoolCooling)%default_val = 0._rkind ! no pooling, the HRU's air (K)
+    parFallback(iLookPARAM%wetlandPoolCooling)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandPoolCooling)%upper_limit = 10._rkind
+  end if
   ! properties of the thermal-only bedrock layers, only used with deepTherml = bedrockLyrs
   if (parFallback(iLookPARAM%thCond_bedrock)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%thCond_bedrock)%default_val = 2.5_rkind ! typical of crystalline bedrock (W m-1 K-1)

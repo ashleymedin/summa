@@ -134,6 +134,7 @@ subroutine run_oneHRU(&
   logical(lgt)                      :: use_computeVegFlux  ! computeVegFlux flag for the current domain
   logical(lgt)                      :: is_glac             ! flag to indicate if is a glacier domain
   type(var_d)                       :: forcData0           ! original forcings
+  real(rkind)                       :: uplandSWE           ! SWE of the HRU's upland domain, 0 without one (kg m-2)
   character(len=256)                :: cmessage            ! error message
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! save original forcings
@@ -143,6 +144,13 @@ subroutine run_oneHRU(&
   ! this step's runoff, so that it sees the reach inflow and the upstream temperature of the same step
   doStream = .false.
   if(present(streamPass)) doStream = streamPass
+
+  ! the upland's snow, which drives cold-air pooling over the HRU's wetlands
+  uplandSWE = 0._rkind
+  do i = 1, ndom
+    if(domInfo(i)%dom_type == upland .and. progData%dom(i)%var(iLookPROG%DOMarea)%dat(1) > 0._rkind) &
+      uplandSWE = progData%dom(i)%var(iLookPROG%scalarSWE)%dat(1)
+  end do
 
   ! loop over each domain
   do i = 1, ndom
@@ -194,6 +202,7 @@ subroutine run_oneHRU(&
                       domInfo(i)%dom_type == wetland, & ! intent(in): flag to indicate if is a wetland domain
                       domInfo(i)%dom_type == wetland .or. domInfo(i)%dom_type == stream, & ! intent(in): flag for a domain whose snow falls on water or its ice
                       domInfo(i)%dom_type == upland, & ! intent(in): flag to indicate if the domain can have a canopy
+                      uplandSWE,            & ! intent(in):    SWE of the HRU's upland domain (kg m-2)
                       forcData,             & ! intent(inout): vector of model forcing data
                       attrData,             & ! intent(in):    vector of model attributes
                       mparData%dom(i),      & ! intent(in):    data structure of model parameters

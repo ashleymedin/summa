@@ -460,6 +460,7 @@ contains
   case('lakeIceMinThick'          ); get_ixParam = iLookPARAM%lakeIceMinThick        ! ice cover thinner than this breaks up and returns to the water (m)
   case('lakeWhiteIceDensity'      ); get_ixParam = iLookPARAM%lakeWhiteIceDensity    ! density of white ice, frozen slush of flooded snow and lake water (kg m-3)
   case('lakeSnowDensity'          ); get_ixParam = iLookPARAM%lakeSnowDensity        ! least density of new snow on a wetland or stream, wind-packed (kg m-3)
+  case('wetlandPoolCooling'       ); get_ixParam = iLookPARAM%wetlandPoolCooling     ! cold-air pooling over a wetland while its HRU's upland holds snow (K)
   case('wetlandStorageK'          ); get_ixParam = iLookPARAM%wetlandStorageK        ! storage time constant of the wetland outflow (s)
   case('wetlandMinDepth'          ); get_ixParam = iLookPARAM%wetlandMinDepth        ! mean liquid depth of a wetland filled to its outlet (m)
   ! lower boundary condition for thermodynamics
