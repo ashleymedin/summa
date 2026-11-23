@@ -170,6 +170,28 @@ subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flu
     end if
   end if
 
+  ! ***** white ice too thin to stand on its own joins the black ice beneath, mass conserved
+  if(nLakeFrz > 1)then
+    ixTop = nSnow + 1
+    ixIce = ixTop + 1
+    if(isWhiteIce(liq(ixTop),ice(ixTop)) .and. depth(ixTop)*ice(ixTop)*iden_ice < minMassIce)then
+      massIce  = depth(ixTop)*ice(ixTop)*iden_ice + depth(ixIce)*ice(ixIce)*iden_ice
+      massLiq  = depth(ixTop)*liq(ixTop)*iden_water + depth(ixIce)*liq(ixIce)*iden_water
+      tempSlush = (depth(ixTop)*ice(ixTop)*temp(ixTop) + depth(ixIce)*ice(ixIce)*temp(ixIce))/(depth(ixTop)*ice(ixTop) + depth(ixIce)*ice(ixIce))
+      depthNew = (massIce + massLiq)/iden_ice  ! liquid sized at the density of ice, as black ice is
+      call setIce(ixIce, massIce/(iden_ice*depthNew))
+      call setLiq(ixIce, massLiq/(iden_water*depthNew))
+      call setDepth(ixIce, depthNew)
+      call setTemp(ixIce, merge(iceTemp(liq(ixIce),ice(ixIce)), tempSlush, massLiq > 0._rkind))
+      call rmLakeLayer(prog_data,prog_meta,ixTop,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+      call rmLakeLayer(diag_data,diag_meta,ixTop,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+      call rmLakeLayer(flux_data,flux_meta,ixTop,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+      call rmLakeLayer(indx_data,indx_meta,ixTop,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+      nLake = nLake - 1; nLakeFrz = nLakeFrz - 1; nLayers = nLayers - 1
+      modifiedLayers = .true.
+    end if
+  end if
+
   ! ***** freeze-up: ice that formed in the water (well mixed, so in any water layer) rises into the cover
   ixWat = nSnow + nLakeFrz + 1
   massIceWat = 0._rkind; massLiqWat = 0._rkind; tempWat = 0._rkind; depthWat = 0._rkind
@@ -296,8 +318,8 @@ subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flu
       end if
       ! the cold content of the snow and of any white ice it joins freezes the slush, the water warmer than 0 C melts it
       ixTop = nSnow + 1
-      iceSlush = massFlood*ice(nSnow)*iden_ice/massSnowLyr
-      liqSlush = massFlood*liq(nSnow)*iden_water/massSnowLyr + massFill
+      iceSlush = massFlood*depth(nSnow)*ice(nSnow)*iden_ice/massSnowLyr
+      liqSlush = massFlood*depth(nSnow)*liq(nSnow)*iden_water/massSnowLyr + massFill
       coldSlush = Cp_ice*iceSlush*(Tfreeze - temp(nSnow)) - Cp_water*massFill*max(tempWat - Tfreeze, 0._rkind)
       depthWhite = (massFlood + massFill)/rhoWhite
       ! a full cover takes the slush into its top layer, which becomes white ice
