@@ -404,5 +404,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -91) Homegrown solver also converges on the depth-integrated snow water residual; binds only in snow deeper than 1 m (glacier firn), commit 138d093e Nov 10, 2026
  92) Sand, silt and clay fractions must be non-negative and add to one, commit 8b0346a9 Nov 10, 2026
  93) Parameters precipElevGrad and tempLapseRate added to lapse from the HRU elevation to domain elevation (including relative humidity and longwave solar radiation), commit 7ad6b8d4 and 4819cc5b Nov 11, 2026
- 94) parameter_fields.f90 a remainder (silt) negative only by roundoff is zero, so sand at its bound passes paramCheck, commit 74e4dd2e Nov 17, 2026
- 95) A --param override sets the configured remainder from its sources, so rerun.sh replays a trial with silt the remainder, commit d0c63136 Nov 19, 2026
+ 94) A --param override sets the configured remainder from its sources, so rerun.sh replays a trial with silt the remainder, commit d0c63136 Nov 19, 2026
