@@ -275,26 +275,26 @@ AFTER tag of v4.0.0-exp-Sundials
       with gwe_model_name set, RCH's aux variable carries recharge temperature and esl_package_name (ESL) takes basal
       conduction (entry 69.6-69.7).
       3) presHead rises above the base at the geometric-mean conductivity, and free-drains into UZF with the water
-      table below it, commits 1690d05d Sep 30, c3b02a29 Oct 1, 235a7717 Oct 6, 2026
+      table below it, commits 36db9887 Sep 30, ca80d65a Oct 1, 73ddb12f Oct 6, 2026
       4) MODFLOW DIS/TOP must be the soil-column base, so the two models share no pore space;
-      modLatflow plays the interflow role on top of it, commits 2ac6318d, 535ead00 Oct 1, 2026
-      5) The infiltration compression closure is evaluated per MODFLOW cell (scalarInfilLimAqfr), commit a741b32c Oct 1, 2026
-      6) A stream domain's soil base is zero-flux; its bed exchanges through the reach package, commit 23c86cb2 Oct 5, 2026
+      modLatflow plays the interflow role on top of it, commits a69dedcd, 85d883a3 Oct 1, 2026
+      5) The infiltration compression closure is evaluated per MODFLOW cell (scalarInfilLimAqfr), commit e9db62bb Oct 1, 2026
+      6) A stream domain's soil base is zero-flux; its bed exchanges through the reach package, commit 137c91af Oct 5, 2026
       7) UZF takes the drainage uzf_hold_days at a time (default 1), one new wave per hold; its rejected recharge
-      returns to the column base as scalarAquiferReject, commits 235a7717, 349fb50e Oct 6, 2026
-      8) The scatter weighs each HRU's share of a cell by its area, so an area-intersection map_file conserves recharge volume, commit 5923c4de Oct 6, 2026
+      returns to the column base as scalarAquiferReject, commits 73ddb12f, 00960dc7 Oct 6, 2026
+      8) The scatter weighs each HRU's share of a cell by its area, so an area-intersection map_file conserves recharge volume, commit f69ab162 Oct 6, 2026
       9) Stop the hourly bounce: base flux continuous over 10 cm below the base, and an optional implicit base exchange
-      (base_ghb/drn_package_name) returned with the rejected recharge, commits 4510ad32, 53499790 Oct 6, 2026
-      and a warning where an HRU over several cells has its mean head reach the blend, commit cd81093b Nov 4, 2026
-     Also added bbLatflow groundwatr option: big bucket plus lateral flow from upland soil at each layer's temperature, commits bf8f45f8 Oct 17 and 36804ccd Oct 20, 2026
+      (base_ghb/drn_package_name) returned with the rejected recharge, commits 78ccaa27, 48273cda Oct 6, 2026
+      and a warning where an HRU over several cells has its mean head reach the blend, commit 77b7192c Nov 4, 2026
+     Also added bbLatflow groundwatr option: big bucket plus lateral flow from upland soil at each layer's temperature, commits bf439af4 Oct 17 and 0618f5ac Oct 20, 2026
  64) Domain-parallel MPI: GRUs distributed across ranks, PR #631 -DUSE_MPI=ON 
      Builds a second executable (summa[_sundials]_mpi.exe); each rank reads/writes only its own GRUs.
      Also, later, added summa_modflow6_mpi coupler executable (-DUSE_MODFLOW6=ON -DUSE_MPI=ON), Sep 16, 2026
      Splits SUMMA's GRUs across MPI ranks the same way the plain summa_mpi build does. MODFLOW 6 itself stays a serial singleton on rank 0 for now.
  65) Optional coupling to mizuRoute for river-network routing, PR #632 -DUSE_MIZUROUTE=ON
      Configured via a new TOML file (-c). Adds Q_reach, q_basin, upArea outputs (off by default). Requires the full domain on one process -- incompatible with -g and MPI domain parallelism.
-     Coupled mizuRoute lakes with mizuRoute.is_lake_sim, taking precipitation and Oudin evaporation of water-class HRUs averaged per GRU and the SUMMA date; not with OpenWQ and not calibratable or restartable, commit eeed8bd9 Nov 3, 2026
-      Oudin potential evaporation function with parameters oudinPETScaleK1 and oudinPETTempThrK2, commit 99485bb0 Nov 3, 2026
+     Coupled mizuRoute lakes with mizuRoute.is_lake_sim, taking precipitation and Oudin evaporation of water-class HRUs averaged per GRU and the SUMMA date; not with OpenWQ and not calibratable or restartable, commit a2bb9c22 Nov 3, 2026
+      Oudin potential evaporation function with parameters oudinPETScaleK1 and oudinPETTempThrK2, commit aff4bb8d Nov 3, 2026
  66) Objective-function evaluation and command-line parameter overrides, PR #637
      New build/source/objfunc/ computes streamflow metrics (kge, kgep, nse, mae, rmse) against observations. Parameters can be overridden via --param <name> <value>. 
      Simulation lifecycle refactored into summa_simulation (reusable in-process); executable names now record build options so variant builds can share bin/.
@@ -302,28 +302,28 @@ AFTER tag of v4.0.0-exp-Sundials
      New build/source/calibration/ (DDS sampling, parameter search, NetCDF output) and driver summa_driver_opt.f90. 
      Two-level MPI: domain parallelism plus instance parallelism across calibration trials, scheduled dynamically. 
      Multi-case runs via a --manifest file. Config moves to TOML (legacy -m/--control still accepted). parallel-utils submodule vendored into build/source/parallel/.
-     Targets read NetCDF observation and may name the gru, hru or reach they score, commit 69e29caa Sep 28, 2026
-     DDS (single target) or NSGA-II (multiple target) calibration, share one worker pool, commit cc30ba75 Sep 28, 2026
-     Calibration ordered chains can be searched by their gaps (sample_gaps = true), always in order and in bounds, commit aee97bff Sep 29, 2026, removed by PR #671
-     Calibration keeps going past a failed physics trial, ranks it last and saves it to failed_trials/ with a serial rerun.sh, commit 66fdb1ef Sep 28, 2026
+     Targets read NetCDF observation and may name the gru, hru or reach they score, commit 1af7c17e Sep 28, 2026
+     DDS (single target) or NSGA-II (multiple target) calibration, share one worker pool, commit ab7eddef Sep 28, 2026
+     Calibration ordered chains can be searched by their gaps (sample_gaps = true), always in order and in bounds, commit f25c3a0f Sep 29, 2026, removed by PR #671
+     Calibration keeps going past a failed physics trial, ranks it last and saves it to failed_trials/ with a serial rerun.sh, commit b5d06fff Sep 28, 2026
      Calibration can be against any output variable, currently tested with streamflow, stream temperature, well head, water storage change, and glacier mass balance or low-flow targets (low_flow fraction, flow_duration).
-      Glacier balance targets (balance = seasonal|annual) score change between simulated extremes, commits 45a6637f, 769464dc Sep 30, 2026
-      Streamflow out of a GRU is averageRoutedRunoff times its area when mizuRoute is off; bundled gulkana demo, commit 45a6637f Sep 29, 2026
-     MODFLOW parameters searched as multipliers on the model's input arrays (by zone) or list columns, commit 280648c1 Oct 7, 2026
-     MODFLOW 6 OBS6 head at a cell as a target (variable = modflow_obs, obs_name), commit 9a8f916b Oct 7, 2026
-     Calibration driver and MPI coupler pass the serial coupler's whole MODFLOW exchange, commit 80f08318 Oct 8, 2026
-     A modflow_obs target pools several OBS6 heads into one series (obs_name, vname_obs lists), commit 04934f0a Oct 8, 2026
-     DDS with several targets warns that it searches their weighted sum, commit eede0d9b Oct 15, 2026
-     A target over an HRU, GRU or the domain weights each HRU's domains by their area, without zero-area domains, commit 8ffcff1e Oct 16, 2026
-     [calibration.parameter_bounds] sets a parameter's search range, so name@domainType ones get their own, commit 57e61415 Oct 20, 2026, removed by PR #671 (bounds go in [calibration.parameters])
+      Glacier balance targets (balance = seasonal|annual) score change between simulated extremes, commits e9e46ca9, cc323645 Sep 30, 2026
+      Streamflow out of a GRU is averageRoutedRunoff times its area when mizuRoute is off; bundled gulkana demo, commit e9e46ca9 Sep 29, 2026
+     MODFLOW parameters searched as multipliers on the model's input arrays (by zone) or list columns, commit ab313669 Oct 7, 2026
+     MODFLOW 6 OBS6 head at a cell as a target (variable = modflow_obs, obs_name), commit 7603d5c7 Oct 7, 2026
+     Calibration driver and MPI coupler pass the serial coupler's whole MODFLOW exchange, commit 53c62b52 Oct 8, 2026
+     A modflow_obs target pools several OBS6 heads into one series (obs_name, vname_obs lists), commit 6e357f70 Oct 8, 2026
+     DDS with several targets warns that it searches their weighted sum, commit 5c03a174 Oct 15, 2026
+     A target over an HRU, GRU or the domain weights each HRU's domains by their area, without zero-area domains, commit 1d7b9010 Oct 16, 2026
+     [calibration.parameter_bounds] sets a parameter's search range, so name@domainType ones get their own, commit 1ac65bb2 Oct 20, 2026, removed by PR #671 (bounds go in [calibration.parameters])
      Calibration parameters refactored, PR #671: [calibration.parameters], spatial_multipliers and parameter_ratios replace param_list and parameter_transformations;
       DDS and NSGA-II redraw candidates that break an ordered chain on the physical fields; zero-weight diagnostic targets; per-target boxcox_lambda;
       targets select space with spatial_unit and spatial_id; an anomaly baseline is removed after alignment, merged Nov 9, 2026
      MODFLOW multipliers take their search transformation in [[calibration.modflow_parameter]] (transformation = "log"), merged Nov 9, 2026
-     [[parameter_dependencies.remainder]] sets a fixed parameter to a total minus its sources (silt = 1 - sand - clay), commit eb52ab55 Nov 10, 2026
-     name@glacier sets a parameter on every clean and debris-covered glacier domain, commit 81a7b60c Nov 16, 2026
-     calibration.seed sets the random-number seed of the first independent run (default 42), commit 47489dcc Nov 23, 2026
- 68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits d632b36a to de2ae997 Sep 21, 2026
+     [[parameter_dependencies.remainder]] sets a fixed parameter to a total minus its sources (silt = 1 - sand - clay), commit e01f6328 Nov 10, 2026
+     name@glacier sets a parameter on every clean and debris-covered glacier domain, commit 46686b46 Nov 16, 2026
+     calibration.seed sets the random-number seed of the first independent run (default 42), commit 11a804a8 Nov 23, 2026
+ 68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits 035d1efd to ea384f4a Sep 21, 2026
      A GRU may hold one stream HRU: its reach's water column (lake layers over soil/aquifer, linked via streamSegId). mizuRoute returns reach discharge, 
       volume and lateral inflow; new streamTemp.f90 solves the column energy balance upstream to downstream each step, advecting heat from upstream 
       reaches and GRU runoff (Wanders et al. 2019, WRR, after van Beek et al. 2012, WRR). run_oneGRU routes the runoff's energy alongside the water
@@ -334,9 +334,9 @@ AFTER tag of v4.0.0-exp-Sundials
       of bed and ice underside weighted by wetted perimeter (Wanders eqs 12-13, Nezhikovskiy ice roughness), floodplain term of eq 11 stubbed in, inert.
      New outputs T_reach, v_reach, n_reach, ice_reach, scalarStreamTemp, scalarLakeIceThick, averageRoutedRunoffTemp, scalarStream* fluxes;
       new parameters streamMinDepth, lakeMixingThermalC, lakeIceMinThick, streamWidthMultip; new restart variables routingNrgFuture, nLakeFrz.
-     New basin parameter streamWidthMultip scales a stream domain's reach width and area together, 0.5-3, commits dfbf9300, 2dd50ad8 Oct 1, 2026
-     Stream column gains the heat friction dissipates down the reach, new flux scalarStreamFrictionHeat, commit d1cbc263 Oct 1, 2026
-     simulation.stream_temp = false skips the stream columns, routing only their precipitation; calibration sets it off without a T_reach target unless the config says, commits db2a24bb, 318216c2 Nov 4, 2026
+     New basin parameter streamWidthMultip scales a stream domain's reach width and area together, 0.5-3, commits ef87668a, ed2535ca Oct 1, 2026
+     Stream column gains the heat friction dissipates down the reach, new flux scalarStreamFrictionHeat, commit 5e9f4ef6 Oct 1, 2026
+     simulation.stream_temp = false skips the stream columns, routing only their precipitation; calibration sets it off without a T_reach target unless the config says, commits 145cb32a, b7dcda37 Nov 4, 2026
  69) Allow baseflow to have a temperature, various commits Sept 24-26 2026
       1) Geothermal heat flux as a lower boundary condition for thermodynamics-- New bcLowrTdyn option presFlux prescribes lowerBoundNrgFlux (W m-2, default 0.06) into the base of a soil column.
       2) Frozen-ground diagnostics, and ice-impeded lateral flow, scalarFrostTableDepth and scalarActiveLayerDepth; each layer's transmissivity scaled by its ice impedance factor.
@@ -352,57 +352,57 @@ AFTER tag of v4.0.0-exp-Sundials
          building more. The parameter file still holds only the soil layers the user set up; the bedrock entries of the
          depth-varying parameters take the deepest soil value and are then overwritten with thCond_bedrock (2.5 W m-1 K-1)
          and theta_sat_bedrock (0.05), the bedrock starting saturated at zero matric head.
-      6) MODFLOW coupling: deepTherml = aquiferTemp means baseflow contribution to channel heat comes from its baseflow and seepage at the groundwater temperature using GWE package, commit a7dec18d Sep 29, 2026
-      7) MODFLOW coupling: bcLowrTdyn = presTemp with deepTherml = aquiferTemp conducts to the GWE aquifer temperature at the water table, the flux going to GWE's ESL package, commits ede61a86 and 627a293d Sep 29-30, 2026
- 70) Hyporheic exchange in a stream domain, after Wade et al. (2024, EMS 171:105866, eqs. 11-12), commit e305fdf1 Sep 24, 2026
+      6) MODFLOW coupling: deepTherml = aquiferTemp means baseflow contribution to channel heat comes from its baseflow and seepage at the groundwater temperature using GWE package, commit 3543a39b Sep 29, 2026
+      7) MODFLOW coupling: bcLowrTdyn = presTemp with deepTherml = aquiferTemp conducts to the GWE aquifer temperature at the water table, the flux going to GWE's ESL package, commits 89265caf and f0ea8dde Sep 29-30, 2026
+ 70) Hyporheic exchange in a stream domain, after Wade et al. (2024, EMS 171:105866, eqs. 11-12), commit bce126cb Sep 24, 2026
      New decision hyporhTdyn (none | proxy, default none), parameters hypFrac and hypLag, restart variable hypTempPast.
--71) Cap the lateral outflow of a soil layer at the drainable water it holds over the data step, commit aae78d23 Sep 24, 2026
+-71) Cap the lateral outflow of a soil layer at the drainable water it holds over the data step, commit 17bebd8d Sep 24, 2026
      The smooth minimum q_max*tanh(q/q_max), monotone where a logistic one is not, with its derivatives in dBaseflow_d*.
--72) Exfiltrate the surplus a nearly full soil column cannot store, whatever face it arrived through, commit a7126fbc Sep 24, 2026
+-72) Exfiltrate the surplus a nearly full soil column cannot store, whatever face it arrived through, commit 3ab2860e Sep 24, 2026
      exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow, was lateral only.
      Closes the debris-column water balance; a qTopmodl upland is unchanged in practice, its exfiltration identically zero either way, since the relief opens only below 2 mm available storage.
 -73) Root density normalisation only trims an excess, no longer fills a deficit, commit 0dd366a3 Sep 25, 2026
      scalarAquiferRootFrac was forced to zero, so bigAquifer's aquifer transpiration was unreachable for bigBuckt too.
- 74) aquiferIni=emptyStart empties the aquifer on a cold start only, stamping aqEmptyStarted=1 on every restart file, commit c350f6f2 Sep 25, 2026
- 75) Cascade order built once per GRU, not every step, commit ea5739d5 Sep 25, 2026
--76) Fix scalarFrozenArea-- the commented out Gamma frozen fraction of the root zone, not zero, and fixed derivatives commit 6bda206f Sep 26, 2026
+ 74) aquiferIni=emptyStart empties the aquifer on a cold start only, stamping aqEmptyStarted=1 on every restart file, commit 556f3922 Sep 25, 2026
+ 75) Cascade order built once per GRU, not every step, commit 8370470f Sep 25, 2026
+-76) Fix scalarFrozenArea-- the commented out Gamma frozen fraction of the root zone, not zero, and fixed derivatives commit 11bbe07b Sep 26, 2026
 -77) Changes for converge on flat search direction, improves BE speed but solutions are almost identical (or just do not fail)
-      1) imposeConstraints lets a snow/lake/glacier water iterate fall back to its start-of-step value before the liquid drain limit, commit b7f1d2ae Oct 1, 2026
-      2) imposeConstraints takes the BE snow (layer and canopy) temperature step along the enthalpy curve, commit 3cdbe7ea and 9b7696f2 Oct 5, 2026
-      3) Scalar solve waives the matric head increment test where the residual and water content change meet the liquid tolerance, commit e828262b Oct 19, 2026
+      1) imposeConstraints lets a snow/lake/glacier water iterate fall back to its start-of-step value before the liquid drain limit, commit 7d49c2c0 Oct 1, 2026
+      2) imposeConstraints takes the BE snow (layer and canopy) temperature step along the enthalpy curve, commit 853b47da and 997051f8 Oct 5, 2026
+      3) Scalar solve waives the matric head increment test where the residual and water content change meet the liquid tolerance, commit c719c468 Oct 19, 2026
 -78) Jacobian fixes
-     -1) frozen-soil conductivity derivative should include the ice impedance, commit 90450fcb Oct 5, 2026
-     -2) when transpiration latent flux is toward the leaves (condensation) derivative should add to canopy evaporation derivative, commit 788eacb8 Oct 5, 2026
-     -3) soil water super-diagonal no longer overwrites the baseflow derivatives of the layer above, commit eab8f603 Oct 15, 2026
-     -4) scalar soil water solve zeroes the derivative of the flux from above, which it holds fixed, commit 60b167b1 Oct 15, 2026
-     -5) frozen-soil liquid head derivative w.r.t. total head uses the ratio of retention slopes, finite near saturation, commit b19bba51 Nov 3, 2026
--79) Change scalarRootZoneTemp to be the depth-weighed (last root layer truncated at rootingDepth) arithmatic mean, instead of non depth-weighed arithmatic mean. The variable is diagnostic only, not used in model calculations, commit 7e9eb963 and da4bf144 Oct 15, 2026
--80) A saturated liquid matric potential state passes its pressure to the total matric head in a mass split, commit 8b38167a Oct 15, 2026
- 81) Parameter overrides and calibration parameters can target one domain type, name@upland etc., commit bb98db98 Oct 17, 2026
--82) Lateral soil inflow carries the temperature of the layer it left, and enters a column with no saturated layer instead of being dropped, commit 5ab0019c Oct 17, 2026
--83) Advective heat: soil layers gain the heat carried by water entering from the layer above or below, commit 3415be91 Oct 17, 2026
- 84) Added wetland domain: a linear-reservoir water column over soil that takes the GRU glacier runoff, commit fb35bd65 Oct 19, 2026
+     -1) frozen-soil conductivity derivative should include the ice impedance, commit a127186d Oct 5, 2026
+     -2) when transpiration latent flux is toward the leaves (condensation) derivative should add to canopy evaporation derivative, commit bdc77828 Oct 5, 2026
+     -3) soil water super-diagonal no longer overwrites the baseflow derivatives of the layer above, commit 47e13002 Oct 15, 2026
+     -4) scalar soil water solve zeroes the derivative of the flux from above, which it holds fixed, commit 64c27600 Oct 15, 2026
+     -5) frozen-soil liquid head derivative w.r.t. total head uses the ratio of retention slopes, finite near saturation, commit 19a2914b Nov 3, 2026
+-79) Change scalarRootZoneTemp to be the depth-weighed (last root layer truncated at rootingDepth) arithmatic mean, instead of non depth-weighed arithmatic mean. The variable is diagnostic only, not used in model calculations, commit f681479e and d3f52c87 Oct 15, 2026
+-80) A saturated liquid matric potential state passes its pressure to the total matric head in a mass split, commit 6b65dbcb Oct 15, 2026
+ 81) Parameter overrides and calibration parameters can target one domain type, name@upland etc., commit e4b18278 Oct 17, 2026
+-82) Lateral soil inflow carries the temperature of the layer it left, and enters a column with no saturated layer instead of being dropped, commit b5546f55 Oct 17, 2026
+-83) Advective heat: soil layers gain the heat carried by water entering from the layer above or below, commit 665c0297 Oct 17, 2026
+ 84) Added wetland domain: a linear-reservoir water column over soil that takes the GRU glacier runoff, commit 3c791387 Oct 19, 2026
      New parameters wetlandStorageK (outflow time constant, s) and wetlandMinDepth (no drainage below this liquid depth, m),
      Area follows its volume (wetlandMaxArea, wetlandShape, wetlandFlatArea; wetlandMinDepth becomes the mean depth filled to the outlet)
-     and opens as ice leaves an optional wetlandMask, commit 2c60b683 Nov 12, 2026
-     Basin fills with sediment from its inflow (wetlandSedConc, wetlandInfillShape), shrinking its full area and depth, commits 1e4fab0a and 38687bb0 Nov 12, 2026
-     Share of the sediment that settles from the overflow rate (wetlandSettleVel), commit 229758c1 Nov 12, 2026
-     Open-water roughness from wind, fetch and depth with its own heat roughness (lakeFetch, Subin et al. 2012), commits ce9c47c8 and f67142a5 Nov 12, 2026
-     Wetlands in series: a head wetland takes the glacier runoff and drains to the next open wetland (wetlandFeedsNext, wetlandUseMask), commits 15ffdcc1, 7ff3f617 and cf49f279 Nov 13, 2026
-     Wind and air over a wetland can be sheltered or cooled by the glacier (wetlandWindFactor, wetlandAirCooling), commit 7ff3f617 Nov 13, 2026
-     Reach friction heat from the fall between the glacier front (lowest ice of the largest connected body) and the reach outlet (reachOutletElev), commits 0d5f61c2 and fa8de327 Nov 13, 2026
--85) Smoothly turn off infiltration into over-pressured soil and condensation into saturated soil, commits 87967f22 Jul 22, a52791c6 Sep 24, 6702053d and bba9cca9 Oct 22, 6805ba8b and c9154ece Oct 26, 2026
+     and opens as ice leaves an optional wetlandMask, commit 0d2b0980 Nov 12, 2026
+     Basin fills with sediment from its inflow (wetlandSedConc, wetlandInfillShape), shrinking its full area and depth, commits ab734f68 and eae7357b Nov 12, 2026
+     Share of the sediment that settles from the overflow rate (wetlandSettleVel), commit a7554df2 Nov 12, 2026
+     Open-water roughness from wind, fetch and depth with its own heat roughness (lakeFetch, Subin et al. 2012), commits 3d315a05 and f339ac5f Nov 12, 2026
+     Wetlands in series: a head wetland takes the glacier runoff and drains to the next open wetland (wetlandFeedsNext, wetlandUseMask), commits 217dfa93, fb5b1009 and c9486b2c Nov 13, 2026
+     Wind and air over a wetland can be sheltered or cooled by the glacier (wetlandWindFactor, wetlandAirCooling), commit fb5b1009 Nov 13, 2026
+     Reach friction heat from the fall between the glacier front (lowest ice of the largest connected body) and the reach outlet (reachOutletElev), commits c9d6214f and dc31d832 Nov 13, 2026
+-85) Smoothly turn off infiltration into over-pressured soil and condensation into saturated soil, commits 87967f22 Jul 22, 94c4f7a0 Sep 24, 0515771b and a8135c87 Oct 22, 3bd10e52 and cac687f8 Oct 26, 2026
      Infiltration area scales by a Gaussian of the depth-weighted mean squared positive head (root zone for homegrown_SE, else all soil layers), condensation by a Gaussian of top-layer positive head.
-     A coupled MODFLOW 6 aquifer evaluates the same Gaussian per cell on its hydrostatic head, commit f8f45287 Oct 26, 2026
--86) Smooth min(rain+melt, max infiltration rate) with a quadratic band of half-width 0.2*xMaxInfilRate, exact outside the band, commit 49b9835c Oct 26, 2026
+     A coupled MODFLOW 6 aquifer evaluates the same Gaussian per cell on its hydrostatic head, commit 2110a20d Oct 26, 2026
+-86) Smooth min(rain+melt, max infiltration rate) with a quadratic band of half-width 0.2*xMaxInfilRate, exact outside the band, commit 55dc6718 Oct 26, 2026
  87) HPC multi-case calibration, PR #649
      Cases dispatched dynamically to case groups by an MPI counter; search state shared by random and DDS sampling.
-     Solver failures recoverable in calibration; --home and --persistent-output options; Fir build and SLURM scripts in utils/hpc/fir, commit 88cc8242 Oct 23, 2026
- 88) Noah-MP parameters, snow/ice enthalpy tables and elapsedSec days kept per HRU, so HRUs can run concurrently, commit a08dd18d Nov 2, 2026
- 89) HRU cascade order kept in gru_struc instead of a module cache, elapsedUpdateArea atomic, so GRUs can run under OpenMP, commit 0da48b7c Nov 2, 2026
--90) Total water and critical temperature use a quadratic smooth min(psi,0) of width 1e-2 m, effectively only changes saturated soils that freeze (glacier debris), commit ece1f50d Nov 2, 2026
--91) Homegrown solver also converges on the depth-integrated snow water residual; binds only in snow deeper than 1 m (glacier firn), commit f35c00ba Nov 10, 2026
- 92) Sand, silt and clay fractions must be non-negative and add to one, commit a1d4c4a5 Nov 10, 2026
- 93) Parameters precipElevGrad and tempLapseRate added to lapse from the HRU elevation to domain elevation (including relative humidity and longwave solar radiation), commit 8cd0949a and 03d1fe19 Nov 11, 2026
- 94) parameter_fields.f90 a remainder (silt) negative only by roundoff is zero, so sand at its bound passes paramCheck, commit d9c09dc4 Nov 17, 2026
- 95) A --param override sets the configured remainder from its sources, so rerun.sh replays a trial with silt the remainder, commit 45ad63ab Nov 19, 2026
+     Solver failures recoverable in calibration; --home and --persistent-output options; Fir build and SLURM scripts in utils/hpc/fir, commit 9e4ecdde Oct 23, 2026
+ 88) Noah-MP parameters, snow/ice enthalpy tables and elapsedSec days kept per HRU, so HRUs can run concurrently, commit 4dd3386f Nov 2, 2026
+ 89) HRU cascade order kept in gru_struc instead of a module cache, elapsedUpdateArea atomic, so GRUs can run under OpenMP, commit d814821e Nov 2, 2026
+-90) Total water and critical temperature use a quadratic smooth min(psi,0) of width 1e-2 m, effectively only changes saturated soils that freeze (glacier debris), commit 8483e8ed Nov 2, 2026
+-91) Homegrown solver also converges on the depth-integrated snow water residual; binds only in snow deeper than 1 m (glacier firn), commit 138d093e Nov 10, 2026
+ 92) Sand, silt and clay fractions must be non-negative and add to one, commit 8b0346a9 Nov 10, 2026
+ 93) Parameters precipElevGrad and tempLapseRate added to lapse from the HRU elevation to domain elevation (including relative humidity and longwave solar radiation), commit 7ad6b8d4 and 4819cc5b Nov 11, 2026
+ 94) parameter_fields.f90 a remainder (silt) negative only by roundoff is zero, so sand at its bound passes paramCheck, commit 74e4dd2e Nov 17, 2026
+ 95) A --param override sets the configured remainder from its sources, so rerun.sh replays a trial with silt the remainder, commit d0c63136 Nov 19, 2026
