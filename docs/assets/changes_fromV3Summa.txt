@@ -394,6 +394,7 @@ AFTER tag of v4.0.0-exp-Sundials
      Wind and air over a wetland can be sheltered or cooled by the glacier (wetlandWindFactor, wetlandAirCooling), commit fb5b1009 Nov 13, 2026
      Reach friction heat from the fall between the glacier front (lowest ice of the largest connected body) and the reach outlet (reachOutletElev), commits c9d6214f and dc31d832 Nov 13, 2026
      A wetland takes its HRU's precipitation rather than the elevation gradient to its own elevation, commit 0c154554 Nov 20, 2026
+     Cold air pools over a wetland while its HRU's upland holds snow (wetlandPoolCooling, K), commit 10f7cc3a Nov 24, 2026
 -85) Smoothly turn off infiltration into over-pressured soil and condensation into saturated soil, commits 87967f22 Jul 22, 94c4f7a0 Sep 24, 0515771b and a8135c87 Oct 22, 3bd10e52 and cac687f8 Oct 26, 2026
      Infiltration area scales by a Gaussian of the depth-weighted mean squared positive head (root zone for homegrown_SE, else all soil layers), condensation by a Gaussian of top-layer positive head.
      A coupled MODFLOW 6 aquifer evaluates the same Gaussian per cell on its hydrostatic head, commit 2110a20d Oct 26, 2026
