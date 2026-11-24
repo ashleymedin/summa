@@ -323,6 +323,7 @@ AFTER tag of v4.0.0-exp-Sundials
      [[parameter_dependencies.remainder]] sets a fixed parameter to a total minus its sources (silt = 1 - sand - clay), commit e01f6328 Nov 10, 2026
      name@glacier sets a parameter on every clean and debris-covered glacier domain, commit 46686b46 Nov 16, 2026
      calibration.seed sets the random-number seed of the first independent run (default 42), commit 11a804a8 Nov 23, 2026
+     NSGA-II starts from a Latin hypercube sample (calibration.nsga2.initial_population = "random" for the old start), commit 6e72e27e Nov 24, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits 035d1efd to ea384f4a Sep 21, 2026
      A GRU may hold one stream HRU: its reach's water column (lake layers over soil/aquifer, linked via streamSegId). mizuRoute returns reach discharge, 
       volume and lateral inflow; new streamTemp.f90 solves the column energy balance upstream to downstream each step, advecting heat from upstream 
