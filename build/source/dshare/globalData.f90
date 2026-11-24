@@ -216,7 +216,7 @@ MODULE globalData
   real(rkind),save,public                          :: minExpLogHgtFac=0.02_rkind        ! factor for minimum height of transition from the exponential to the logarithmic wind profile
   ! define variable used to smooth the ice freezing curve
   real(rkind),save,public                          :: icefrz_mult=10._rkind             ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
-  integer(i4b),save,public                         :: nLakeIceLayers_poss=1             ! number of ice layers in a lake that can accumulate 
+  integer(i4b),save,public                         :: nLakeIceLayers_poss=2             ! number of ice layers in a lake that can accumulate 
   integer(i4b),save,public                         :: nMeltingIceLayers=1               ! number of glacier ice layers that can have a change in total water content 
   integer(i4b),save,public                         :: nBedrockLayers=5                  ! number of thermal-only bedrock layers built below the soil column
   real(rkind),save,public                          :: bedrockDepth=30._rkind            ! depth of the base of the bedrock layers below the surface (m)

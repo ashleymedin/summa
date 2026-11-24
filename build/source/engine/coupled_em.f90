@@ -187,6 +187,7 @@ subroutine coupled_em(&
   USE wetlandArea_module,only:lakeImposeLiquid                  ! set the liquid depth of the water layers of a stream or wetland
   USE wetlandArea_module,only:wetMinLiquid                      ! water depth a wetland keeps, liquid or ice (m)
   USE lakeIceCover_module,only:lakeIceCover                     ! grow or break up the ice cover of the lake layers
+  USE snow_utils_module,only:isWhiteIce                         ! a lake ice cover layer with air in it is white ice
   USE convertEnthalpyTemp_module,only:T2enthTemp_veg            ! convert temperature to enthalpy for vegetation
   USE convertEnthalpyTemp_module,only:T2enthTemp_snLaGl         ! convert temperature to enthalpy for snow, lake, and ice
   USE convertEnthalpyTemp_module,only:T2enthTemp_soil           ! convert temperature to enthalpy for soil
@@ -289,6 +290,9 @@ subroutine coupled_em(&
   real(rkind)                          :: glceReduceLiq            ! liquid water squeezed out of glacier ice layers (m s-1)
   ! check SWE
   real(rkind)                          :: oldSWE                   ! SWE at the start of the substep
+  real(rkind)                          :: floodSnow                ! snow one call of lakeIceCover flooded into white ice (kg m-2)
+  real(rkind)                          :: floodSnowTotal           ! snow flooded into white ice over the data step (kg m-2)
+  real(rkind)                          :: floodSnowSave            ! the same at the start of the outer step, kept for a failed step (kg m-2)
   real(rkind)                          :: delSWE                   ! change in SWE over the subtep
   real(rkind)                          :: innerEffRainfall         ! inner step average effective rainfall into snow (kg m-2 s-1)
   real(rkind)                          :: effRainfall              ! timestep-average effective rainfall into snow (kg m-2 s-1)
@@ -617,6 +621,7 @@ subroutine coupled_em(&
 
     ! save SWE
     oldSWE = prog_data%var(iLookPROG%scalarSWE)%dat(1)
+    floodSnowTotal = 0._rkind; floodSnowSave = 0._rkind
 
     ! *** compute phenology...
     ! ------------------------
@@ -894,6 +899,12 @@ subroutine coupled_em(&
           end select
         end do  ! looping through variables
 
+        ! save/recover the snow flooded into white ice with the prognostic variables
+        select case(stepFailure)
+          case(.false.); floodSnowSave  = floodSnowTotal
+          case(.true.);  floodSnowTotal = floodSnowSave
+        end select
+
         ! save/recover copies of prognostic variables
         do iVar=1,size(prog_data%var)
           select case(stepFailure)
@@ -933,8 +944,9 @@ subroutine coupled_em(&
 
         ! *** grow or break up the ice cover of the lake layers...
         ! ---------------------------------------------------------
-        call lakeIceCover(doLakeBreakup,mpar_data,indx_data,prog_data,diag_data,flux_data,modifiedIce,err,cmessage)
+        call lakeIceCover(doLakeBreakup,mpar_data,indx_data,prog_data,diag_data,flux_data,modifiedIce,floodSnow,err,cmessage)
         if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+        floodSnowTotal = floodSnowTotal + floodSnow
         modifiedLayers = modifiedLayers .or. modifiedIce
 
         ! save the number of layers
@@ -1653,10 +1665,14 @@ subroutine coupled_em(&
       mLayerVolFracLiq   => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat           ,& ! volumetric fraction of liquid water in each layer (-)
       scalarLakeLiqDepth => diag_data%var(iLookDIAG%scalarLakeLiqDepth)%dat(1)      ,& ! total liquid depth of the lake layers (m)
       scalarLakeIceThick => diag_data%var(iLookDIAG%scalarLakeIceThick)%dat(1)      ,& ! thickness of the ice cover of the lake layers (m)
+      scalarLakeWhiteIceThick => diag_data%var(iLookDIAG%scalarLakeWhiteIceThick)%dat(1),& ! thickness of the white ice of the cover (m)
+      mLayerVolFracIce   => prog_data%var(iLookPROG%mLayerVolFracIce)%dat           ,& ! volumetric fraction of ice in each layer (-)
       scalarStreamTemp   => diag_data%var(iLookDIAG%scalarStreamTemp)%dat(1)         ) ! liquid-weighted temperature of the lake layers (K)
       if(nLake>0)then
         nLakeFrz = indx_data%var(iLookINDEX%nLakeFrz)%dat(1)
         scalarLakeIceThick = sum(mLayerDepth(nSnow+1:nSnow+nLakeFrz))
+        scalarLakeWhiteIceThick = sum(mLayerDepth(nSnow+1:nSnow+nLakeFrz), &
+                                      mask=isWhiteIce(mLayerVolFracLiq(nSnow+1:nSnow+nLakeFrz), mLayerVolFracIce(nSnow+1:nSnow+nLakeFrz)))
         scalarLakeLiqDepth = sum(mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake)*mLayerVolFracLiq(nSnow+nLakeFrz+1:nSnow+nLake))
         if(scalarLakeLiqDepth > verySmall)then
           scalarStreamTemp = sum(mLayerDepth(nSnow+nLakeFrz+1:nSnow+nLake)*mLayerVolFracLiq(nSnow+nLakeFrz+1:nSnow+nLake) &
@@ -1667,6 +1683,7 @@ subroutine coupled_em(&
       else
         scalarLakeLiqDepth = 0._rkind
         scalarLakeIceThick = 0._rkind
+        scalarLakeWhiteIceThick = 0._rkind
         scalarStreamTemp   = realMissing
       end if
     end associate
@@ -1675,6 +1692,10 @@ subroutine coupled_em(&
     do iVar=1,size(averageFlux_meta)
       flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:) = flux_mean%var(iVar)%dat(:)
     end do
+    ! snow flooded into white ice left the snowpack; on a stream, the reach carries the ice it became
+    oldSWE = oldSWE - floodSnowTotal
+    if(indx_data%var(iLookINDEX%domType)%dat(1)==stream) flux_data%var(iLookFLUX%scalarStreamRunoff)%dat(1) = &
+      flux_data%var(iLookFLUX%scalarStreamRunoff)%dat(1) + floodSnowTotal/(iden_water*data_step)
     ! keep soil compression as an average like the fluxes, will not want to do this if nSoil can change
     diag_data%var(iLookDIAG%mLayerCompress)%dat(:) = meanSoilCompress
     diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sum(  meanSoilCompress(1:nSoil)*iden_water &

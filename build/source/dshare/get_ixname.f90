@@ -458,6 +458,9 @@ contains
   case('streamMinDepth'           ); get_ixParam = iLookPARAM%streamMinDepth         ! minimum liquid depth of the stream water column (m)
   case('lakeMixingThermalC'       ); get_ixParam = iLookPARAM%lakeMixingThermalC     ! effective thermal conductivity between liquid lake layers (W m-1 K-1)
   case('lakeIceMinThick'          ); get_ixParam = iLookPARAM%lakeIceMinThick        ! ice cover thinner than this breaks up and returns to the water (m)
+  case('lakeWhiteIceDensity'      ); get_ixParam = iLookPARAM%lakeWhiteIceDensity    ! density of white ice, frozen slush of flooded snow and lake water (kg m-3)
+  case('lakeSnowDensity'          ); get_ixParam = iLookPARAM%lakeSnowDensity        ! least density of new snow on a wetland or stream, wind-packed (kg m-3)
+  case('wetlandPoolCooling'       ); get_ixParam = iLookPARAM%wetlandPoolCooling     ! cold-air pooling over a wetland while its HRU's upland holds snow (K)
   case('wetlandStorageK'          ); get_ixParam = iLookPARAM%wetlandStorageK        ! storage time constant of the wetland outflow (s)
   case('wetlandMinDepth'          ); get_ixParam = iLookPARAM%wetlandMinDepth        ! mean liquid depth of a wetland filled to its outlet (m)
   ! lower boundary condition for thermodynamics
@@ -717,6 +720,7 @@ contains
   case('scalarWetlandFullDepth'         ); get_ixDiag = iLookDIAG%scalarWetlandFullDepth           ! mean liquid depth of the wetland filled to its outlet (m)
   case('scalarLakeLiqDepth'             ); get_ixDiag = iLookDIAG%scalarLakeLiqDepth               ! total liquid depth of the lake layers (m)
   case('scalarLakeIceThick'             ); get_ixDiag = iLookDIAG%scalarLakeIceThick               ! thickness of the ice cover of the lake layers (m)
+  case('scalarLakeWhiteIceThick'        ); get_ixDiag = iLookDIAG%scalarLakeWhiteIceThick          ! thickness of the white ice at the top of the lake ice cover (m)
   case('scalarStreamSfcInflowTemp'      ); get_ixDiag = iLookDIAG%scalarStreamSfcInflowTemp        ! temperature of the rain plus melt entering the open water column (K)
   ! get to here if cannot find the variable
   case default

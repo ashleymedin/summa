@@ -378,6 +378,21 @@ contains
   if (parFallback(iLookPARAM%lakeIceMinThick)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%lakeIceMinThick)%default_val = 0.005_rkind ! 5 mm: the minimum ice thickness of flowing water in Wanders et al. (2019), below which the cover breaks up (m)
   end if
+  if (parFallback(iLookPARAM%lakeWhiteIceDensity)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%lakeWhiteIceDensity)%default_val = 890._rkind ! white (snow) ice holds a few percent air, 850-900 kg m-3 (Lepparanta, 2015)
+    parFallback(iLookPARAM%lakeWhiteIceDensity)%lower_limit = 850._rkind
+    parFallback(iLookPARAM%lakeWhiteIceDensity)%upper_limit = 900._rkind
+  end if
+  if (parFallback(iLookPARAM%lakeSnowDensity)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%lakeSnowDensity)%default_val = 300._rkind ! wind-packed snow on lake ice, 250-350 kg m-3 (Sturm and Liston, 2003)
+    parFallback(iLookPARAM%lakeSnowDensity)%lower_limit = 50._rkind
+    parFallback(iLookPARAM%lakeSnowDensity)%upper_limit = 450._rkind
+  end if
+  if (parFallback(iLookPARAM%wetlandPoolCooling)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetlandPoolCooling)%default_val = 0._rkind ! no pooling, the HRU's air (K)
+    parFallback(iLookPARAM%wetlandPoolCooling)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetlandPoolCooling)%upper_limit = 10._rkind
+  end if
   ! properties of the thermal-only bedrock layers, only used with deepTherml = bedrockLyrs
   if (parFallback(iLookPARAM%thCond_bedrock)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%thCond_bedrock)%default_val = 2.5_rkind ! typical of crystalline bedrock (W m-1 K-1)

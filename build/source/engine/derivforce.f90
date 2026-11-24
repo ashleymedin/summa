@@ -68,7 +68,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine derivforce: compute derived forcing data
  ! ************************************************************************************************
- subroutine derivforce(is_glac, is_wetland, has_canopy, forc_data,attr_data,mpar_data, prog_data,diag_data,flux_data,tmZoneOffsetFracDay,err,message)
+ subroutine derivforce(is_glac, is_wetland, on_water, has_canopy, uplandSWE, forc_data,attr_data,mpar_data, prog_data,diag_data,flux_data,tmZoneOffsetFracDay,err,message)
  USE sunGeomtry_module,only:clrsky_rad                            ! compute cosine of the solar zenith angle
  USE convert_funcs_module,only:vapPress                           ! compute vapor pressure of air (Pa)
  USE convert_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP   ! conversion functions
@@ -81,7 +81,9 @@ contains
  ! input variables
  logical(lgt),intent(in)              :: is_glac                       ! clean-ice glacier domain: glacier wind and air cooling apply (debris recouples the air)
  logical(lgt),intent(in)              :: is_wetland                    ! flag to indicate if is a wetland domain
+ logical(lgt),intent(in)              :: on_water                      ! flag for a wetland or stream domain, whose snow falls on water or its ice
  logical(lgt),intent(in)              :: has_canopy                    ! flag to indicate if the domain can have a vegetation canopy
+ real(rkind),intent(in)               :: uplandSWE                     ! SWE of the HRU's upland domain, 0 without one (kg m-2)
  type(var_d),intent(inout)            :: forc_data                     ! vector of forcing data for a given time step
  type(var_d),intent(in)               :: attr_data                     ! vector of model attributes
  type(var_dlength),intent(in)         :: mpar_data                     ! vector of model parameters
@@ -122,7 +124,8 @@ contains
  real(rkind),parameter                :: andersonDenScal=1.5_rkind     ! Scalar parameter in Anderson (1976) new snow density function (-)
  real(rkind),parameter                :: pahautDenWindScal=0.5_rkind   ! Scalar parameter for wind impacts on density using Pahaut (1976) function (-)
  real(rkind)                          :: airpres_base                  ! air pressure at the base elevation (Pa)
- real(rkind)                          :: katabaticCooling              ! air temperature removed by the glacier surface layer (K)
+ real(rkind)                          :: katabaticCooling              ! air temperature removed by the surface layer, glacier or pooled cold air (K)
+ real(rkind),parameter                :: poolSnowFull=50._rkind        ! upland SWE above which the pooling is full (kg m-2)
  real(rkind)                          :: airtempHRU                    ! air temperature at the HRU elevation (K)
  real(rkind)                          :: airpresHRU                    ! air pressure at the HRU elevation (Pa)
  real(rkind)                          :: airtempDOM                    ! air temperature lapsed to the domain elevation, before katabatic cooling (K)
@@ -139,6 +142,7 @@ contains
  tempRangeTimestep       => mpar_data%var(iLookPARAM%tempRangeTimestep)%dat(1)    , & ! temperature range over the time step (K)
  frozenPrecipMultip      => mpar_data%var(iLookPARAM%frozenPrecipMultip)%dat(1)   , & ! frozen precipitation multiplier (-)
  newSnowDenMin           => mpar_data%var(iLookPARAM%newSnowDenMin)%dat(1)        , & ! minimum new snow density (kg m-3)
+ lakeSnowDensity         => mpar_data%var(iLookPARAM%lakeSnowDensity)%dat(1)      , & ! least density of new snow on a wetland or stream (kg m-3)
  newSnowDenMult          => mpar_data%var(iLookPARAM%newSnowDenMult)%dat(1)       , & ! multiplier for new snow density (kg m-3)
  newSnowDenScal          => mpar_data%var(iLookPARAM%newSnowDenScal)%dat(1)       , & ! scaling factor for new snow density (K)
  constSnowDen            => mpar_data%var(iLookPARAM%constSnowDen)%dat(1)         , & ! Constant new snow density (kg m-3)
@@ -151,6 +155,7 @@ contains
  glacierTempReduction    => mpar_data%var(iLookPARAM%glacierTempReduction)%dat(1) , & ! air temperature factor decrease to account for down-glacier katabatic wind (-)
  wetlandWindFactor       => mpar_data%var(iLookPARAM%wetlandWindFactor)%dat(1)    , & ! wind speed factor over a wetland, for sheltering (-)
  wetlandAirCooling       => mpar_data%var(iLookPARAM%wetlandAirCooling)%dat(1)    , & ! share of the glacier's katabatic cooling a wetland's air takes (-)
+ wetlandPoolCooling      => mpar_data%var(iLookPARAM%wetlandPoolCooling)%dat(1)   , & ! cold-air pooling over a wetland while its HRU's upland holds snow (K)
  precipElevGrad          => mpar_data%var(iLookPARAM%precipElevGrad)%dat(1)       , & ! fractional change in precipitation per metre above the HRU elevation (m-1)
  tempLapseRate           => mpar_data%var(iLookPARAM%tempLapseRate)%dat(1)        , & ! air temperature decrease per metre above the HRU elevation (K m-1)
  ! radiation geometry variables
@@ -223,6 +228,9 @@ contains
    katabaticCooling = wetlandAirCooling*(1._rkind - glacierTempReduction)*(airtemp - Tfreeze)
    airtemp = airtemp - katabaticCooling
   endif
+  ! cold air drains off snow-covered slopes and pools over the water, fading as the upland snow goes
+  airtemp = airtemp - wetlandPoolCooling*min(1._rkind, uplandSWE/poolSnowFull)
+  katabaticCooling = katabaticCooling + wetlandPoolCooling*min(1._rkind, uplandSWE/poolSnowFull)
  endif
  if (is_glac) then
   windspd   = windspd   * glacierWindFactor
@@ -345,8 +353,8 @@ contains
 
  ! adjust the air temperature to the domain mean elevation
  airtemp = airtemp - (DOMelev - elevation) * tempLapseRate
- ! linear in elevation, so the area-weighted domains keep the HRU's precipitation
- pptrate = pptrate * max(0._rkind, 1._rkind + precipElevGrad * (DOMelev - elevation))
+ ! linear in elevation, so the area-weighted domains keep the HRU's precipitation; a wetland takes the HRU's own
+ if(.not.is_wetland) pptrate = pptrate * max(0._rkind, 1._rkind + precipElevGrad * (DOMelev - elevation))
  ! the HRU's relative humidity and sky emissivity carried to the domain's temperature and pressure
  if(DOMelev /= elevation)then
   airtempDOM = airtempHRU - (DOMelev - elevation) * tempLapseRate
@@ -365,7 +373,7 @@ contains
  ! compute vapor pressure of the air above the vegetation canopy (Pa)
  VPair = vapPress(spechum,airpres)
 
- ! compute wet bulb temperature (K), above the shallow glacier surface layer that sets the phase
+ ! compute wet bulb temperature (K), above the shallow surface layer, so the phase is set by the air aloft
  if(katabaticCooling > 0._rkind)then
   twetbulb = WETBULBTMP(airtemp + katabaticCooling, min(1._rkind, SPHM2RELHM(spechum, airpres, airtemp + katabaticCooling)), airpres)
  else
@@ -427,6 +435,8 @@ contains
     newSnowDensity = constSnowDen ! new snow density (kg m-3)
    case default; message=trim(message)//'unable to identify option for new snow density'; err=20; return
   end select ! identifying option for new snow density
+  ! the wind packs the snow that falls on open water or ice
+  if(on_water) newSnowDensity = max(newSnowDensity, lakeSnowDensity)
  else
   newSnowDensity = realMissing
   rainfall = rainfall + snowfall ! in most cases snowfall will be zero here

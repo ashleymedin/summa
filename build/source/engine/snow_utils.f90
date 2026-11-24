@@ -41,7 +41,18 @@ public::fracliquid
 public::templiquid
 public::dFracLiq_dTk
 public::tcond_snow
+public::isWhiteIce
+real(rkind),parameter :: whiteIceAirMin=0.01_rkind  ! air fraction above which a lake ice cover layer is white ice; black ice has none (-)
 contains
+
+! ***********************************************************************************************************
+! public function isWhiteIce: a lake ice cover layer with air in it is white ice
+! ***********************************************************************************************************
+elemental function isWhiteIce(volFracLiq,volFracIce)
+ real(rkind),intent(in) :: volFracLiq,volFracIce   ! volumetric fractions of liquid water and ice (-)
+ logical(lgt)           :: isWhiteIce              ! flag for white ice
+ isWhiteIce = 1._rkind - volFracLiq - volFracIce > whiteIceAirMin
+end function isWhiteIce
 
 
 ! ***********************************************************************************************************

@@ -31,13 +31,17 @@ module lakeIceCover_module
 !   * breakup: an ice cover thinner than lakeIceMinThick (5 mm in flowing water, Wanders et al.)
 !     returns to the water beneath, mass and latent heat conserved; the same happens when forced,
 !     after a step failed because the cover could not absorb the step's energy (the lake analog of
-!     the snow layer merge on too much melt).
-! The mass of a lake layer sets its depth (no air), so the 9% expansion on freezing happens here,
-! where the ice moves, and not inside the solver.
+!     the snow layer merge on too much melt);
+!   * white ice: snow heavy enough to push the cover below the water line floods from beneath, and
+!     the bottom snow, with the lake water that fills it, becomes slush at the white-ice density
+!     (lakeWhiteIceDensity), which the solver then freezes (Lepparanta, 2015).
+! The cover is black (congelation) ice, grown at its base, under any white ice, grown at its top:
+! at most one layer of each (nLakeFrz is 0, 1 or 2). The mass of a black ice layer sets its depth
+! (no air), so the 9% expansion on freezing happens here, where the ice moves, and not inside the
+! solver; a white ice layer keeps its depth and the air its slush froze around (isWhiteIce).
 !
-! This module owns the lake layering: layerDivide and layerMerge never touch lake layers, and the
-! cover is a single layer (nLakeFrz is 0 or 1) however thick it grows. A cover of several layers,
-! to resolve the temperature gradient through thick ice, should be built here once wetlands are implemented:
+! This module owns the lake layering: layerDivide and layerMerge never touch lake layers. A cover of
+! more layers, to resolve the temperature gradient through thick ice, should be built here:
 !   * divide the bottom ice layer when it grows past a thickness threshold (an ice parameter, not
 !     the snow zmax), duplicating its state at half the depth with addLakeLayer, up to
 !     nLakeIceLayers_poss layers (summa_setup already sizes the ice enthalpy lookup for it);
@@ -48,7 +52,7 @@ module lakeIceCover_module
 
 USE nr_type
 USE data_types,only:var_ilength,var_dlength,var_info ! data vectors with variable length dimension, and metadata
-USE multiconst,only:Tfreeze,iden_ice,iden_water      ! physical constants
+USE multiconst,only:Tfreeze,iden_ice,iden_water,Cp_ice,Cp_water,LH_fus ! physical constants
 USE globalData,only:realMissing,integerMissing       ! missing values
 USE globalData,only:iname_lake                       ! named variable for lake layers
 USE globalData,only:iceResidWaterFrac                ! residual volumetric liquid water content in ice (-)
@@ -59,17 +63,20 @@ USE globalData,only:wetland                          ! horizontal domain type fo
 USE wetlandArea_module,only:wetMinLiquid             ! water depth a wetland keeps, liquid or ice (m)
 USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta ! metadata, to resize the data structures
 USE var_lookup,only:iLookPROG,iLookINDEX,iLookPARAM,iLookVarType ! named variables
+USE snow_utils_module,only:isWhiteIce               ! a lake ice cover layer with air in it is white ice
 
 implicit none
 private
 public::lakeIceCover
+real(rkind),parameter :: floodSnowMax=0.99_rkind    ! share of the bottom snow layer one flooding takes, leaving the rest to layerMerge (-)
+real(rkind),parameter :: floodSnowMin=1.e-3_rkind   ! flooded snow mass below which no white ice forms (kg m-2)
 
 contains
 
 ! ************************************************************************************************
 ! public subroutine lakeIceCover: grow or break up the ice cover of the lake layers
 ! ************************************************************************************************
-subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flux_data,modifiedLayers,err,message)
+subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flux_data,modifiedLayers,floodSnow,err,message)
   USE var_derive_module,only:calcHeight   ! compute the height at layer interfaces and layer mid-points
   USE snow_utils_module,only:templiquid   ! temperature at which the freezing curve gives a liquid fraction
   implicit none
@@ -80,6 +87,7 @@ subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flu
   type(var_dlength),intent(inout) :: diag_data       ! model diagnostic variables
   type(var_dlength),intent(inout) :: flux_data       ! model fluxes
   logical(lgt),intent(out)        :: modifiedLayers  ! flag to denote that the layers were modified
+  real(rkind),intent(out)         :: floodSnow       ! snow that flooded into white ice, leaving the snowpack (kg m-2)
   integer(i4b),intent(out)        :: err             ! error code
   character(*),intent(out)        :: message         ! error message
   ! local variables
@@ -102,9 +110,25 @@ subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flu
   real(rkind)                     :: minMassIce      ! ice mass of a cover at the minimum thickness (kg m-2)
   real(rkind)                     :: keepIce         ! ice mass a wetland's water layers keep (kg m-2)
   logical(lgt)                    :: isWetland       ! flag for a wetland domain
+  logical(lgt)                    :: newLayer        ! flag to grow a new black ice layer beneath the cover
+  integer(i4b)                    :: ixTop           ! index of the top cover layer
+  real(rkind)                     :: rhoWhite        ! density of white ice (kg m-3)
+  real(rkind)                     :: rhoSnow         ! bulk density of the bottom snow layer (kg m-3)
+  real(rkind)                     :: massSnowLyr     ! mass of the bottom snow layer (kg m-2)
+  real(rkind)                     :: freeboard       ! height of the cover top above the water line (m)
+  real(rkind)                     :: massFlood       ! snow mass that floods (kg m-2)
+  real(rkind)                     :: massFill        ! lake water that fills the flooded snow (kg m-2)
+  real(rkind)                     :: availFill       ! lake water the flooding can take (kg m-2)
+  real(rkind)                     :: iceSlush        ! ice mass of the slush and the white ice it joins (kg m-2)
+  real(rkind)                     :: liqSlush        ! liquid mass of the slush and the white ice it joins (kg m-2)
+  real(rkind)                     :: coldSlush       ! energy to bring them to the freezing point, liquid at 0 C (J m-2)
+  real(rkind)                     :: frzSlush        ! liquid the cold content freezes (kg m-2)
+  real(rkind)                     :: tempSlush       ! temperature of the white ice layer (K)
+  real(rkind)                     :: depthWhite      ! depth of the white ice layer (m)
   ! ----------------------------------------------------------------------------------------------------------------
   err=0; message='lakeIceCover/'
   modifiedLayers = .false.
+  floodSnow = 0._rkind
 
   ! NOTE: the layer vectors are reallocated when a layer is added or removed, so they are referenced through the
   !       data structure rather than through an associate block
@@ -141,6 +165,28 @@ subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flu
       call rmLakeLayer(diag_data,diag_meta,ixIce,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
       call rmLakeLayer(flux_data,flux_meta,ixIce,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
       call rmLakeLayer(indx_data,indx_meta,ixIce,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+      nLake = nLake - 1; nLakeFrz = nLakeFrz - 1; nLayers = nLayers - 1
+      modifiedLayers = .true.
+    end if
+  end if
+
+  ! ***** white ice too thin to stand on its own joins the black ice beneath, mass conserved
+  if(nLakeFrz > 1)then
+    ixTop = nSnow + 1
+    ixIce = ixTop + 1
+    if(isWhiteIce(liq(ixTop),ice(ixTop)) .and. depth(ixTop)*ice(ixTop)*iden_ice < minMassIce)then
+      massIce  = depth(ixTop)*ice(ixTop)*iden_ice + depth(ixIce)*ice(ixIce)*iden_ice
+      massLiq  = depth(ixTop)*liq(ixTop)*iden_water + depth(ixIce)*liq(ixIce)*iden_water
+      tempSlush = (depth(ixTop)*ice(ixTop)*temp(ixTop) + depth(ixIce)*ice(ixIce)*temp(ixIce))/(depth(ixTop)*ice(ixTop) + depth(ixIce)*ice(ixIce))
+      depthNew = (massIce + massLiq)/iden_ice  ! liquid sized at the density of ice, as black ice is
+      call setIce(ixIce, massIce/(iden_ice*depthNew))
+      call setLiq(ixIce, massLiq/(iden_water*depthNew))
+      call setDepth(ixIce, depthNew)
+      call setTemp(ixIce, merge(iceTemp(liq(ixIce),ice(ixIce)), tempSlush, massLiq > 0._rkind))
+      call rmLakeLayer(prog_data,prog_meta,ixTop,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+      call rmLakeLayer(diag_data,diag_meta,ixTop,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+      call rmLakeLayer(flux_data,flux_meta,ixTop,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+      call rmLakeLayer(indx_data,indx_meta,ixTop,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
       nLake = nLake - 1; nLakeFrz = nLakeFrz - 1; nLayers = nLayers - 1
       modifiedLayers = .true.
     end if
@@ -187,14 +233,18 @@ subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flu
         call setTemp(iLayer, max(tempWat, Tfreeze))
       end if
     end do
-    if(nLakeFrz==0)then
+    ! black ice grows beneath white ice as a layer of its own once it could stand alone
+    newLayer = nLakeFrz==0
+    if(nLakeFrz>0) newLayer = isWhiteIce(liq(nSnow+nLakeFrz),ice(nSnow+nLakeFrz)) .and. massIce >= 2._rkind*minMassIce &
+                              .and. nLakeFrz < nLakeIceLayers_poss
+    if(newLayer)then
       ! create the ice layer above the water layer, then set its state
-      if(nLakeIceLayers_poss < 1)then; err=20; message=trim(message)//'no ice layer allowed on the lake (nLakeIceLayers_poss)'; return; end if
+      if(nLakeFrz >= nLakeIceLayers_poss)then; err=20; message=trim(message)//'no more ice layers allowed on the lake (nLakeIceLayers_poss)'; return; end if
       call addLakeLayer(prog_data,prog_meta,ixWat,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
       call addLakeLayer(diag_data,diag_meta,ixWat,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
       call addLakeLayer(flux_data,flux_meta,ixWat,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
       call addLakeLayer(indx_data,indx_meta,ixWat,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-      nLake = nLake + 1; nLakeFrz = 1; nLayers = nLayers + 1
+      nLake = nLake + 1; nLakeFrz = nLakeFrz + 1; nLayers = nLayers + 1
       ixIce = ixWat  ! the new layer took the water layer's place, the water layer is now beneath it
       call setDepth(ixIce, depthIce)
       call setIce(ixIce, massIce/(iden_ice*depthIce))
@@ -202,12 +252,15 @@ subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flu
       call setTemp(ixIce, iceTemp(liq(ixIce),ice(ixIce)))
     else
       ! thicken the bottom ice layer with the new ice
-      ! NOTE: a cover of several layers (nLakeIceLayers_poss > 1) would divide this layer here once it is thick enough,
-      !       see the module header; for now the cover stays a single layer however thick it grows
+      ! NOTE: a cover of more layers would divide this layer here once it is thick enough, see the module header
       ixIce = nSnow + nLakeFrz
       massIceCover = depth(ixIce)*ice(ixIce)*iden_ice
       massLiqCover = depth(ixIce)*liq(ixIce)*iden_water
-      depthNew = (massIceCover + massIce + massLiqCover + massLiq)/iden_ice  ! liquid sized at the density of ice, as above
+      if(isWhiteIce(liq(ixIce),ice(ixIce)))then
+        depthNew = depth(ixIce) + depthIce  ! white ice keeps its air; the black ice beneath it adds its own depth
+      else
+        depthNew = (massIceCover + massIce + massLiqCover + massLiq)/iden_ice  ! liquid sized at the density of ice, as above
+      end if
       call setIce(ixIce, (massIceCover + massIce)/(iden_ice*depthNew))
       call setLiq(ixIce, (massLiqCover + massLiq)/(iden_water*depthNew))
       call setDepth(ixIce, depthNew)
@@ -231,6 +284,94 @@ subroutine lakeIceCover(forceBreakup,mpar_data,indx_data,prog_data,diag_data,flu
         call setTemp(iLayer, iceTemp(liq(iLayer),ice(iLayer))) ! on the freezing curve, as the solver left the layers
       end do
       modifiedLayers = .true.
+    end if
+  end if
+
+  ! ***** white ice: the snow sinks the cover below the water line, the water floods the bottom snow layer from beneath, and
+  ! the slush (the snow and the water filling it to the white-ice density) joins the white ice at the top of the cover
+  if(nLakeFrz > 0 .and. nSnow > 0)then
+    rhoWhite    = mpar_data%var(iLookPARAM%lakeWhiteIceDensity)%dat(1)
+    massSnowLyr = depth(nSnow)*(ice(nSnow)*iden_ice + liq(nSnow)*iden_water)
+    rhoSnow     = massSnowLyr/max(depth(nSnow), verySmall)
+    freeboard   = 0._rkind
+    do iLayer=1,nSnow+nLakeFrz
+      freeboard = freeboard - depth(iLayer)*(ice(iLayer)*iden_ice + liq(iLayer)*iden_water)/iden_water
+      if(iLayer > nSnow) freeboard = freeboard + depth(iLayer)
+    end do
+    if(freeboard < 0._rkind .and. rhoSnow < rhoWhite .and. massSnowLyr > floodSnowMin)then
+      ! the snow that floods brings the cover top back to the water line: the slush fills the snow's volume at rhoWhite
+      massFlood = min(-freeboard*rhoSnow*iden_water/(iden_water - rhoWhite + rhoSnow), floodSnowMax*massSnowLyr)
+      massFill  = massFlood*(rhoWhite/rhoSnow - 1._rkind)
+      ! the water comes from the liquid beneath the cover, half of it at most, and not from what a wetland keeps
+      ixWat = nSnow + nLakeFrz + 1
+      massLiqWat = 0._rkind; tempWat = 0._rkind
+      do iLayer=ixWat,nSnow+nLake
+        massLiqWat = massLiqWat + depth(iLayer)*liq(iLayer)*iden_water
+        tempWat    = tempWat    + depth(iLayer)*liq(iLayer)*iden_water*temp(iLayer)
+      end do
+      if(massLiqWat > verySmall) tempWat = tempWat/massLiqWat
+      availFill = 0.5_rkind*massLiqWat
+      if(isWetland) availFill = min(availFill, max(massLiqWat - wetMinLiquid*iden_water, 0._rkind))
+      if(massFill > availFill)then
+        massFlood = massFlood*availFill/massFill
+        massFill  = availFill
+      end if
+      ! the cold content of the snow and of any white ice it joins freezes the slush, the water warmer than 0 C melts it
+      ixTop = nSnow + 1
+      iceSlush = massFlood*depth(nSnow)*ice(nSnow)*iden_ice/massSnowLyr
+      liqSlush = massFlood*depth(nSnow)*liq(nSnow)*iden_water/massSnowLyr + massFill
+      coldSlush = Cp_ice*iceSlush*(Tfreeze - temp(nSnow)) - Cp_water*massFill*max(tempWat - Tfreeze, 0._rkind)
+      depthWhite = (massFlood + massFill)/rhoWhite
+      ! a full cover takes the slush into its top layer, which becomes white ice
+      if(isWhiteIce(liq(ixTop),ice(ixTop)) .or. nLakeFrz >= nLakeIceLayers_poss)then
+        iceSlush   = iceSlush + depth(ixTop)*ice(ixTop)*iden_ice
+        liqSlush   = liqSlush + depth(ixTop)*liq(ixTop)*iden_water
+        coldSlush  = coldSlush + Cp_ice*depth(ixTop)*ice(ixTop)*iden_ice*(Tfreeze - temp(ixTop))
+        depthWhite = depthWhite + depth(ixTop)
+        newLayer   = .false.
+      else
+        newLayer   = .true.
+      end if
+      frzSlush = coldSlush/LH_fus
+      if(frzSlush >= liqSlush)then
+        tempSlush = Tfreeze - (coldSlush - liqSlush*LH_fus)/(Cp_ice*(iceSlush + liqSlush))
+        iceSlush  = iceSlush + liqSlush
+        liqSlush  = 0._rkind
+      else
+        frzSlush  = max(frzSlush, -0.5_rkind*iceSlush)  ! water just above 0 C cannot melt the snow it floods
+        iceSlush  = iceSlush + frzSlush
+        liqSlush  = liqSlush - frzSlush
+        tempSlush = realMissing  ! on the freezing curve, set below
+      end if
+      if(massFlood > floodSnowMin)then
+        ! the snow layer and the snowpack lose the flooded snow, the water beneath the cover the water that filled it
+        prog_data%var(iLookPROG%scalarSWE)%dat(1)       = prog_data%var(iLookPROG%scalarSWE)%dat(1) - massFlood
+        prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) - depth(nSnow)*massFlood/massSnowLyr
+        call setDepth(nSnow, depth(nSnow)*(1._rkind - massFlood/massSnowLyr))
+        do iLayer=ixWat,nSnow+nLake
+          massLiq  = depth(iLayer)*liq(iLayer)*iden_water*(1._rkind - massFill/massLiqWat)
+          massIce  = depth(iLayer)*ice(iLayer)*iden_ice
+          depthNew = massLiq/iden_water + massIce/iden_ice
+          call setLiq(iLayer, massLiq/(iden_water*depthNew))
+          call setIce(iLayer, massIce/(iden_ice*depthNew))
+          call setDepth(iLayer, depthNew)
+          if(massIce > 0._rkind) call setTemp(iLayer, iceTemp(liq(iLayer),ice(iLayer)))
+        end do
+        if(newLayer)then ! a white ice layer on top of the black ice
+          call addLakeLayer(prog_data,prog_meta,ixTop,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+          call addLakeLayer(diag_data,diag_meta,ixTop,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+          call addLakeLayer(flux_data,flux_meta,ixTop,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+          call addLakeLayer(indx_data,indx_meta,ixTop,nSnow,nLake,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+          nLake = nLake + 1; nLakeFrz = nLakeFrz + 1; nLayers = nLayers + 1
+        end if
+        call setDepth(ixTop, depthWhite)
+        call setIce(ixTop, iceSlush/(iden_ice*depthWhite))
+        call setLiq(ixTop, liqSlush/(iden_water*depthWhite))
+        if(tempSlush < 0._rkind) tempSlush = iceTemp(liq(ixTop),ice(ixTop))
+        call setTemp(ixTop, tempSlush)
+        floodSnow = massFlood
+        modifiedLayers = .true.
+      end if
     end if
   end if
 

@@ -399,6 +399,10 @@ MODULE var_lookup
   integer(i4b)    :: wetlandUseMask        = integerMissing    ! 1 for a wetland that fills its HRU's wetlandMask cells, 0 for one that keeps wetlandMaxArea (-)
   ! fall of the reach
   integer(i4b)    :: reachOutletElev       = integerMissing    ! elevation of the reach outlet; with a glacier, the reach falls from its front to it, 0 for slope times length (m)
+  ! white ice of a lake or stream cover
+  integer(i4b)    :: lakeWhiteIceDensity   = integerMissing    ! density of white ice, frozen slush of flooded snow and lake water (kg m-3)
+  integer(i4b)    :: lakeSnowDensity       = integerMissing    ! least density of new snow on a wetland or stream, packed by the wind over open ice (kg m-3)
+  integer(i4b)    :: wetlandPoolCooling    = integerMissing    ! cold-air pooling over a wetland while its HRU's upland holds snow (K)
  endtype iLook_param
 
  ! ***********************************************************************************************************
@@ -605,6 +609,8 @@ MODULE var_lookup
   ! wetland area
   integer(i4b)    :: scalarWetlandFullArea           = integerMissing ! area of the wetland filled to its outlet (m2)
   integer(i4b)    :: scalarWetlandFullDepth          = integerMissing ! mean liquid depth of the wetland filled to its outlet (m)
+  ! white ice
+  integer(i4b)    :: scalarLakeWhiteIceThick         = integerMissing ! thickness of the white ice at the top of the lake ice cover (m)
  endtype iLook_diag
 
  ! ***********************************************************************************************************
@@ -1133,7 +1139,7 @@ MODULE var_lookup
                                                                         191,192,193,194,195,196,197,198,199,200,&
                                                                         201,202,203,204,205,206,207,208,209,210,&
                                                                         211,212,213,214,215,216,217,218,219,220,&
-                                                                        221,222,223,224)
+                                                                        221,222,223,224,225,226,227)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1152,7 +1158,7 @@ MODULE var_lookup
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
                                                                         101,102,103,104,105,106,107,108,109,110,&
                                                                         111,112,113,114,115,116,117,118,119,120,&
-                                                                        121,122,123,124,125,126)
+                                                                        121,122,123,124,125,126,127)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
