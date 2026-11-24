@@ -286,7 +286,6 @@ AFTER tag of v4.0.0-exp-Sundials
       9) Stop the hourly bounce: base flux continuous over 10 cm below the base, and an optional implicit base exchange
       (base_ghb/drn_package_name) returned with the rejected recharge, commits 78ccaa27, 48273cda Oct 6, 2026
       and a warning where an HRU over several cells has its mean head reach the blend, commit 77b7192c Nov 4, 2026
-      10) A calibration's scaled MODFLOW arrays keep their file's line breaks, so LAYERED arrays can be scaled, commit 45ae7231 Nov 24, 2026
      Also added bbLatflow groundwatr option: big bucket plus lateral flow from upland soil at each layer's temperature, commits bf439af4 Oct 17 and 0618f5ac Oct 20, 2026
  64) Domain-parallel MPI: GRUs distributed across ranks, PR #631 -DUSE_MPI=ON 
      Builds a second executable (summa[_sundials]_mpi.exe); each rank reads/writes only its own GRUs.
