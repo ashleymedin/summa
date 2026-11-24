@@ -51,7 +51,7 @@ module summa_parameter_sampling
   USE parameter_search, only: parameter_spec
   USE parameter_search, only: parameter_search_info
   USE parameter_search, only: search_state_type
-  USE parameter_search, only: generate_search_sample,feasibility_callback
+  USE parameter_search, only: generate_search_sample,feasibility_callback,latin_hypercube_samples
   USE model_calibration, only: context_is_feasible => is_feasible
   USE parameter_search, only: param_physical
   USE summa_parameter_fields, only: summa_parameter_map
@@ -576,8 +576,11 @@ contains
       first=(iGen-1)*nPop+1
       last=iGen*nPop
 
-      ! propose the generation: a random population, then offspring of the one before
-      if(iGen == 1)then
+      ! propose the generation: an initial population, then offspring of the one before
+      if(iGen == 1 .and. trim(settings%initial_population) == 'latin_hypercube')then
+        call latin_hypercube_samples(search,ledger%value(:,first:last),is_feasible,context,err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      elseif(iGen == 1)then
         do i=first,last
           call generate_search_sample('random',search,search_state,1,nSamples, &
                                       ledger%value(:,i),is_feasible,context,err,cmessage)

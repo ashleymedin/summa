@@ -156,6 +156,7 @@ module parameter_search
   public :: initialize_parameter_search
   public :: generate_search_sample
   public :: sample_parameters
+  public :: latin_hypercube_samples
   public :: perturb_parameters
   public :: perturb_parameters_dds
   public :: transform_parameter
@@ -487,6 +488,81 @@ contains
     err=20
 
   end subroutine sample_parameters
+
+  ! **************************************************************************************************
+  ! Latin hypercube sample of the search space: each parameter's transformed range is cut into as many
+  ! equal strata as there are samples, and each stratum is drawn once, at random within it, in a random
+  ! order per parameter. Vectors the feasibility predicate rejects are repaired by swapping one parameter's
+  ! value with another sample's, which keeps the strata; any still rejected are replaced by uniform samples.
+  ! **************************************************************************************************
+  subroutine latin_hypercube_samples(search,param_values,is_feasible,context,err,message)
+    implicit none
+    procedure(feasibility_callback) :: is_feasible
+    class(*), intent(inout) :: context
+    type(parameter_search_info), intent(in)  :: search
+    real(rkind),                 intent(out) :: param_values(:,:)   ! physical values (nParam,nSample)
+    integer(i4b),                intent(out) :: err
+    character(*),                intent(out) :: message
+    integer(i4b), allocatable :: stratum(:)
+    logical(lgt), allocatable :: ok(:)
+    integer(i4b), parameter :: maxswap=10000  ! swaps tried per sample
+    integer(i4b) :: d,i,j,k,n,iSwap,nBefore
+    real(rkind)  :: u,v
+    logical(lgt) :: ok_i,ok_j
+    character(len=1024) :: cmessage
+
+    err=0
+    message='latin_hypercube_samples/'
+    if(size(param_values,1) /= size(search%param_names))then
+      message=trim(message)//'incorrect parameter vector size'
+      err=20; return
+    endif
+    n=size(param_values,2)
+    allocate(stratum(n))
+    do d=1,size(search%param_names)
+      stratum=[(i-1,i=1,n)]
+      do i=n,2,-1  ! Fisher-Yates shuffle
+        call random_number(u)
+        j=min(1+int(u*i),i)
+        k=stratum(i); stratum(i)=stratum(j); stratum(j)=k
+      enddo
+      do i=1,n
+        call random_number(u)
+        call inverse_transform_parameter(search%search_lower(d)+(stratum(i)+u)/real(n,rkind)* &
+                                         (search%search_upper(d)-search%search_lower(d)),     &
+                                         search%transformation(d),param_values(d,i),err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      enddo
+    enddo
+    allocate(ok(n))
+    do i=1,n
+      call is_feasible(context,param_values(:,i),ok(i),err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    enddo
+    do iSwap=1,maxswap*n
+      if(all(ok) .or. n < 2) exit
+      i=findloc(ok,.false.,dim=1)
+      call random_number(u); d=min(1+int(u*size(search%param_names)),size(search%param_names))
+      call random_number(u); j=min(1+int(u*(n-1)),n-1); if(j >= i) j=j+1
+      nBefore=count([ok(i),ok(j)])
+      v=param_values(d,i); param_values(d,i)=param_values(d,j); param_values(d,j)=v
+      call is_feasible(context,param_values(:,i),ok_i,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      call is_feasible(context,param_values(:,j),ok_j,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      if(count([ok_i,ok_j]) >= nBefore .and. (ok_j .or. .not.ok(j)))then
+        ok(i)=ok_i; ok(j)=ok_j
+      else
+        v=param_values(d,i); param_values(d,i)=param_values(d,j); param_values(d,j)=v
+      endif
+    enddo
+    do i=1,n
+      if(ok(i)) cycle
+      call sample_parameters(search,param_values(:,i),is_feasible,context,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    enddo
+
+  end subroutine latin_hypercube_samples
 
   ! **************************************************************************************************
   ! Perturb parameters around a current best parameter vector.

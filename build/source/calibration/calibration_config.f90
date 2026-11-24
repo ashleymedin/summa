@@ -146,6 +146,7 @@ contains
 
     ! Local variables
     type(toml_table), pointer    :: nsga2_table  ! NSGA-II settings table
+    character(len=:), allocatable :: cvalue      ! string setting value
     type(toml_key), allocatable  :: keys(:)      ! Keys in the NSGA-II settings table
     integer(i4b)                 :: i            ! Index of the current setting
     integer(i4b)                 :: istat        ! TOML read status
@@ -172,6 +173,15 @@ contains
         case('crossover_eta');         call get_value(nsga2_table, trim(keys(i)%key), nsga2%crossover_eta,         stat=istat)
         case('mutation_probability');  call get_value(nsga2_table, trim(keys(i)%key), nsga2%mutation_probability,  stat=istat)
         case('mutation_eta');          call get_value(nsga2_table, trim(keys(i)%key), nsga2%mutation_eta,          stat=istat)
+        case('initial_population')
+          call get_value(nsga2_table, trim(keys(i)%key), cvalue, stat=istat)
+          if(istat==0 .and. allocated(cvalue))then
+            if(trim(cvalue)/='latin_hypercube' .and. trim(cvalue)/='random')then
+              message=trim(message)//'calibration.nsga2.initial_population must be latin_hypercube or random'
+              ierr=20; return
+            endif
+            nsga2%initial_population=trim(cvalue)
+          endif
         case default
           message=trim(message)//'unexpected entry: calibration.nsga2.'//trim(keys(i)%key)
           ierr=20; return
