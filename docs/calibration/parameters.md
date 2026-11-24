@@ -286,6 +286,11 @@ A quoted name such as `"k_soil@upland"` scopes an adjustment to a domain type
 recognized by SUMMA. It is not an HRU-ID selector and does not mean a separate
 coefficient for each selected domain.
 
+A `_gru<id>` after the domain type keeps it to the GRU of that id, so `"albedoMax@glacier_gru2"`
+adjusts only the glacier domains of GRU 2. Two names of a parameter that share domains cannot be
+combined: one for every GRU with one for a single GRU, or `glacier` with one of its domain types.
+A calibration stops on a GRU id that is not in the domain; a `--param` override ignores it.
+
 Ratio and ordered-constraint participants must select compatible model storage
 and the same domain qualifier. Do not mix GRU basin parameters with HRU/domain
 parameters in one chain. Use the same qualified naming convention for the
