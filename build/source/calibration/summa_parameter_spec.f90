@@ -58,6 +58,7 @@ contains
     integer(i4b) :: i
     integer(i4b) :: j
     integer(i4b) :: ix
+    integer(i4b) :: iGru ! position of _gru in its suffix
     integer(i4b) :: iAt  ! position of @ in a domain-qualified parameter name
     integer(i4b) :: nParam
     integer(i4b) :: nMax
@@ -226,6 +227,16 @@ contains
       ix=find_parameter(param_names(i)(1:iAt-1),param_names(1:nParam))
       if(ix > 0)then
         message=trim(message)//'cannot combine global and domain-specific parameters: "'// &
+                trim(param_names(ix))//'" and "'//trim(param_names(i))//'"'
+        err=20; return
+      endif
+
+      ! likewise one value of a domain type in every GRU and another in one GRU
+      iGru=index(trim(param_names(i)),'_gru',back=.true.)
+      if(iGru <= iAt) cycle
+      ix=find_parameter(param_names(i)(1:iGru-1),param_names(1:nParam))
+      if(ix > 0)then
+        message=trim(message)//'cannot combine a parameter for every GRU and one for a GRU: "'// &
                 trim(param_names(ix))//'" and "'//trim(param_names(i))//'"'
         err=20; return
       endif
@@ -673,7 +684,7 @@ contains
     ! a name@domainType parameter takes the default and bounds of the parameter it names
     call split_domain_target(param_name,name,domType)
     if(domType==integerMissing)then
-      message=trim(message)//'unknown domain type in "'//trim(param_name)//'" (use upland, glacCln1, glacCln2, glacDbr, glacier, wetland or stream)'
+      message=trim(message)//'unknown domain type in "'//trim(param_name)//'" (use upland, glacCln1, glacCln2, glacDbr, glacier, wetland or stream, optionally with _gru<id>)'
       err=20; return
     endif
   

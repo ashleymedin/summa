@@ -169,7 +169,7 @@ contains
     type(summa_parameter_map), intent(in) :: map
     integer(i4b), intent(in) :: g,h,d
     selected_domain=.true.
-    if(map%domain_type/=0) selected_domain=targets_domain(map%domain_type,gru_struc(g)%hruInfo(h)%domInfo(d)%dom_type)
+    if(map%domain_type/=0) selected_domain=targets_domain(map%domain_type,gru_struc(g)%hruInfo(h)%domInfo(d)%dom_type,gru_struc(g)%gru_id)
   end function selected_domain
 
   ! Validate the model-specific boundary, then copy native arrays directly.
