@@ -1662,12 +1662,19 @@ contains
     real,                    intent(inout) :: out_hru(:)
     logical, optional,       intent(in)    :: accumulate   ! .true. => add to out_hru rather than overwrite
     integer :: i, k, c, kb, nr
+    real(c_double), allocatable :: qnode(:)   ! this package's flow at each reduced node (m3 s-1)
     real(c_double) :: fnum, aden
     real           :: flux
     logical        :: add
 
     add = .false.
     if (present(accumulate)) add = accumulate
+
+    allocate(qnode(size(this%mf6_head))); qnode = 0.0_c_double
+    do kb = 1, size(this%bnd(ib)%simvals)
+      nr = this%bnd(ib)%nodelist(kb)
+      if (nr >= 1 .and. nr <= size(qnode)) qnode(nr) = qnode(nr) + this%bnd(ib)%simvals(kb)
+    end do
 
     do i = 1, this%nHRU
       fnum = 0.0_c_double     ! signed boundary flow over the HRU's mapped cells (m3 s-1, + into aquifer)
@@ -1676,12 +1683,7 @@ contains
         c = this%map_cell(k)
         if (c < 1 .or. c > this%nrow*this%ncol) cycle
         nr = this%to_reduced(c)                  ! boundary NODELIST holds reduced node numbers
-        if (nr > 0) then
-          do kb = 1, size(this%bnd(ib)%simvals)
-            if (this%bnd(ib)%nodelist(kb) == nr) &
-              fnum = fnum + real(this%map_wgt(k), c_double) * this%bnd(ib)%simvals(kb)
-          end do
-        end if
+        if (nr >= 1 .and. nr <= size(qnode)) fnum = fnum + real(this%map_wgt(k), c_double) * qnode(nr)
         aden = aden + real(this%map_wgt(k), c_double) * this%cell_area(c)
       end do
       if (aden > 0.0_c_double) then
