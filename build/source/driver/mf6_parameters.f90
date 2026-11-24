@@ -144,7 +144,7 @@ contains
     character(*),         intent(out) :: message
     character(len=256), allocatable :: files(:)
     real(rkind),        allocatable :: values(:), scale(:)
-    integer(i4b),       allocatable :: zones(:)
+    integer(i4b),       allocatable :: zones(:), nOnLine(:)
     logical(lgt),       allocatable :: onFile(:)
     integer(i4b) :: i, j, iFile
     character(len=1024) :: cmessage
@@ -170,7 +170,7 @@ contains
         cycle
       endif
 
-      call read_array(model_dir//'/'//trim(files(iFile)), values, err, cmessage)
+      call read_array(model_dir//'/'//trim(files(iFile)), values, err, cmessage, nOnLine)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       allocate(scale(size(values))); scale=1._rkind
       do i=1,size(params)
@@ -183,7 +183,7 @@ contains
           where(zones == params(i)%zone) scale=scale*multiplier(i)
         endif
       enddo
-      call write_array(run_dir//'/'//trim(files(iFile)), values*scale, err, cmessage)
+      call write_array(run_dir//'/'//trim(files(iFile)), values*scale, nOnLine, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       deallocate(scale)
     enddo
@@ -294,26 +294,30 @@ contains
   end subroutine scale_list
 
   ! **************************************************************************************************
-  ! Every number in a free-format array file, expanding list-directed repeat counts (n*value).
+  ! Every number in a free-format array file, expanding list-directed repeat counts (n*value), and how
+  ! many each line holds.
   ! **************************************************************************************************
-  subroutine read_array(path, values, err, message)
+  subroutine read_array(path, values, err, message, nOnLine)
     character(*),             intent(in)  :: path
     real(rkind), allocatable, intent(out) :: values(:)
     integer(i4b),             intent(out) :: err
     character(*),             intent(out) :: message
+    integer(i4b), allocatable, intent(out), optional :: nOnLine(:)
     character(len=64), allocatable :: tokens(:)
     character(len=:),  allocatable :: line
     real(rkind)  :: val
-    integer(i4b) :: iu, ios, i, ix, nRep, n
+    integer(i4b) :: iu, ios, i, ix, nRep, n, n0
 
     err=0; message=''
     allocate(values(1024)); n=0
+    if(present(nOnLine)) allocate(nOnLine(0))
     open(newunit=iu, file=path, status='old', action='read', iostat=ios)
     if(ios/=0)then; message='cannot open '//path; err=20; return; endif
     do
       call get_line(iu, line, ios)
       if(ios/=0) exit
       call split_line(line, tokens)
+      n0=n
       do i=1,size(tokens)
         nRep=1
         ix=index(tokens(i),'*')
@@ -333,6 +337,7 @@ contains
         values(n+1:n+nRep)=val
         n=n+nRep
       enddo
+      if(present(nOnLine) .and. n > n0) nOnLine=[nOnLine, n-n0]
     enddo
     close(iu)
     values=values(1:n)
@@ -356,19 +361,25 @@ contains
   end subroutine read_zones
 
   ! **************************************************************************************************
-  ! Write a free-format array file, at full double precision so a multiplier of one leaves it unchanged.
+  ! Write a free-format array file, at full double precision so a multiplier of one leaves it unchanged,
+  ! with nOnLine values a line: MODFLOW reads each row of a LAYERED array from a new line.
   ! **************************************************************************************************
-  subroutine write_array(path, values, err, message)
+  subroutine write_array(path, values, nOnLine, err, message)
     character(*), intent(in)  :: path
     real(rkind),  intent(in)  :: values(:)
+    integer(i4b), intent(in)  :: nOnLine(:)
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
-    integer(i4b) :: ou, ios
+    integer(i4b) :: ou, ios, i, n
 
     err=0; message=''
     open(newunit=ou, file=path, status='replace', action='write', iostat=ios)
     if(ios/=0)then; message='cannot write '//path; err=20; return; endif
-    write(ou,'(10(1x,es24.16e3))') values
+    n=0
+    do i=1,size(nOnLine)
+      write(ou,'(*(1x,es24.16e3))') values(n+1:n+nOnLine(i))
+      n=n+nOnLine(i)
+    enddo
     close(ou)
 
   end subroutine write_array
