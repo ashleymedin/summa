@@ -26,9 +26,9 @@ $fc $flags -c \
   "$src/calibration/parameter_constraints.f90" \
   "$src/calibration/model_calibration.f90" \
   "$src/calibration/nsga2.f90" \
-  "$src/calibration/summa_parameter_fields.f90" \
   "$src/dshare/get_ixname.f90" \
   "$src/engine/apply_parameter_overrides.f90" \
+  "$src/calibration/summa_parameter_fields.f90" \
   "$src/driver/mf6_parameters.f90" \
   "$src/calibration/summa_parameter_spec.f90" \
   "$here/test_support.f90"

@@ -8,6 +8,7 @@ program test_adapter
   use summa_parameter_fields, only: summa_parameter_map,summa_calibration_adapter, &
                                    initialize_summa_calibration_adapter,apply_summa_calibration_adapter
   use model_calibration, only: is_feasible
+  use parameter_overrides_module, only: split_domain_target,targets_overlap
   implicit none
   type(gru_hru_dom_doubleVec) :: mpar,before
   type(gru_double) :: bpar
@@ -86,6 +87,27 @@ program test_adapter
     call require(all(abs(mpar%gru(g)%hru(1)%dom(1)%var(1)%dat-.44_rkind)<1.e-14_rkind),'selected domain updated')
     call require(all(abs(mpar%gru(g)%hru(1)%dom(2)%var(1)%dat-.4_rkind)<1.e-14_rkind),'other domain unchanged')
   enddo
+
+  ! A GRU-qualified field changes that GRU only; a GRU that is not in the domain is an error.
+  mpar=before
+  map%domain_type=2001
+  call initialize_summa_calibration_adapter(spec,search,map,mpar,bpar,adapter,err,message)
+  call require(err==0,'GRU-filtered setup: '//trim(message))
+  call require(size(adapter%calibration%fields(1)%initial%hspatial)==1,'GRU-filtered spatial count')
+  adapter%calibration%values=[1.1_rkind]
+  call apply_summa_calibration_adapter(adapter,mpar,bpar,err,message)
+  call require(err==0,'GRU-filtered write-back')
+  call require(all(abs(mpar%gru(2)%hru(1)%dom(1)%var(1)%dat-.44_rkind)<1.e-14_rkind),'domain of the named GRU updated')
+  call require(all(abs(mpar%gru(2)%hru(1)%dom(2)%var(1)%dat-.4_rkind)<1.e-14_rkind),'other domain of the named GRU unchanged')
+  do d=1,2
+    call require(all(abs(mpar%gru(1)%hru(1)%dom(d)%var(1)%dat-.4_rkind)<1.e-14_rkind),'other GRU unchanged')
+  enddo
+  map%domain_type=9001
+  call initialize_summa_calibration_adapter(spec,search,map,mpar,bpar,adapter,err,message)
+  call require(err/=0.and.index(message,'no SUMMA locations')>0,'GRU not in the domain rejected')
+  call target_tests()
+  mpar=before
+  map%domain_type=1
 
   ! Both domain selections have two locations: count equality is not enough.
   map(3)%domain_type=2
@@ -238,12 +260,33 @@ program test_adapter
   enddo
   print '(A,I0,A)', 'PASS: SUMMA nested adapter (',assertions,' assertions).'
 contains
+  subroutine target_tests()
+    integer(i4b) :: glac,glac1,cln1,dbr2,up1,bad
+    character(len=64) :: name
+    call split_domain_target('albedoMax@glacier',name,glac)
+    call split_domain_target('albedoMax@glacier_gru1',name,glac1)
+    call require(trim(name)=='albedoMax'.and.glac1==glac+1000,'GRU qualifier parsed')
+    call split_domain_target('albedoMax@glacCln1_gru1',name,cln1)
+    call split_domain_target('albedoMax@glacDbr_gru2',name,dbr2)
+    call split_domain_target('albedoMax@upland_gru1',name,up1)
+    call require(targets_overlap(glac,glac1).and.targets_overlap(dbr2,glac),'every GRU overlaps one GRU')
+    call require(targets_overlap(cln1,glac1).and.targets_overlap(glac1,cln1),'glacier overlaps a glacier type of its GRU')
+    call require(.not.targets_overlap(glac1,dbr2).and..not.targets_overlap(glac1,up1),'other GRU or type does not overlap')
+    call split_domain_target('albedoMax@glacier_gru',name,bad)
+    call require(bad==nr_integerMissing,'missing GRU id rejected')
+    call split_domain_target('albedoMax@glacier_gru1x',name,bad)
+    call require(bad==nr_integerMissing,'malformed GRU id rejected')
+    call split_domain_target('albedoMax@glacier_gru0',name,bad)
+    call require(bad==nr_integerMissing,'zero GRU id rejected')
+  end subroutine target_tests
+
   subroutine setup_model()
     mpar_meta(1:2)%varType=iLookVarType%parSoil
     mpar_meta(3:6)%varType=iLookVarType%scalarv
     allocate(mpar%gru(2),bpar%gru(2),gru_struc(2))
     do g=1,2
       allocate(mpar%gru(g)%hru(1),bpar%gru(g)%var(2),gru_struc(g)%hruInfo(1))
+      gru_struc(g)%gru_id=g
       allocate(mpar%gru(g)%hru(1)%dom(2),gru_struc(g)%hruInfo(1)%domInfo(2))
       do d=1,2
         gru_struc(g)%hruInfo(1)%domInfo(d)%dom_type=d

@@ -216,8 +216,31 @@ program test_ratio_reduction
   call initialize_summa_calibration_adapter(spec,search,mapping,initial,bpar,adapter,err,message)
   call require(err/=0.and.index(message,'cyclic')>0,'SUMMA cycle still rejected during setup')
 
+  ! Two versions of a parameter that share domains are rejected; the same type in two GRUs is not.
+  call qualified_pair('theta_sat@glacier_gru1','theta_sat@glacier_gru2',.true.)
+  call qualified_pair('theta_sat@glacier','theta_sat@glacier_gru2',.false.)
+  call qualified_pair('theta_sat@glacCln1','theta_sat@glacier_gru2',.false.)
+  call qualified_pair('theta_sat@glacier','theta_sat@glacDbr',.false.)
+  call qualified_pair('theta_sat@upland','theta_sat@glacier_gru2',.true.)
+
   print '(A,I0,A)', 'PASS: explicit local-minimum ratios and SUMMA chain integration (',checks,' assertions).'
 contains
+  subroutine qualified_pair(a,b,accepted)
+    character(*),intent(in) :: a,b
+    logical,intent(in) :: accepted
+    type(config_info) :: pair
+    allocate(pair%calib%param_list(2))
+    pair%calib%param_list(1)%name=a
+    pair%calib%param_list(2)%name=b
+    pair%calib%param_list%param_type=param_physical
+    pair%calib%param_list%has_lower=.true.
+    pair%calib%param_list%has_upper=.true.
+    pair%calib%param_list%lower_bound=0.3_rkind
+    pair%calib%param_list%upper_bound=0.6_rkind
+    call get_summa_parameter_spec(pair,spec,mapping,err=err,message=message)
+    call require((err==0).eqv.accepted,trim(a)//' with '//trim(b)//': '//trim(message))
+    if(.not.accepted) call require(index(message,'same domains')>0,'overlap named: '//trim(message))
+  end subroutine
   subroutine require(ok,label)
     logical,intent(in) :: ok
     character(*),intent(in) :: label

@@ -33,6 +33,7 @@ public :: apply_parameter_overrides
 public :: apply_remainder_override
 public :: split_domain_target
 public :: targets_domain
+public :: targets_overlap
 
 integer(i4b), parameter, public :: glacierDomains = 100 ! name@glacier: every clean and debris-covered glacier domain
 integer(i4b), parameter, public :: gruFactor = 1000     ! name@type_gru<id>: the domain type plus gruFactor*id
@@ -206,7 +207,7 @@ contains
    case('glacCln1'); domType = glacCln1
    case('glacCln2'); domType = glacCln2
    case('glacDbr');  domType = glacDbr
-  case('glacier');  domType = glacierDomains
+   case('glacier');  domType = glacierDomains
    case('wetland');  domType = wetland
    case('stream');   domType = stream
    case default;     domType = integerMissing
@@ -237,5 +238,27 @@ contains
    targets_domain = dom_type==baseType
  endif
  end function targets_domain
+
+ ! ************************************************************************************************
+ ! public function targets_overlap: true if two split_domain_target domain types can select the same domain
+ ! ************************************************************************************************
+ logical function targets_overlap(domTypeA, domTypeB)
+ USE globalData,only:glacCln1,glacCln2,glacDbr ! glacier domain types
+ implicit none
+ integer(i4b), intent(in) :: domTypeA,domTypeB ! domain types from split_domain_target
+ integer(i4b)             :: typeA,typeB       ! domain types without the GRU
+ integer(i4b)             :: gruA,gruB         ! GRU ids, 0 for every GRU
+ targets_overlap = .false.
+ typeA = mod(domTypeA,gruFactor); gruA = domTypeA/gruFactor
+ typeB = mod(domTypeB,gruFactor); gruB = domTypeB/gruFactor
+ if(gruA/=0 .and. gruB/=0 .and. gruA/=gruB) return
+ if(typeA==typeB .or. typeA==0 .or. typeB==0)then
+   targets_overlap = .true.
+ elseif(typeA==glacierDomains)then
+   targets_overlap = any(typeB==[glacCln1,glacCln2,glacDbr])
+ elseif(typeB==glacierDomains)then
+   targets_overlap = any(typeA==[glacCln1,glacCln2,glacDbr])
+ endif
+ end function targets_overlap
 
 end module parameter_overrides_module

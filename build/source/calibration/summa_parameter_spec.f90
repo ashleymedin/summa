@@ -41,7 +41,8 @@ contains
   subroutine get_summa_parameter_spec(config,spec,param_map,mpar_init,bpar_init,err,message)
     USE summa_parameter_fields, only: summa_parameter_map
     USE get_ixname_module, only: get_ixParam,get_ixBpar
-    USE parameter_overrides_module, only: split_domain_target
+    USE parameter_overrides_module, only: split_domain_target,targets_overlap
+    USE globalData, only: integerMissing
     implicit none
     ! dummy
     type(config_info)                     , intent(in)  :: config
@@ -58,7 +59,7 @@ contains
     integer(i4b) :: i
     integer(i4b) :: j
     integer(i4b) :: ix
-    integer(i4b) :: iGru ! position of _gru in its suffix
+    integer(i4b) :: domTypeA,domTypeB ! domain types of two qualified names
     integer(i4b) :: iAt  ! position of @ in a domain-qualified parameter name
     integer(i4b) :: nParam
     integer(i4b) :: nMax
@@ -73,6 +74,7 @@ contains
     logical(lgt) :: hasMultiplierBounds
     logical(lgt) :: isBasin                                 ! True if the ordered constraint contains basin parameters
     character(len=64) :: base_name                          ! Parameter name without its domain qualifier
+    character(len=64) :: other_name                         ! The same of another parameter
     character(len=1024) :: cmessage
 
     err = 0
@@ -231,15 +233,19 @@ contains
         err=20; return
       endif
 
-      ! likewise one value of a domain type in every GRU and another in one GRU
-      iGru=index(trim(param_names(i)),'_gru',back=.true.)
-      if(iGru <= iAt) cycle
-      ix=find_parameter(param_names(i)(1:iGru-1),param_names(1:nParam))
-      if(ix > 0)then
-        message=trim(message)//'cannot combine a parameter for every GRU and one for a GRU: "'// &
-                trim(param_names(ix))//'" and "'//trim(param_names(i))//'"'
-        err=20; return
-      endif
+      ! likewise two versions whose domain types and GRUs share domains
+      call split_domain_target(param_names(i),base_name,domTypeA)
+      if(domTypeA==integerMissing) cycle ! an unknown domain type is reported below
+      do j=1,i-1
+        if(index(param_names(j),'@')==0) cycle
+        call split_domain_target(param_names(j),other_name,domTypeB)
+        if(domTypeB==integerMissing .or. other_name/=base_name) cycle
+        if(targets_overlap(domTypeA,domTypeB))then
+          message=trim(message)//'two values for the same domains: "'// &
+                  trim(param_names(j))//'" and "'//trim(param_names(i))//'"'
+          err=20; return
+        endif
+      enddo
     enddo
 
     ! -----------------------------------------------------------------------------------------------
