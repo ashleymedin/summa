@@ -35,6 +35,7 @@ public :: split_domain_target
 public :: targets_domain
 
 integer(i4b), parameter, public :: glacierDomains = 100 ! name@glacier: every clean and debris-covered glacier domain
+integer(i4b), parameter, public :: gruFactor = 1000     ! name@type_gru<id>: the domain type plus gruFactor*id
 
 contains
 
@@ -72,7 +73,7 @@ contains
    ! a name@domainType value goes only to the domains of that type
    call split_domain_target(param_name(iParam),name,domType)
    if(domType==integerMissing)then
-     message=trim(message)//'unknown domain type in "'//trim(param_name(iParam))//'" (use upland, glacCln1, glacCln2, glacDbr, glacier, wetland or stream)'
+     message=trim(message)//'unknown domain type in "'//trim(param_name(iParam))//'" (use upland, glacCln1, glacCln2, glacDbr, glacier, wetland or stream, optionally with _gru<id>)'
      err=20; return
    endif
 
@@ -84,7 +85,7 @@ contains
      do iGRU=1,nGRU_local
        do iHRU=1,gru_struc(iGRU)%hruCount
          do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-           if(.not.targets_domain(domType,gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type)) cycle
+           if(.not.targets_domain(domType,gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type,gru_struc(iGRU)%gru_id)) cycle
            mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(ixParam)%dat(:)=param_value(iParam)
          enddo
        enddo
@@ -156,7 +157,7 @@ contains
  do iGRU=1,nGRU_local
    do iHRU=1,gru_struc(iGRU)%hruCount
      do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-       if(.not.targets_domain(domType,gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type)) cycle
+       if(.not.targets_domain(domType,gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type,gru_struc(iGRU)%gru_id)) cycle
        associate(dom=>mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM))
          dom%var(ixTarget)%dat(:)=total
          do iSource=1,size(sources)
@@ -171,7 +172,7 @@ contains
  end subroutine apply_remainder_override
 
  ! ************************************************************************************************
- ! public subroutine split_domain_target: split "name@domainType" into the parameter name and the domain type
+ ! public subroutine split_domain_target: split "name@domainType" or "name@domainType_gru<id>" into the parameter name and the domain type
  ! ************************************************************************************************
  ! domType is 0 with no suffix (every domain), and integerMissing for a suffix that names no domain type
  subroutine split_domain_target(target, name, domType)
@@ -181,12 +182,26 @@ contains
  character(*), intent(out) :: name     ! parameter name
  integer(i4b), intent(out) :: domType  ! domain type the value applies to, 0 for every domain
  integer(i4b)              :: iAt      ! position of the @
+ integer(i4b)              :: iGru     ! position of _gru in the suffix
+ integer(i4b)              :: gruId    ! id of the GRU the value applies to, 0 for every GRU
+ integer(i4b)              :: ios      ! error in reading the id
+ character(len=64)         :: suffix   ! the text after the @
  iAt = index(target,'@')
  if(iAt==0)then
    name = trim(target); domType = 0; return
  endif
  name = target(1:iAt-1)
- select case(trim(target(iAt+1:)))
+ suffix = target(iAt+1:)
+ gruId = 0
+ iGru = index(suffix,'_gru')
+ if(iGru>0)then
+   read(suffix(iGru+4:),*,iostat=ios) gruId
+   if(ios/=0 .or. gruId<1 .or. gruId>(huge(gruId)-glacierDomains)/gruFactor .or. verify(trim(suffix(iGru+4:)),'0123456789')/=0)then
+     domType = integerMissing; return
+   endif
+   suffix = suffix(1:iGru-1)
+ endif
+ select case(trim(suffix))
    case('upland');   domType = upland
    case('glacCln1'); domType = glacCln1
    case('glacCln2'); domType = glacCln2
@@ -196,22 +211,30 @@ contains
    case('stream');   domType = stream
    case default;     domType = integerMissing
  end select
+ if(domType/=integerMissing) domType = domType + gruFactor*gruId
  end subroutine split_domain_target
 
  ! ************************************************************************************************
  ! public function targets_domain: true if a split_domain_target domain type selects a domain of type dom_type
  ! ************************************************************************************************
- logical function targets_domain(domType, dom_type)
+ logical function targets_domain(domType, dom_type, gru_id)
  USE globalData,only:glacCln1,glacCln2,glacDbr ! glacier domain types
+ USE nr_type,only:i8b
  implicit none
  integer(i4b), intent(in) :: domType  ! domain type from split_domain_target, 0 for every domain
  integer(i4b), intent(in) :: dom_type ! type of the domain
- if(domType==0)then
+ integer(i8b), intent(in) :: gru_id   ! id of the domain's GRU
+ integer(i4b)             :: baseType ! domain type without the GRU
+ baseType = mod(domType,gruFactor)
+ if(domType>=gruFactor .and. int(domType/gruFactor,i8b)/=gru_id)then
+   targets_domain = .false.; return
+ endif
+ if(baseType==0)then
    targets_domain = .true.
- elseif(domType==glacierDomains)then
+ elseif(baseType==glacierDomains)then
    targets_domain = dom_type==glacCln1 .or. dom_type==glacCln2 .or. dom_type==glacDbr
  else
-   targets_domain = dom_type==domType
+   targets_domain = dom_type==baseType
  endif
  end function targets_domain
 
