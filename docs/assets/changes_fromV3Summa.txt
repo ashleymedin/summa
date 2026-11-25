@@ -415,4 +415,3 @@ AFTER tag of v4.0.0-exp-Sundials
  94) A --param override sets the configured remainder from its sources, so rerun.sh replays a trial with silt the remainder, commit d0c63136 Nov 19, 2026
 -95) New snow mixed into the top snow layer by enthalpy, not by depth-weighted temperature that refroze liquid without its latent heat, commit 192e9789 Nov 25, 2026
 -96) Heat of precipitation: rain on snow or ice is relative to freezing, snowfall on snow and rain on open reach or wetland water counted once, commit a1feeddc Nov 25, 2026
- 97) Jacobian entries are added with addElement, which checks the state subset and the band, commit 5059763b Nov 26, 2026
