@@ -859,6 +859,7 @@ MODULE var_lookup
   integer(i4b)    :: dSoilAdv_dqAbove                = integerMissing ! derivative of the soil advective energy source w.r.t. the water flux through the top of the layer (J m-4)
   integer(i4b)    :: dSoilAdv_dqBelow                = integerMissing ! derivative of the soil advective energy source w.r.t. the water flux through the base of the layer (J m-4)
   integer(i4b)    :: dCanopyAdv_dNet                 = integerMissing ! derivative of the canopy advective energy source w.r.t. the net canopy liquid flux (J kg-1)
+  integer(i4b)    :: dSoilAdv_dCanLiq                = integerMissing ! derivative of the top soil layer advective energy source w.r.t. canopy liquid water, through the canopy drip (J kg-1 m-1 s-1)
  endtype iLook_deriv
 
  ! ***********************************************************************************************************
@@ -1185,7 +1186,7 @@ MODULE var_lookup
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
-                                                                         91, 92, 93, 94)
+                                                                         91, 92, 93, 94, 95)
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =iLook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
