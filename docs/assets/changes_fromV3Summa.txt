@@ -325,6 +325,8 @@ AFTER tag of v4.0.0-exp-Sundials
      name@domainType_gru<id> sets a parameter on the domains of that type in one GRU, commit 3241b366 Nov 24, 2026; names sharing domains are rejected, commit 6fdbd4c2 Nov 24, 2026
      calibration.seed sets the random-number seed of the first independent run (default 42), commit 11a804a8 Nov 23, 2026
      NSGA-II starts from a Latin hypercube sample (calibration.nsga2.initial_population = "random" for the old start), commit 6e72e27e Nov 24, 2026
+     DDS reflects a perturbation off the parameter bounds instead of rejecting the candidate (Martyn Clark), commit a728d9c0 Nov 25, 2026
+     calibration.start_date and end_date required when targets are configured (Martyn Clark), commit 243a8155 Nov 25, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers as a mixed column), commits 035d1efd to ea384f4a Sep 21, 2026
      A GRU may hold one stream HRU: its reach's water column (lake layers over soil/aquifer, linked via streamSegId). mizuRoute returns reach discharge, 
       volume and lateral inflow; new streamTemp.f90 solves the column energy balance upstream to downstream each step, advecting heat from upstream 
