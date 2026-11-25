@@ -757,8 +757,7 @@ subroutine mDecisions(err,message)
       err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
   end select
 
-  ! the deep thermal state below the hydrologically active soil column, which sets the temperature of the water it hands
-  ! to the channel
+  ! the deep thermal state below the hydrologically active soil column, which sets the temperature of the water it hands to the channel
   ! NOTE: none is the default, so an existing configuration keeps the behaviour it had
   select case(trim(model_decisions(iLookDECISIONS%deepTherml)%cDecision))
     case('none','notPopulatedYet'); model_decisions(iLookDECISIONS%deepTherml)%iDecision = noDeepTherml     ! the base of the soil column (default)
