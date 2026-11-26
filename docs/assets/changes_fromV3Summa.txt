@@ -395,7 +395,6 @@ AFTER tag of v4.0.0-exp-Sundials
      Share of the sediment that settles from the overflow rate (wetlandSettleVel), commit a7554df2 Nov 12, 2026
      Open-water roughness from wind, fetch and depth with its own heat roughness (lakeFetch, Subin et al. 2012), commits 3d315a05 and f339ac5f Nov 12, 2026
      Wetlands in series: a head wetland takes the glacier runoff and drains to the next open wetland (wetlandFeedsNext, wetlandUseMask), commits 217dfa93, fb5b1009 and c9486b2c Nov 13, 2026
-     Wind and air over a wetland can be sheltered or cooled by the glacier (wetlandWindFactor, wetlandAirCooling), commit fb5b1009 Nov 13, 2026
      Reach friction heat from the fall between the glacier front (lowest ice of the largest connected body) and the reach outlet (reachOutletElev), commits c9d6214f and dc31d832 Nov 13, 2026
      A wetland takes its HRU's precipitation rather than the elevation gradient to its own elevation, commit 0c154554 Nov 20, 2026
      Cold air pools over a wetland while its HRU's upland holds snow (wetlandPoolCooling, K), commit 10f7cc3a Nov 24, 2026
