@@ -393,9 +393,6 @@ MODULE var_lookup
   integer(i4b)    :: lakeFetch             = integerMissing    ! fetch over open lake water, 0 for a fixed z0Water (m)
   ! wetlands in series
   integer(i4b)    :: wetlandFeedsNext      = integerMissing    ! 1 for a wetland that takes the glacier runoff and drains to the next open wetland, 0 to the channel (-)
-  ! air over a wetland
-  integer(i4b)    :: wetlandWindFactor     = integerMissing    ! wind speed factor over a wetland, for sheltering (-)
-  integer(i4b)    :: wetlandAirCooling     = integerMissing    ! share of the glacier's katabatic cooling a wetland's air takes (-)
   integer(i4b)    :: wetlandUseMask        = integerMissing    ! 1 for a wetland that fills its HRU's wetlandMask cells, 0 for one that keeps wetlandMaxArea (-)
   ! fall of the reach
   integer(i4b)    :: reachOutletElev       = integerMissing    ! elevation of the reach outlet; with a glacier, the reach falls from its front to it, 0 for slope times length (m)
@@ -1144,7 +1141,7 @@ MODULE var_lookup
                                                                         191,192,193,194,195,196,197,198,199,200,&
                                                                         201,202,203,204,205,206,207,208,209,210,&
                                                                         211,212,213,214,215,216,217,218,219,220,&
-                                                                        221,222,223,224,225,226,227)
+                                                                        221,222,223,224,225)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

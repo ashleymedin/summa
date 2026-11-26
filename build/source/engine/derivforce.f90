@@ -153,8 +153,6 @@ contains
  newSnowDenBase          => mpar_data%var(iLookPARAM%newSnowDenBase)%dat(1)       , & ! Anderson 1976, base value that is rasied to the (3/2) power (K)
  glacierWindFactor       => mpar_data%var(iLookPARAM%glacierWindFactor)%dat(1)    , & ! wind speed factor to account for glacier sheltering and katabatic wind profile (-)
  glacierTempReduction    => mpar_data%var(iLookPARAM%glacierTempReduction)%dat(1) , & ! air temperature factor decrease to account for down-glacier katabatic wind (-)
- wetlandWindFactor       => mpar_data%var(iLookPARAM%wetlandWindFactor)%dat(1)    , & ! wind speed factor over a wetland, for sheltering (-)
- wetlandAirCooling       => mpar_data%var(iLookPARAM%wetlandAirCooling)%dat(1)    , & ! share of the glacier's katabatic cooling a wetland's air takes (-)
  wetlandPoolCooling      => mpar_data%var(iLookPARAM%wetlandPoolCooling)%dat(1)   , & ! cold-air pooling over a wetland while its HRU's upland holds snow (K)
  precipElevGrad          => mpar_data%var(iLookPARAM%precipElevGrad)%dat(1)       , & ! fractional change in precipitation per metre above the HRU elevation (m-1)
  tempLapseRate           => mpar_data%var(iLookPARAM%tempLapseRate)%dat(1)        , & ! air temperature decrease per metre above the HRU elevation (K m-1)
@@ -220,17 +218,9 @@ contains
  ! see e.g. Radic et al., 2017, https://doi.org/10.5194/tc-11-2897-2017, following Oerlemans and Grisogono (2002)
  ! NOTE2: Should make dependent on the glacier geometry so wind speed increases and temperature decreases are larger down-glacier
  katabaticCooling = 0._rkind
- if (is_wetland) then ! a wetland below the ice can be sheltered and take air cooled over the glacier
-  windspd   = windspd   * wetlandWindFactor
-  windspd_x = windspd_x * wetlandWindFactor
-  windspd_y = windspd_y * wetlandWindFactor
-  if (airtemp>Tfreeze) then
-   katabaticCooling = wetlandAirCooling*(1._rkind - glacierTempReduction)*(airtemp - Tfreeze)
-   airtemp = airtemp - katabaticCooling
-  endif
-  ! cold air drains off snow-covered slopes and pools over the water, fading as the upland snow goes
-  airtemp = airtemp - wetlandPoolCooling*min(1._rkind, uplandSWE/poolSnowFull)
-  katabaticCooling = katabaticCooling + wetlandPoolCooling*min(1._rkind, uplandSWE/poolSnowFull)
+ if (is_wetland) then ! cold air drains off snow-covered slopes and pools over the water, fading as the upland snow goes
+  katabaticCooling = wetlandPoolCooling*min(1._rkind, uplandSWE/poolSnowFull)
+  airtemp = airtemp - katabaticCooling
  endif
  if (is_glac) then
   windspd   = windspd   * glacierWindFactor

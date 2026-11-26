@@ -370,9 +370,7 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%lakeFetch)                      = var_info('lakeFetch'                      , 'fetch over open lake water, 0 for a fixed z0Water'                , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! wetlands in series
   mpar_meta(iLookPARAM%wetlandFeedsNext)               = var_info('wetlandFeedsNext'               , '1 for a wetland that drains to the next open wetland, 0 to the channel', '-'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  ! air over a wetland
-  mpar_meta(iLookPARAM%wetlandWindFactor)              = var_info('wetlandWindFactor'              , 'wind speed factor over a wetland, for sheltering'                 , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%wetlandAirCooling)              = var_info('wetlandAirCooling'              , 'share of the glacier katabatic cooling a wetland air takes'       , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! wetland mask
   mpar_meta(iLookPARAM%wetlandUseMask)                 = var_info('wetlandUseMask'                 , '1 for a wetland that fills its HRU wetlandMask cells'             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%reachOutletElev)                = var_info('reachOutletElev'                , 'elevation of the reach outlet, 0 for slope times length'          , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----

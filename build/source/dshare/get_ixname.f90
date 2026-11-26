@@ -490,9 +490,7 @@ contains
   case('lakeFetch'                ); get_ixParam = iLookPARAM%lakeFetch              ! fetch over open lake water, 0 for a fixed z0Water (m)
   ! wetlands in series
   case('wetlandFeedsNext'         ); get_ixParam = iLookPARAM%wetlandFeedsNext       ! 1 for a wetland that drains to the next open wetland, 0 to the channel (-)
-  ! air over a wetland
-  case('wetlandWindFactor'        ); get_ixParam = iLookPARAM%wetlandWindFactor      ! wind speed factor over a wetland, for sheltering (-)
-  case('wetlandAirCooling'        ); get_ixParam = iLookPARAM%wetlandAirCooling      ! share of the glacier's katabatic cooling a wetland's air takes (-)
+  ! wetland mask
   case('wetlandUseMask'           ); get_ixParam = iLookPARAM%wetlandUseMask         ! 1 for a wetland that fills its HRU's wetlandMask cells (-)
   case('reachOutletElev'          ); get_ixParam = iLookPARAM%reachOutletElev        ! elevation of the reach outlet, 0 for slope times length (m)
   ! get to here if cannot find the variable
