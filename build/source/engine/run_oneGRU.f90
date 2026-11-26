@@ -595,7 +595,7 @@ subroutine run_oneGRU(&
           endif
           ! the heat carried by the runoff to the channel, all of it liquid water (W m-2 over the GRU)
           tempTop = max(mLayerTemp(1), Tfreeze)
-          tempBot = max(mLayerTemp(nSnow+nLake+nSoil), Tfreeze)
+          tempBot = max(mLayerTemp(nSnow+nLake+nSoil-gruInfo%hruInfo(iHRU)%domInfo(iDOM)%nBedrock), Tfreeze) ! deepest soil layer that carries water
           basinNrgFlux = basinNrgFlux + iden_water*Cp_water*fracDOM*flux(iLookFLUX%scalarSurfaceRunoff)%dat(1)*tempTop
           ! the deep thermal state sets the temperature of the groundwater reaching the channel
           select case(model_decisions(iLookDECISIONS%deepTherml)%iDecision)
