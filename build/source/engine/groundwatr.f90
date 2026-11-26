@@ -167,6 +167,8 @@ subroutine groundwatr(&
       ixSaturation = nSoil+1  ! unsaturated profile when ixSaturation>nSoil
       do iLayer=nSoil,1,-1  ! start at the lowest soil layer and work upwards to the top layer
         if (mLayerVolFracLiq(iLayer) > fieldCapacity_use(iLayer)) then; ixSaturation = iLayer  ! index of saturated layer -- keeps getting over-written as move upwards
+        else if (ixSaturation > nSoil .and. nGlce==0 .and. &
+                 mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer) > fieldCapacity_use(iLayer)) then; cycle ! ice-held layer below: water perches on it
         else; exit; end if                                                         ! only consider saturated layer at the bottom of the soil profile
       end do  ! end looping through soil layers
     end if
