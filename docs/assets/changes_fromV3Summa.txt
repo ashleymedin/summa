@@ -415,3 +415,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -95) New snow mixed into the top snow layer by enthalpy, not by depth-weighted temperature that refroze liquid without its latent heat, commit 192e9789 Nov 25, 2026
 -96) Heat of precipitation: rain on snow or ice is relative to freezing, snowfall on snow and rain on open reach or wetland water counted once, commit a1feeddc Nov 25, 2026
 -97) Groundwater reaches the channel at the temperature of the deepest soil layer that carries water, not of the bedrock base, commit e856ed0a Nov 26, 2026
+-98) Lateral soil flow perches on an ice-held soil base (permafrost), not only on a wet one; unfrozen and glacier columns unchanged, commit d17918f8 Nov 26, 2026
